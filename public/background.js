@@ -69,6 +69,25 @@ class BackgroundTwitterAgent {
           sendResponse(multipleResult);
           break;
 
+        case 'AUTHORIZE_TWITTER':
+          try {
+            // This would coordinate Twitter authorization
+            // For now, just acknowledge the request
+            sendResponse({ success: true, message: 'Twitter authorization initiated' });
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        case 'ARCADE_POST':
+          try {
+            // Handle Arcade posting from background if needed
+            sendResponse({ success: true, message: 'Arcade posting initiated' });
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
         default:
           console.log('Unknown action:', request.action);
           sendResponse({ success: false, error: 'Unknown action' });

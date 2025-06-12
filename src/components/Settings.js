@@ -23,8 +23,13 @@ function Settings({ onConfigUpdate }) {
         throw new Error('Invalid Anthropic API key format');
       }
 
-      if (localConfig.twitter.username && !validateTwitterCredentials(localConfig.twitter)) {
+      if (localConfig.twitter?.username && !validateTwitterCredentials(localConfig.twitter)) {
         throw new Error('Twitter credentials incomplete');
+      }
+
+      // Validate Arcade config if enabled
+      if (localConfig.useArcade && !localConfig.arcadeApiKey) {
+        throw new Error('Arcade API key is required when Arcade is enabled');
       }
 
       // Save config
@@ -46,7 +51,7 @@ function Settings({ onConfigUpdate }) {
   };
 
   const handleTopicChange = (index, value) => {
-    const newTopics = [...localConfig.topics];
+    const newTopics = [...(localConfig.topics || [])];
     newTopics[index] = value;
     setLocalConfig({ ...localConfig, topics: newTopics });
   };
@@ -54,12 +59,12 @@ function Settings({ onConfigUpdate }) {
   const addTopic = () => {
     setLocalConfig({ 
       ...localConfig, 
-      topics: [...localConfig.topics, ''] 
+      topics: [...(localConfig.topics || []), ''] 
     });
   };
 
   const removeTopic = (index) => {
-    const newTopics = localConfig.topics.filter((_, i) => i !== index);
+    const newTopics = (localConfig.topics || []).filter((_, i) => i !== index);
     setLocalConfig({ ...localConfig, topics: newTopics });
   };
 
@@ -70,6 +75,14 @@ function Settings({ onConfigUpdate }) {
         ...localConfig.settings,
         [key]: value
       }
+    });
+  };
+
+  // NEW: Handle root-level config changes (for Arcade settings)
+  const handleConfigChange = (key, value) => {
+    setLocalConfig({
+      ...localConfig,
+      [key]: value
     });
   };
 
@@ -88,7 +101,7 @@ function Settings({ onConfigUpdate }) {
             <label>Anthropic API Key:</label>
             <input
               type="password"
-              value={localConfig.anthropicApiKey}
+              value={localConfig.anthropicApiKey || ''}
               onChange={(e) => setLocalConfig({
                 ...localConfig,
                 anthropicApiKey: e.target.value
@@ -105,7 +118,7 @@ function Settings({ onConfigUpdate }) {
             <label>Username/Email:</label>
             <input
               type="text"
-              value={localConfig.twitter.username}
+              value={localConfig.twitter?.username || ''}
               onChange={(e) => setLocalConfig({
                 ...localConfig,
                 twitter: { ...localConfig.twitter, username: e.target.value }
@@ -118,7 +131,7 @@ function Settings({ onConfigUpdate }) {
             <label>Password:</label>
             <input
               type="password"
-              value={localConfig.twitter.password}
+              value={localConfig.twitter?.password || ''}
               onChange={(e) => setLocalConfig({
                 ...localConfig,
                 twitter: { ...localConfig.twitter, password: e.target.value }
@@ -131,7 +144,7 @@ function Settings({ onConfigUpdate }) {
             <label>Email (for verification):</label>
             <input
               type="email"
-              value={localConfig.twitter.email}
+              value={localConfig.twitter?.email || ''}
               onChange={(e) => setLocalConfig({
                 ...localConfig,
                 twitter: { ...localConfig.twitter, email: e.target.value }
@@ -149,7 +162,7 @@ function Settings({ onConfigUpdate }) {
               type="number"
               min="1"
               max="1440"
-              value={localConfig.settings.interval}
+              value={localConfig.settings?.interval || 60}
               onChange={(e) => handleSettingChange('interval', parseInt(e.target.value))}
             />
             <small>How often to post tweets (30 minutes to 24 hours)</small>
@@ -158,7 +171,7 @@ function Settings({ onConfigUpdate }) {
           <div className="form-group">
             <label>Writing Style:</label>
             <select
-              value={localConfig.settings.style}
+              value={localConfig.settings?.style || 'professional but engaging'}
               onChange={(e) => handleSettingChange('style', e.target.value)}
             >
               <option value="professional but engaging">Professional but Engaging</option>
@@ -172,7 +185,7 @@ function Settings({ onConfigUpdate }) {
 
         <div className="form-section">
           <h3>Tweet Topics</h3>
-          {localConfig.topics.map((topic, index) => (
+          {(localConfig.topics || ['']).map((topic, index) => (
             <div key={index} className="topic-group">
               <input
                 type="text"
@@ -184,7 +197,7 @@ function Settings({ onConfigUpdate }) {
                 type="button" 
                 onClick={() => removeTopic(index)}
                 className="btn btn-small btn-danger"
-                disabled={localConfig.topics.length <= 1}
+                disabled={(localConfig.topics || []).length <= 1}
               >
                 Remove
               </button>
@@ -197,6 +210,59 @@ function Settings({ onConfigUpdate }) {
           >
             Add Topic
           </button>
+        </div>
+
+        {/* FIXED: Arcade Settings Section */}
+        <div className="form-section">
+          <h3>🎮 Arcade AI Twitter Integration</h3>
+          <div className="form-group">
+            <label>
+              <input
+                type="checkbox"
+                checked={localConfig.useArcade !== false} // This should default to true
+                onChange={(e) => handleConfigChange('useArcade', e.target.checked)}
+              />
+              Enable Arcade AI Twitter Posting
+            </label>
+          </div>
+          
+          {localConfig.useArcade !== false && (
+            <>
+              <div className="form-group">
+                <label>Arcade API Key:</label>
+                <input
+                  type="password"
+                  value={localConfig.arcadeApiKey || ''}
+                  onChange={(e) => handleConfigChange('arcadeApiKey', e.target.value)}
+                  placeholder="Your Arcade API Key (arc_live_...)"
+                />
+                <small>Get your API key from <a href="https://api.arcade.dev/dashboard" target="_blank" rel="noopener noreferrer">Arcade Dashboard</a></small>
+              </div>
+              
+              <div className="form-group">
+                <label>Arcade User ID:</label>
+                <input
+                  type="text"
+                  value={localConfig.arcadeUserId || ''}
+                  onChange={(e) => handleConfigChange('arcadeUserId', e.target.value)}
+                  placeholder="Your user identifier (e.g., email)"
+                />
+                <small>Unique identifier for your Arcade account</small>
+              </div>
+
+              <div className="form-group">
+                <label>X OAuth Provider:</label>
+                <select
+                  value={localConfig.arcadeXProvider || 'x'}
+                  onChange={(e) => handleConfigChange('arcadeXProvider', e.target.value)}
+                >
+                  <option value="x">Default X Provider</option>
+                  <option value="arcade-x">Arcade X Provider</option>
+                </select>
+                <small>Select which X OAuth provider to use</small>
+              </div>
+            </>
+          )}
         </div>
 
         <button 

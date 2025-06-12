@@ -21,6 +21,10 @@ function App() {
 
   const environment = isExtension() ? 'Chrome Extension' : 'Web Application';
 
+  const handleAuthorizeTwitter = async () => {
+    return await agent.authorizeTwitter();
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -60,6 +64,7 @@ function App() {
             onStopAgent={stopAgent}
             onTestTweet={testTweet}
             onTestClaude={testClaude}
+            onAuthorizeTwitter={handleAuthorizeTwitter}
           />
         )}
         {activeTab === 'settings' && (

@@ -15,13 +15,33 @@ class BrowserTwitterAgent {
 
   async initialize() {
     try {
+      console.log('BrowserTwitterAgent: Starting initialization...');
       this.config = await this.storage.getConfig();
+      
+      console.log('BrowserTwitterAgent: Config loaded:', {
+        hasAnthropicKey: !!this.config.anthropicApiKey,
+        hasArcadeKey: !!this.config.arcadeApiKey,
+        arcadeUserId: this.config.arcadeUserId,
+        arcadeXProvider: this.config.arcadeXProvider,
+        useArcade: this.config.useArcade
+      });
       
       if (!this.config.anthropicApiKey) {
         throw new Error('Anthropic API key not configured');
       }
       
       this.claude = new BrowserClaudeClient(this.config.anthropicApiKey);
+      
+      // CRITICAL FIX: Initialize Twitter service with FULL config
+      console.log('BrowserTwitterAgent: Initializing Twitter service...');
+      const twitterInitResult = await this.twitter.initialize(this.config);
+      console.log('BrowserTwitterAgent: Twitter service init result:', twitterInitResult);
+      
+      if (!twitterInitResult.success) {
+        console.warn('Twitter service initialization failed:', twitterInitResult.error);
+        // Don't throw error, continue with limited functionality
+      }
+      
       console.log('Browser Twitter Agent initialized successfully');
       return { success: true };
     } catch (error) {
@@ -113,17 +133,29 @@ class BrowserTwitterAgent {
       // Save to history
       await this.storage.addTweetToHistory(finalTweet);
       
-      // Post to Twitter (only in extension mode)
+      // Post to Twitter using Arcade or fallback methods
       let posted = false;
       let postError = null;
       
       try {
-        const result = await this.twitter.postTweet(finalTweet);
-        if (result.success) {
+        console.log('BrowserTwitterAgent: Attempting to post tweet...');
+        // CRITICAL: Pass the full config including Arcade credentials
+        const result = await this.twitter.postTweet(finalTweet, this.config);
+        
+        console.log('BrowserTwitterAgent: Post result:', result);
+        
+        if (result.success && result.posted) {
           posted = true;
-          console.log('Tweet posted successfully');
+          console.log('Tweet posted successfully!');
+          
+          // Mark as posted in history
+          const history = await this.storage.getTweetHistory();
+          if (history.length > 0) {
+            await this.storage.markTweetAsPosted(history[0].id);
+          }
         } else {
-          postError = result.error;
+          postError = result.error || 'Posting failed';
+          console.log('Tweet posting failed:', postError);
         }
       } catch (error) {
         postError = error.message;
@@ -135,7 +167,8 @@ class BrowserTwitterAgent {
         tweet: finalTweet,
         topic: randomTopic,
         posted: posted,
-        error: postError
+        error: postError,
+        method: 'arcade-with-fallback'
       };
       
     } catch (error) {
@@ -204,6 +237,22 @@ class BrowserTwitterAgent {
       } : {},
       schedules: schedules
     };
+  }
+
+  async authorizeTwitter() {
+    try {
+      console.log('BrowserTwitterAgent: Authorizing Twitter...');
+      if (!this.twitter) {
+        throw new Error('Twitter service not initialized');
+      }
+
+      const result = await this.twitter.authorizeTwitter();
+      console.log('BrowserTwitterAgent: Authorization result:', result);
+      return result;
+    } catch (error) {
+      console.error('Error authorizing Twitter:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
 

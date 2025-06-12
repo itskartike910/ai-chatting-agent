@@ -7,7 +7,8 @@ function Dashboard({
   onStartAgent, 
   onStopAgent, 
   onTestTweet, 
-  onTestClaude 
+  onTestClaude,
+  onAuthorizeTwitter
 }) {
   const [message, setMessage] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -70,6 +71,30 @@ function Dashboard({
         setMessage(`❌ Test failed: ${result.error}`);
       }
     } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Make sure this handler exists:
+  const handleAuthorizeTwitter = async () => {
+    setActionLoading(true);
+    setMessage('');
+    try {
+      console.log('Dashboard: Starting Twitter authorization...');
+      const result = await onAuthorizeTwitter();
+      console.log('Dashboard: Authorization result:', result);
+      
+      if (result.success) {
+        setMessage('✅ Twitter authorization successful!');
+      } else if (result.needsAuth && result.authUrl) {
+        setMessage(`🔐 Please complete authorization in the opened tab`);
+      } else {
+        setMessage(`❌ Authorization failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Dashboard: Authorization error:', error);
       setMessage(`❌ Error: ${error.message}`);
     } finally {
       setActionLoading(false);
@@ -141,6 +166,14 @@ function Dashboard({
           className="btn btn-primary"
         >
           {isLoading ? 'Testing...' : 'Test Tweet'}
+        </button>
+
+        <button 
+          onClick={handleAuthorizeTwitter} 
+          disabled={isLoading}
+          className="btn btn-info"
+        >
+          {isLoading ? 'Authorizing...' : 'Authorize Twitter (Arcade)'}
         </button>
       </div>
 

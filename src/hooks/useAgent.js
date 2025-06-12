@@ -42,7 +42,15 @@ const useAgent = () => {
       
       console.log('Starting agent with config:', currentConfig);
       
-      const result = await agent.start();
+      // CRITICAL: Initialize the agent with config first
+      const initResult = await agent.initialize();
+      console.log('useAgent: Agent initialization result:', initResult);
+      
+      if (!initResult.success) {
+        throw new Error(initResult.error || 'Agent initialization failed');
+      }
+      
+      const result = await agent.start(currentConfig);
       if (result.success) {
         await updateStatus();
       } else {
