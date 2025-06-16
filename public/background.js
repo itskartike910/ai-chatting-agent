@@ -542,5 +542,6 @@ class BackgroundTwitterAgent {
 
 // Initialize the background agent
 console.log('Background script loading...');
+// eslint-disable-next-line no-unused-vars
 const backgroundAgent = new BackgroundTwitterAgent();
 console.log('Background agent initialized');

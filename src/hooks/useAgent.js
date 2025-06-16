@@ -21,6 +21,7 @@ const useAgent = () => {
     };
     
     initAgent();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateStatus = async (agentInstance = agent) => {
