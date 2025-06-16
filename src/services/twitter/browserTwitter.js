@@ -9,29 +9,26 @@ class BrowserTwitterService {
   }
 
   async initialize(config) {
-    try {
-      console.log('BrowserTwitterService: Initializing...');
-      console.log('Config has arcadeApiKey:', !!config.arcadeApiKey);
-      
-      // Check if Arcade is configured
-      if (config.arcadeApiKey) {
-        console.log('BrowserTwitterService: Initializing Arcade service...');
-        const arcadeResult = await this.arcadeService.initialize(config);
-        if (arcadeResult.success) {
-          this.useArcade = true;
-          console.log('Arcade Twitter service enabled');
-        } else {
-          console.log('Arcade initialization failed:', arcadeResult.error);
-        }
-      } else {
-        console.log('BrowserTwitterService: No Arcade API key found');
+    console.log('BrowserTwitterService: Initializing with config:', {
+      hasArcadeKey: !!config.arcadeApiKey,
+      useArcade: config.useArcade
+    });
+
+    if (config.arcadeApiKey) {
+      this.useArcade = true;
+      try {
+        const result = await this.arcadeService.initialize(config);
+        console.log('BrowserTwitterService: Arcade service initialized:', result);
+        return result;
+      } catch (error) {
+        console.warn('BrowserTwitterService: Arcade initialization failed, will fallback to tab automation:', error);
+        this.useArcade = false;
       }
-      
-      return { success: true, message: 'Twitter service initialized' };
-    } catch (error) {
-      console.error('Error initializing Twitter service:', error);
-      return { success: false, error: error.message };
+    } else {
+      console.log('BrowserTwitterService: No Arcade API key, using tab automation');
     }
+
+    return { success: true, message: 'Twitter service initialized with tab automation method' };
   }
 
   async postTweet(content, credentials) {
@@ -48,9 +45,18 @@ class BrowserTwitterService {
         };
       }
 
-      // Try Arcade first if available
+      // NEW: Try tab automation first (primary method)
+      console.log('BrowserTwitterService: Trying tab automation method...');
+      const tabResult = await this.postViaTabAutomation(content);
+      console.log('BrowserTwitterService: Tab automation result:', tabResult);
+      
+      if (tabResult.success) {
+        return tabResult;
+      }
+
+      // Try Arcade as fallback if available
       if (this.useArcade) {
-        console.log('BrowserTwitterService: Using Arcade for Twitter posting...');
+        console.log('BrowserTwitterService: Tab automation failed, trying Arcade fallback...');
         const arcadeResult = await this.arcadeService.postTweet(content, credentials);
         console.log('BrowserTwitterService: Arcade result:', arcadeResult);
         
@@ -60,13 +66,13 @@ class BrowserTwitterService {
           console.log('BrowserTwitterService: Arcade needs authorization');
           return arcadeResult;
         } else {
-          console.log('BrowserTwitterService: Arcade failed, trying fallback...', arcadeResult.error);
+          console.log('BrowserTwitterService: Arcade failed, trying content script fallback...', arcadeResult.error);
         }
       } else {
-        console.log('BrowserTwitterService: Arcade not configured, using fallback');
+        console.log('BrowserTwitterService: Tab automation failed, trying content script fallback...');
       }
 
-      // Fallback to content script automation
+      // Final fallback to content script automation
       return await this.postViaContentScript(content, credentials);
       
     } catch (error) {
@@ -79,6 +85,45 @@ class BrowserTwitterService {
     }
   }
 
+  // NEW: Post tweet via tab automation (primary method)
+  async postViaTabAutomation(content) {
+    console.log('BrowserTwitterService: Using tab automation method');
+    
+    return new Promise((resolve) => {
+      if (!this.isExtension) {
+        resolve({
+          success: false,
+          error: 'Tab automation requires extension environment',
+          posted: false
+        });
+        return;
+      }
+
+      // Send message to background script to handle tab automation
+      chrome.runtime.sendMessage({
+        action: 'POST_TWEET_VIA_TAB',
+        content: content
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('BrowserTwitterService: Background message error:', chrome.runtime.lastError);
+          resolve({ 
+            success: false, 
+            error: chrome.runtime.lastError.message,
+            posted: false 
+          });
+        } else {
+          console.log('BrowserTwitterService: Background response:', response);
+          resolve(response || { 
+            success: false, 
+            error: 'No response from background script',
+            posted: false 
+          });
+        }
+      });
+    });
+  }
+
+  // KEEP: Existing content script fallback method unchanged
   async postViaContentScript(content, credentials) {
     console.log('BrowserTwitterService: Using content script fallback');
     
@@ -131,6 +176,7 @@ class BrowserTwitterService {
     });
   }
 
+  // KEEP: Existing methods unchanged
   async checkLogin() {
     try {
       if (this.useArcade) {

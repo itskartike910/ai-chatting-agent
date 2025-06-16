@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import BrowserTwitterAgent from '../agents/browserTwitterAgent';
 import BrowserStorage from '../services/storage/browserStorage';
 
@@ -149,6 +149,21 @@ const useAgent = () => {
     }
   };
 
+  // NEW: Add postTweetViaTab method
+  const postTweetViaTab = useCallback(async (content) => {
+    if (!agent) {
+      return { success: false, error: 'Agent not initialized' };
+    }
+
+    try {
+      console.log('useAgent: Posting tweet via tab...');
+      return await agent.postTweetViaTab(content);
+    } catch (error) {
+      console.error('useAgent: Failed to post tweet via tab:', error);
+      return { success: false, error: error.message };
+    }
+  }, [agent]);
+
   return {
     agent,
     status,
@@ -159,7 +174,8 @@ const useAgent = () => {
     testTweet,
     testClaude,
     updateConfig,
-    updateStatus
+    updateStatus,
+    postTweetViaTab // NEW: Add this to the return object
   };
 };
 

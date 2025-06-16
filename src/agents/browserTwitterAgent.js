@@ -254,6 +254,31 @@ class BrowserTwitterAgent {
       return { success: false, error: error.message };
     }
   }
+
+  // NEW: Add the missing postTweetViaTab method
+  async postTweetViaTab(content) {
+    try {
+      console.log('BrowserTwitterAgent: Posting tweet via tab automation...');
+      
+      if (!this.twitter) {
+        throw new Error('Twitter service not initialized');
+      }
+      
+      // Use the twitter service's postViaTabAutomation method
+      const result = await this.twitter.postViaTabAutomation(content);
+      
+      console.log('BrowserTwitterAgent: Tab automation result:', result);
+      return result;
+      
+    } catch (error) {
+      console.error('BrowserTwitterAgent: Error in postTweetViaTab:', error);
+      return { 
+        success: false, 
+        error: error.message, 
+        posted: false 
+      };
+    }
+  }
 }
 
 export default BrowserTwitterAgent;

@@ -3,6 +3,8 @@
 class BackgroundTwitterAgent {
   constructor() {
     this.setupMessageHandlers();
+    this.twitterTab = null; // Track the Twitter tab
+    this.pendingTweets = new Map(); // Track pending tweets by tab ID
   }
 
   setupMessageHandlers() {
@@ -15,6 +17,17 @@ class BackgroundTwitterAgent {
     chrome.alarms.onAlarm.addListener((alarm) => {
       if (alarm.name === 'tweet-generator') {
         this.generateAndPostTweet();
+      }
+    });
+
+    // Handle tab removal - cleanup pending tweets
+    chrome.tabs.onRemoved.addListener((tabId) => {
+      if (this.pendingTweets.has(tabId)) {
+        console.log(`Background: Tab ${tabId} closed, cleaning up pending tweet`);
+        this.pendingTweets.delete(tabId);
+      }
+      if (this.twitterTab && this.twitterTab.id === tabId) {
+        this.twitterTab = null;
       }
     });
   }
@@ -86,6 +99,67 @@ class BackgroundTwitterAgent {
           } catch (error) {
             sendResponse({ success: false, error: error.message });
           }
+          break;
+
+        // NEW: Handle direct tweet posting via tab automation
+        case 'POST_TWEET_VIA_TAB':
+          try {
+            console.log('Background: POST_TWEET_VIA_TAB received');
+            const result = await this.postTweetViaTab(request.content);
+            sendResponse(result);
+          } catch (error) {
+            console.error('Background: Error in POST_TWEET_VIA_TAB:', error);
+            sendResponse({ 
+              success: false, 
+              error: error.message,
+              posted: false 
+            });
+          }
+          break;
+
+        // NEW: Handle content script ready notification
+        case 'CONTENT_SCRIPT_READY':
+          try {
+            console.log('Background: Content script ready in tab:', sender.tab?.id);
+            const tabId = sender.tab?.id;
+            
+            if (tabId && this.pendingTweets.has(tabId)) {
+              const tweetContent = this.pendingTweets.get(tabId);
+              console.log('Background: Sending tweet content to content script:', tweetContent);
+              
+              // Send tweet content to content script
+              chrome.tabs.sendMessage(tabId, {
+                action: 'POST_TWEET',
+                content: tweetContent
+              }, (response) => {
+                console.log('Background: Content script response:', response);
+                this.pendingTweets.delete(tabId); // Clean up
+                
+                // Close tab after delay if successful
+                if (response && response.success) {
+                  setTimeout(() => {
+                    chrome.tabs.remove(tabId).catch(err => {
+                      console.log('Background: Tab cleanup error:', err);
+                    });
+                  }, 3000);
+                }
+              });
+              
+              sendResponse({ success: true, message: 'Tweet content sent to content script' });
+            } else {
+              sendResponse({ success: false, error: 'No pending tweet for this tab' });
+            }
+          } catch (error) {
+            console.error('Background: Error handling content script ready:', error);
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
+        // NEW: Handle tweet result from content script
+        case 'TWEET_RESULT':
+          console.log('Background: Tweet result received:', request.result);
+          // Don't need to do anything special, just log it
+          sendResponse({ success: true, message: 'Tweet result received' });
           break;
 
         default:
@@ -372,6 +446,60 @@ class BackgroundTwitterAgent {
     }
   }
 
+  // NEW: Main method to post tweet via tab automation
+  async postTweetViaTab(content) {
+    try {
+      console.log('Background: Starting tweet posting via tab automation');
+      console.log('Background: Tweet content:', content);
+
+      // Create new tab for Twitter compose
+      const tab = await chrome.tabs.create({
+        url: 'https://x.com/compose/post',
+        active: true
+      });
+
+      console.log('Background: Created Twitter tab:', tab.id);
+      this.twitterTab = tab;
+
+      // Store the tweet content for this tab
+      this.pendingTweets.set(tab.id, content);
+
+      // Wait for tab to load and content script to be ready
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          this.pendingTweets.delete(tab.id);
+          chrome.tabs.remove(tab.id).catch(() => {});
+          resolve({
+            success: false,
+            error: 'Timeout waiting for content script to be ready',
+            posted: false
+          });
+        }, 30000); // 30 second timeout
+
+        // Listen for success/failure from content script
+        const messageListener = (request, sender) => {
+          if (sender.tab?.id === tab.id && request.action === 'TWEET_RESULT') {
+            clearTimeout(timeout);
+            chrome.runtime.onMessage.removeListener(messageListener);
+            
+            console.log('Background: Tweet result received:', request.result);
+            resolve(request.result);
+          }
+        };
+
+        chrome.runtime.onMessage.addListener(messageListener);
+      });
+
+    } catch (error) {
+      console.error('Background: Error in postTweetViaTab:', error);
+      return {
+        success: false,
+        error: error.message,
+        posted: false
+      };
+    }
+  }
+
   async generateAndPostTweet() {
     try {
       console.log('Generating scheduled tweet...');
@@ -379,7 +507,7 @@ class BackgroundTwitterAgent {
       const { agentConfig } = await chrome.storage.sync.get(['agentConfig']);
       if (!agentConfig || !agentConfig.anthropicApiKey) {
         console.error('No config or API key found');
-        return;
+        return { success: false, error: 'No config or API key found' };
       }
 
       const topics = agentConfig.topics || ['Technology'];
@@ -389,13 +517,22 @@ class BackgroundTwitterAgent {
       
       if (result.success) {
         console.log('Scheduled tweet generated:', result.tweet);
-        // Here you would normally post to Twitter
-        // For now, just log it
+        
+        // NEW: Post via tab automation instead of just logging
+        const postResult = await this.postTweetViaTab(result.tweet);
+        console.log('Background: Scheduled tweet posting result:', postResult);
+        
+        return {
+          success: true,
+          tweet: result.tweet,
+          posted: postResult.success,
+          postError: postResult.success ? null : postResult.error
+        };
       } else {
         console.error('Failed to generate scheduled tweet:', result.error);
+        return result;
       }
       
-      return result;
     } catch (error) {
       console.error('Error in generateAndPostTweet:', error);
       return { success: false, error: error.message };

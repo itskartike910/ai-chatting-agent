@@ -16,8 +16,23 @@ function App() {
     stopAgent, 
     testTweet, 
     testClaude, 
-    updateConfig 
+    updateConfig ,
+    postTweetViaTab
   } = useAgent();
+
+  const handlePostTweet = async (content) => {
+    if (!agent) {
+      return { success: false, error: 'Agent not initialized' };
+    }
+    
+    try {
+      console.log('App: Posting tweet via tab automation...');
+      return await postTweetViaTab(content); // Use the hook method
+    } catch (error) {
+      console.error('App: Error posting tweet:', error);
+      return { success: false, error: error.message };
+    }
+  };
 
   const environment = isExtension() ? 'Chrome Extension' : 'Web Application';
 
@@ -65,6 +80,7 @@ function App() {
             onTestTweet={testTweet}
             onTestClaude={testClaude}
             onAuthorizeTwitter={handleAuthorizeTwitter}
+            postTweet={handlePostTweet}
           />
         )}
         {activeTab === 'settings' && (

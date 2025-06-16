@@ -8,8 +8,10 @@ function Dashboard({
   onStopAgent, 
   onTestTweet, 
   onTestClaude,
-  onAuthorizeTwitter
+  onAuthorizeTwitter,
+  postTweet // NEW: Add postTweet prop
 }) {
+  const [manualTweet, setManualTweet] = useState('');
   const [message, setMessage] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -95,6 +97,58 @@ function Dashboard({
       }
     } catch (error) {
       console.error('Dashboard: Authorization error:', error);
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // NEW: Method to test tab automation specifically
+  const handleTestTabAutomation = async () => {
+    setActionLoading(true);
+    setMessage('');
+    
+    try {
+      console.log('Dashboard: Testing tab automation...');
+      const testTweet = 'Test tweet from AI Twitter Agent using tab automation! 🚀 #TestTweet';
+      
+      const result = await postTweet(testTweet);
+      console.log('Dashboard: Tab automation test result:', result);
+      
+      if (result.success) {
+        const status = result.posted ? 'posted to Twitter' : 'generated successfully';
+        setMessage(`✅ Tab automation test ${status}: "${testTweet}"`);
+        if (result.error) {
+          setMessage(prev => prev + ` (Note: ${result.error})`);
+        }
+      } else {
+        setMessage(`❌ Tab automation test failed: ${result.error}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // NEW: Manual tweet posting
+  const handleManualPost = async () => {
+    if (!manualTweet.trim()) return;
+    
+    setActionLoading(true);
+    setMessage('');
+    
+    try {
+      console.log('Dashboard: Posting manual tweet...');
+      const result = await postTweet(manualTweet.trim());
+      
+      if (result.success) {
+        setMessage(`✅ Manual tweet ${result.posted ? 'posted' : 'processed'}: "${manualTweet}"`);
+        setManualTweet(''); // Clear the input
+      } else {
+        setMessage(`❌ Manual tweet failed: ${result.error}`);
+      }
+    } catch (error) {
       setMessage(`❌ Error: ${error.message}`);
     } finally {
       setActionLoading(false);
@@ -196,6 +250,44 @@ function Dashboard({
           ))}
         </div>
       )}
+
+      {/* ADD: New testing section */}
+      <div className="testing-section">
+        <h3>Testing & Manual Posting</h3>
+        
+        <div className="test-controls">
+          <button 
+            onClick={handleTestTabAutomation}
+            disabled={loading || actionLoading}
+            className="test-button"
+          >
+            {actionLoading ? 'Testing...' : 'Test Tab Automation'}
+          </button>
+        </div>
+
+        <div className="manual-tweet">
+          <textarea
+            value={manualTweet}
+            onChange={(e) => setManualTweet(e.target.value)}
+            placeholder="Write a manual tweet to test posting..."
+            maxLength={280}
+            disabled={actionLoading}
+            className="manual-tweet-input"
+          />
+          <div className="tweet-actions">
+            <span className="char-count">
+              {manualTweet.length}/280
+            </span>
+            <button
+              onClick={handleManualPost}
+              disabled={!manualTweet.trim() || actionLoading || manualTweet.length > 280}
+              className="post-button"
+            >
+              {actionLoading ? 'Posting...' : 'Post Tweet'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
