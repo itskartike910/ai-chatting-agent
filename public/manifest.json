@@ -30,9 +30,9 @@
     "default_title": "AI Twitter Agent"
   },
   "icons": {
-    "16": "icons/icon192.png",
-    "48": "icons/icon192.png",
-    "128": "icons/icon512.png"
+    "16": "icons/icon.png",
+    "48": "icons/icon.png",
+    "128": "icons/icon.png"
   },
   "web_accessible_resources": [
     {
