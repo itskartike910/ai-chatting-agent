@@ -91,16 +91,6 @@ class BackgroundTwitterAgent {
             sendResponse({ success: false, error: error.message });
           }
           break;
-
-        case 'ARCADE_POST':
-          try {
-            // Handle Arcade posting from background if needed
-            sendResponse({ success: true, message: 'Arcade posting initiated' });
-          } catch (error) {
-            sendResponse({ success: false, error: error.message });
-          }
-          break;
-
         // NEW: Handle direct tweet posting via tab automation
         case 'POST_TWEET_VIA_TAB':
           try {

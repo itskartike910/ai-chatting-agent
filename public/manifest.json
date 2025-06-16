@@ -13,9 +13,7 @@
   "host_permissions": [
     "https://api.anthropic.com/*",
     "https://x.com/*",
-    "https://twitter.com/*",
-    "https://api.arcade.dev/*",
-    "https://*.arcadeai.dev/*"
+    "https://twitter.com/*"
   ],
   "background": {
     "service_worker": "background.js"

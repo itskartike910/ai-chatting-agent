@@ -19,11 +19,7 @@ class BrowserTwitterAgent {
       this.config = await this.storage.getConfig();
       
       console.log('BrowserTwitterAgent: Config loaded:', {
-        hasAnthropicKey: !!this.config.anthropicApiKey,
-        hasArcadeKey: !!this.config.arcadeApiKey,
-        arcadeUserId: this.config.arcadeUserId,
-        arcadeXProvider: this.config.arcadeXProvider,
-        useArcade: this.config.useArcade
+        hasAnthropicKey: !!this.config.anthropicApiKey
       });
       
       if (!this.config.anthropicApiKey) {
@@ -32,7 +28,7 @@ class BrowserTwitterAgent {
       
       this.claude = new BrowserClaudeClient(this.config.anthropicApiKey);
       
-      // CRITICAL FIX: Initialize Twitter service with FULL config
+      // Initialize Twitter service with config
       console.log('BrowserTwitterAgent: Initializing Twitter service...');
       const twitterInitResult = await this.twitter.initialize(this.config);
       console.log('BrowserTwitterAgent: Twitter service init result:', twitterInitResult);
@@ -133,13 +129,12 @@ class BrowserTwitterAgent {
       // Save to history
       await this.storage.addTweetToHistory(finalTweet);
       
-      // Post to Twitter using Arcade or fallback methods
+      // Post to Twitter using tab automation
       let posted = false;
       let postError = null;
       
       try {
         console.log('BrowserTwitterAgent: Attempting to post tweet...');
-        // CRITICAL: Pass the full config including Arcade credentials
         const result = await this.twitter.postTweet(finalTweet, this.config);
         
         console.log('BrowserTwitterAgent: Post result:', result);
@@ -168,7 +163,7 @@ class BrowserTwitterAgent {
         topic: randomTopic,
         posted: posted,
         error: postError,
-        method: 'arcade-with-fallback'
+        method: 'tab-automation'
       };
       
     } catch (error) {
@@ -230,32 +225,16 @@ class BrowserTwitterAgent {
       hasAgent: !!this.claude,
       config: this.config ? {
         hasAnthropicKey: !!this.config.anthropicApiKey,
-        hasTwitterCredentials: !!(this.config.twitter.username && this.config.twitter.password),
-        topicsCount: this.config.topics.length,
-        interval: this.config.settings.interval,
-        style: this.config.settings.style
+        hasTwitterCredentials: !!(this.config.twitter?.username && this.config.twitter?.password),
+        topicsCount: this.config.topics?.length || 0,
+        interval: this.config.settings?.interval || 240,
+        style: this.config.settings?.style || 'professional but engaging'
       } : {},
       schedules: schedules
     };
   }
 
-  async authorizeTwitter() {
-    try {
-      console.log('BrowserTwitterAgent: Authorizing Twitter...');
-      if (!this.twitter) {
-        throw new Error('Twitter service not initialized');
-      }
-
-      const result = await this.twitter.authorizeTwitter();
-      console.log('BrowserTwitterAgent: Authorization result:', result);
-      return result;
-    } catch (error) {
-      console.error('Error authorizing Twitter:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  // NEW: Add the missing postTweetViaTab method
+  // Add the missing postTweetViaTab method
   async postTweetViaTab(content) {
     try {
       console.log('BrowserTwitterAgent: Posting tweet via tab automation...');

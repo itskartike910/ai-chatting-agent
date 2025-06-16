@@ -27,11 +27,6 @@ function Settings({ onConfigUpdate }) {
         throw new Error('Twitter credentials incomplete');
       }
 
-      // Validate Arcade config if enabled
-      if (localConfig.useArcade && !localConfig.arcadeApiKey) {
-        throw new Error('Arcade API key is required when Arcade is enabled');
-      }
-
       // Save config
       const result = await saveConfig(localConfig);
       
@@ -75,14 +70,6 @@ function Settings({ onConfigUpdate }) {
         ...localConfig.settings,
         [key]: value
       }
-    });
-  };
-
-  // NEW: Handle root-level config changes (for Arcade settings)
-  const handleConfigChange = (key, value) => {
-    setLocalConfig({
-      ...localConfig,
-      [key]: value
     });
   };
 
@@ -211,60 +198,6 @@ function Settings({ onConfigUpdate }) {
             Add Topic
           </button>
         </div>
-
-        {/* FIXED: Arcade Settings Section */}
-        <div className="form-section">
-          <h3>🎮 Arcade AI Twitter Integration</h3>
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={localConfig.useArcade !== false} // This should default to true
-                onChange={(e) => handleConfigChange('useArcade', e.target.checked)}
-              />
-              Enable Arcade AI Twitter Posting
-            </label>
-          </div>
-          
-          {localConfig.useArcade !== false && (
-            <>
-              <div className="form-group">
-                <label>Arcade API Key:</label>
-                <input
-                  type="password"
-                  value={localConfig.arcadeApiKey || ''}
-                  onChange={(e) => handleConfigChange('arcadeApiKey', e.target.value)}
-                  placeholder="Your Arcade API Key (arc_live_...)"
-                />
-                <small>Get your API key from <a href="https://api.arcade.dev/dashboard" target="_blank" rel="noopener noreferrer">Arcade Dashboard</a></small>
-              </div>
-              
-              <div className="form-group">
-                <label>Arcade User ID:</label>
-                <input
-                  type="text"
-                  value={localConfig.arcadeUserId || ''}
-                  onChange={(e) => handleConfigChange('arcadeUserId', e.target.value)}
-                  placeholder="Your user identifier (e.g., email)"
-                />
-                <small>Unique identifier for your Arcade account</small>
-              </div>
-
-              <div className="form-group">
-                <label>X OAuth Provider:</label>
-                <select
-                  value={localConfig.arcadeXProvider || 'x'}
-                  onChange={(e) => handleConfigChange('arcadeXProvider', e.target.value)}
-                >
-                  <option value="x">Default X Provider</option>
-                  <option value="arcade-x">Arcade X Provider</option>
-                </select>
-                <small>Select which X OAuth provider to use</small>
-              </div>
-            </>
-          )}
-        </div>
-
         <button 
           type="submit" 
           className="btn btn-primary"

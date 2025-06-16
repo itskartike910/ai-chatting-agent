@@ -1,40 +1,18 @@
 /* global chrome */
-import ArcadeTwitterService from './arcadeTwitterService';
 
 class BrowserTwitterService {
   constructor() {
     this.isExtension = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
-    this.arcadeService = new ArcadeTwitterService();
-    this.useArcade = false;
   }
 
   async initialize(config) {
-    console.log('BrowserTwitterService: Initializing with config:', {
-      hasArcadeKey: !!config.arcadeApiKey,
-      useArcade: config.useArcade
-    });
-
-    if (config.arcadeApiKey) {
-      this.useArcade = true;
-      try {
-        const result = await this.arcadeService.initialize(config);
-        console.log('BrowserTwitterService: Arcade service initialized:', result);
-        return result;
-      } catch (error) {
-        console.warn('BrowserTwitterService: Arcade initialization failed, will fallback to tab automation:', error);
-        this.useArcade = false;
-      }
-    } else {
-      console.log('BrowserTwitterService: No Arcade API key, using tab automation');
-    }
-
+    console.log('BrowserTwitterService: Initializing with tab automation');
     return { success: true, message: 'Twitter service initialized with tab automation method' };
   }
 
   async postTweet(content, credentials) {
     try {
       console.log('BrowserTwitterService: Attempting to post tweet:', content);
-      console.log('BrowserTwitterService: useArcade:', this.useArcade);
       
       if (!this.isExtension) {
         console.log('Twitter posting only available in extension mode');
@@ -45,8 +23,8 @@ class BrowserTwitterService {
         };
       }
 
-      // NEW: Try tab automation first (primary method)
-      console.log('BrowserTwitterService: Trying tab automation method...');
+      // Try tab automation first (primary method)
+      console.log('BrowserTwitterService: Using tab automation method...');
       const tabResult = await this.postViaTabAutomation(content);
       console.log('BrowserTwitterService: Tab automation result:', tabResult);
       
@@ -54,25 +32,8 @@ class BrowserTwitterService {
         return tabResult;
       }
 
-      // Try Arcade as fallback if available
-      if (this.useArcade) {
-        console.log('BrowserTwitterService: Tab automation failed, trying Arcade fallback...');
-        const arcadeResult = await this.arcadeService.postTweet(content, credentials);
-        console.log('BrowserTwitterService: Arcade result:', arcadeResult);
-        
-        if (arcadeResult.success && arcadeResult.posted) {
-          return arcadeResult;
-        } else if (arcadeResult.needsAuth) {
-          console.log('BrowserTwitterService: Arcade needs authorization');
-          return arcadeResult;
-        } else {
-          console.log('BrowserTwitterService: Arcade failed, trying content script fallback...', arcadeResult.error);
-        }
-      } else {
-        console.log('BrowserTwitterService: Tab automation failed, trying content script fallback...');
-      }
-
-      // Final fallback to content script automation
+      // Fallback to content script automation
+      console.log('BrowserTwitterService: Tab automation failed, trying content script fallback...');
       return await this.postViaContentScript(content, credentials);
       
     } catch (error) {
@@ -85,7 +46,7 @@ class BrowserTwitterService {
     }
   }
 
-  // NEW: Post tweet via tab automation (primary method)
+  // Post tweet via tab automation (primary method)
   async postViaTabAutomation(content) {
     console.log('BrowserTwitterService: Using tab automation method');
     
@@ -123,7 +84,7 @@ class BrowserTwitterService {
     });
   }
 
-  // KEEP: Existing content script fallback method unchanged
+  // Content script fallback method
   async postViaContentScript(content, credentials) {
     console.log('BrowserTwitterService: Using content script fallback');
     
@@ -146,56 +107,35 @@ class BrowserTwitterService {
             content: content
           }, (response) => {
             if (chrome.runtime.lastError) {
-              console.log('Content script not responding, simulating post');
+              console.log('Content script not responding');
               resolve({
-                success: true,
-                posted: false,
-                message: 'Tweet generated (content script unavailable)',
-                content: content
+                success: false,
+                error: 'Content script not available',
+                posted: false
               });
             } else {
               resolve(response || { 
-                success: true, 
-                posted: false,
-                message: 'Tweet sent to content script',
-                content: content
+                success: false, 
+                error: 'No response from content script',
+                posted: false
               });
             }
           });
         } else {
-          // No Twitter tabs - simulate successful generation
-          console.log('No Twitter tabs found, simulating post');
+          // No Twitter tabs
           resolve({
-            success: true,
-            posted: false,
-            message: 'Tweet generated successfully (no Twitter tabs open)',
-            content: content
+            success: false,
+            error: 'No Twitter tabs open',
+            posted: false
           });
         }
       });
     });
   }
 
-  // KEEP: Existing methods unchanged
   async checkLogin() {
-    try {
-      if (this.useArcade) {
-        return await this.arcadeService.checkLogin();
-      }
-      
-      // Fallback check
-      return { loggedIn: false, message: 'Login check not implemented for content script method' };
-    } catch (error) {
-      return { loggedIn: false, error: error.message };
-    }
-  }
-
-  async authorizeTwitter() {
-    if (this.useArcade) {
-      console.log('BrowserTwitterService: Starting Twitter authorization via Arcade');
-      return await this.arcadeService.authorizeTwitter();
-    }
-    return { success: false, error: 'Arcade not configured' };
+    // Basic login check - can be expanded if needed
+    return { loggedIn: false, message: 'Login check not implemented for tab automation method' };
   }
 }
 
