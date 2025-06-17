@@ -1,183 +1,81 @@
-import { useState, useEffect, useCallback } from 'react';
-import BrowserTwitterAgent from '../agents/browserTwitterAgent';
-import BrowserStorage from '../services/storage/browserStorage';
+/* eslint-disable default-case */
+/* global chrome */
+import { useState, useRef, useEffect } from 'react';
 
-const useAgent = () => {
-  const [agent, setAgent] = useState(null);
-  const [storage] = useState(new BrowserStorage()); // Add this line
-  const [status, setStatus] = useState({
-    isRunning: false,
-    hasAgent: false,
-    config: {}
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+export const useAgent = () => {
+  const [taskStatus, setTaskStatus] = useState(null);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const portRef = useRef(null);
 
   useEffect(() => {
-    const initAgent = async () => {
-      const newAgent = new BrowserTwitterAgent();
-      setAgent(newAgent);
-      await updateStatus(newAgent);
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      console.warn('Chrome runtime not available');
+      return;
+    }
+
+    // Setup connection to background script
+    try {
+      portRef.current = chrome.runtime.connect({ name: 'popup-connection' });
+      
+      portRef.current.onMessage.addListener((message) => {
+        switch (message.type) {
+          case 'task_start':
+            setIsExecuting(true);
+            setTaskStatus({ status: 'starting', message: 'Task started...' });
+            break;
+            
+          case 'status_update':
+            setTaskStatus({ 
+              status: 'executing', 
+              message: message.message,
+              task: message.task 
+            });
+            break;
+            
+          case 'task_complete':
+            setIsExecuting(false);
+            setTaskStatus({ status: 'completed', message: 'Task completed!' });
+            break;
+            
+          case 'task_error':
+            setIsExecuting(false);
+            setTaskStatus({ status: 'error', message: message.error });
+            break;
+        }
+      });
+
+      portRef.current.onDisconnect.addListener(() => {
+        portRef.current = null;
+        setIsExecuting(false);
+      });
+    } catch (error) {
+      console.error('Failed to connect to background script:', error);
+    }
+
+    return () => {
+      if (portRef.current) {
+        try {
+          portRef.current.disconnect();
+        } catch (error) {
+          console.error('Error disconnecting port:', error);
+        }
+      }
     };
-    
-    initAgent();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateStatus = async (agentInstance = agent) => {
-    if (agentInstance) {
-      const newStatus = await agentInstance.getStatus();
-      setStatus(newStatus);
-    }
-  };
-
-  const startAgent = async () => {
-    if (!agent) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Get current config before starting
-      const currentConfig = await storage.getConfig();
-      
-      console.log('Starting agent with config:', currentConfig);
-      
-      // CRITICAL: Initialize the agent with config first
-      const initResult = await agent.initialize();
-      console.log('useAgent: Agent initialization result:', initResult);
-      
-      if (!initResult.success) {
-        throw new Error(initResult.error || 'Agent initialization failed');
-      }
-      
-      const result = await agent.start(currentConfig);
-      if (result.success) {
-        await updateStatus();
-      } else {
-        setError(result.error);
-      }
-      return result;
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const stopAgent = async () => {
-    if (!agent) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await agent.stop();
-      if (result.success) {
-        await updateStatus();
-      } else {
-        setError(result.error);
-      }
-      return result;
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testTweet = async () => {
-    if (!agent) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await agent.testTweet();
-      if (!result.success) {
-        setError(result.error);
-      }
-      return result;
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testClaude = async () => {
-    if (!agent) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await agent.testClaude();
-      if (!result.success) {
-        setError(result.error);
-      }
-      return result;
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateConfig = async (newConfig) => {
-    if (!agent) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await agent.updateConfig(newConfig);
-      if (result.success) {
-        await updateStatus();
-      } else {
-        setError(result.error);
-      }
-      return result;
-    } catch (err) {
-      setError(err.message);
-      return { success: false, error: err.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // NEW: Add postTweetViaTab method
-  const postTweetViaTab = useCallback(async (content) => {
-    if (!agent) {
-      return { success: false, error: 'Agent not initialized' };
-    }
+  const executeTask = async (prompt) => {
+    if (isExecuting || !portRef.current) return;
 
     try {
-      console.log('useAgent: Posting tweet via tab...');
-      return await agent.postTweetViaTab(content);
+      portRef.current.postMessage({
+        type: 'new_task',
+        task: prompt
+      });
     } catch (error) {
-      console.error('useAgent: Failed to post tweet via tab:', error);
-      return { success: false, error: error.message };
+      console.error('Error sending task:', error);
+      setTaskStatus({ status: 'error', message: 'Failed to send task' });
     }
-  }, [agent]);
-
-  return {
-    agent,
-    status,
-    loading,
-    error,
-    startAgent,
-    stopAgent,
-    testTweet,
-    testClaude,
-    updateConfig,
-    updateStatus,
-    postTweetViaTab // NEW: Add this to the return object
   };
-};
 
-export default useAgent;
+  return { executeTask, taskStatus, isExecuting };
+};

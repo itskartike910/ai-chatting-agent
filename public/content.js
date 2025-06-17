@@ -1,554 +1,52 @@
-/*global chrome*/
+/*global chrome, buildDomTree */
 
-class TwitterContentScript {
+console.log('Enhanced content script loaded on:', window.location.href);
+
+// Enhanced content script with DOM tree integration
+class EnhancedContentScript {
   constructor() {
-    this.isLoggedIn = false;
-    this.setupMessageListener();
-    // REMOVED: Don't check login status immediately, wait for page to load
-    
-    // Wait for page to fully load before checking login
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => this.checkLoginStatusAndNotify(), 2000);
-      });
-    } else {
-      setTimeout(() => this.checkLoginStatusAndNotify(), 2000);
-    }
+    this.isReady = false;
+    this.domObserver = null;
+    this.setupMessageHandlers();
+    this.waitForPageReady();
   }
 
-  // NEW: Check login and notify background
-  async checkLoginStatusAndNotify() {
-    await this.checkLoginStatus();
-    this.notifyReady();
-  }
-
-  // NEW: Notify background script that content script is loaded and ready
-  notifyReady() {
-    console.log('Content: Content script ready, notifying background');
-    chrome.runtime.sendMessage({
-      action: 'CONTENT_SCRIPT_READY'
-    }, (response) => {
-      console.log('Content: Background response to ready notification:', response);
-    });
-  }
-
-  setupMessageListener() {
+  setupMessageHandlers() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('Content: Message received:', request.action);
-      
-      if (request.action === 'POST_TWEET') {
-        console.log('Content: POST_TWEET action received');
-        this.postTweet(request.content).then(sendResponse);
-        return true;
-      } else if (request.action === 'checkLogin') {
-        this.checkLoginStatus().then(sendResponse);
-        return true;
-      } else if (request.action === 'login') {
-        this.performLogin(request.credentials).then(sendResponse);
-        return true;
-      }
+      console.log('Content script received message:', request.action);
+      this.handleMessage(request, sender, sendResponse);
+      return true; // Keep message channel open
     });
   }
 
-  // ENHANCED: Better login detection with multiple methods
-  async checkLoginStatus() {
-    try {
-      console.log('Content: Checking login status...');
-      console.log('Content: Current URL:', window.location.href);
-      
-      // Wait for page to load properly
-      await this.waitForPageLoad();
-      
-      let isLoggedIn = false;
-      
-      // Method 1: Check for login-specific elements that indicate we're NOT logged in
-      const loginPageIndicators = [
-        'input[name="text"]', // Username field on login page
-        'input[name="password"]', // Password field on login page
-        '[data-testid="LoginForm_Login_Button"]', // Login button
-        '.login-form', // Generic login form
-        '[data-testid="ocfEnterTextTextInput"]' // Email verification field
-      ];
-      
-      const hasLoginElements = loginPageIndicators.some(selector => 
-        document.querySelector(selector)
-      );
-      
-      if (hasLoginElements) {
-        console.log('Content: Found login page elements - not logged in');
-        isLoggedIn = false;
-      } else {
-        // Method 2: Check for logged-in elements
-        const loggedInIndicators = [
-          '[data-testid="AppTabBar_Home_Link"]', // Home tab
-          '[data-testid="AppTabBar_Profile_Link"]', // Profile tab
-          '[data-testid="SideNav_AccountSwitcher_Button"]', // Account switcher
-          '[data-testid="tweetTextarea_0"]', // Tweet compose box
-          '[aria-label="Home timeline"]', // Home timeline
-          '[data-testid="primaryColumn"]', // Main content column
-          '[data-testid="SideNav_NewTweet_Button"]', // New tweet button
-          '[data-testid="AppTabBar_Explore_Link"]', // Explore tab
-          'nav[role="navigation"]' // Main navigation
-        ];
-        
-        isLoggedIn = loggedInIndicators.some(selector => {
-          const element = document.querySelector(selector);
-          return element && this.isElementVisible(element);
-        });
-        
-        // Method 3: Check URL patterns
-        if (!isLoggedIn) {
-          const currentUrl = window.location.href.toLowerCase();
-          const loggedInUrls = [
-            '/home',
-            '/compose',
-            '/notifications',
-            '/messages',
-            '/bookmarks',
-            '/lists',
-            '/profile'
-          ];
-          
-          isLoggedIn = loggedInUrls.some(path => currentUrl.includes(path));
-        }
-        
-        // Method 4: Check for user-specific content
-        if (!isLoggedIn) {
-          const userContent = document.querySelector('[data-testid="UserName"]') ||
-                            document.querySelector('[data-testid="UserScreenName"]') ||
-                            document.querySelector('[data-testid="user-avatar"]');
-          
-          if (userContent) {
-            isLoggedIn = true;
-          }
-        }
-      }
-      
-      // Method 5: Final check - if we're on compose page and no login elements, assume logged in
-      if (!isLoggedIn && window.location.href.includes('compose')) {
-        const tweetBox = document.querySelector('[data-testid="tweetTextarea_0"]') ||
-                        document.querySelector('[role="textbox"]');
-        if (tweetBox) {
-          console.log('Content: Found tweet compose box - assuming logged in');
-          isLoggedIn = true;
-        }
-      }
-
-      this.isLoggedIn = isLoggedIn;
-      console.log('Content: Final login status:', this.isLoggedIn);
-      console.log('Content: URL:', window.location.href);
-      
-      return { loggedIn: this.isLoggedIn };
-    } catch (error) {
-      console.error('Content: Error checking login status:', error);
-      // FALLBACK: If we can't determine, assume logged in for compose page
-      if (window.location.href.includes('compose')) {
-        console.log('Content: Error checking login, but on compose page - assuming logged in');
-        this.isLoggedIn = true;
-        return { loggedIn: true };
-      }
-      return { loggedIn: false, error: error.message };
+  async waitForPageReady() {
+    // Wait for page to be fully loaded
+    if (document.readyState === 'loading') {
+      await new Promise(resolve => {
+        document.addEventListener('DOMContentLoaded', resolve);
+      });
     }
+
+    // Additional wait for X's dynamic content
+    await this.waitForElement('[data-testid="primaryColumn"]', 10000);
+    
+    this.isReady = true;
+    this.notifyBackgroundReady();
   }
 
-  // NEW: Wait for page to load properly
-  async waitForPageLoad() {
-    if (document.readyState === 'complete') {
-      return;
-    }
-    
+  async waitForElement(selector, timeout = 5000) {
     return new Promise((resolve) => {
-      const checkLoad = () => {
-        if (document.readyState === 'complete') {
-          resolve();
-        } else {
-          setTimeout(checkLoad, 100);
-        }
-      };
-      checkLoad();
-    });
-  }
-
-  // MODIFIED: Skip login check for compose page
-  async postTweet(content) {
-    try {
-      console.log('Content: Starting tweet posting process...');
-      console.log('Content: Tweet content:', content);
-      console.log('Content: Current URL:', window.location.href);
-
-      // SKIP login check if we're already on compose page
-      if (window.location.href.includes('compose')) {
-        console.log('Content: On compose page, skipping login check');
-      } else {
-        // Check login status first for other pages
-        const loginStatus = await this.checkLoginStatus();
-        if (!loginStatus.loggedIn) {
-          const result = {
-            success: false,
-            error: 'Not logged in to Twitter',
-            posted: false
-          };
-          this.sendTweetResult(result);
-          return result;
-        }
-      }
-
-      // Navigate to compose page if not already there
-      if (!window.location.href.includes('compose')) {
-        console.log('Content: Navigating to compose page...');
-        window.location.href = 'https://x.com/compose/post';
-        await this.sleep(4000); // Wait for navigation
-      }
-
-      // Wait for compose page to load
-      console.log('Content: Waiting for compose page elements...');
-      await this.waitForComposePage();
-
-      // Find and focus tweet textarea
-      const textArea = await this.findTweetTextarea();
-      if (!textArea) {
-        const result = {
-          success: false,
-          error: 'Tweet textarea not found',
-          posted: false
-        };
-        this.sendTweetResult(result);
-        return result;
-      }
-
-      console.log('Content: Found tweet textarea, setting content...');
-      
-      // Clear existing content and set new content
-      await this.setTweetContent(textArea, content);
-
-      // Wait for content to be processed
-      await this.sleep(2000);
-
-      // Verify content was set
-      const currentContent = this.getTweetContent(textArea);
-      if (!currentContent || !currentContent.includes(content.substring(0, 20))) {
-        console.warn('Content: Content not set properly, trying alternative method...');
-        await this.setTweetContentAlternative(textArea, content);
-        await this.sleep(1000);
-      }
-
-      // Find and click post button
-      const postButton = await this.findPostButton();
-      if (!postButton) {
-        const result = {
-          success: false,
-          error: 'Post button not found',
-          posted: false
-        };
-        this.sendTweetResult(result);
-        return result;
-      }
-
-      // Check if post button is enabled
-      if (postButton.disabled || postButton.getAttribute('aria-disabled') === 'true') {
-        const result = {
-          success: false,
-          error: 'Post button is disabled - content may be invalid',
-          posted: false
-        };
-        this.sendTweetResult(result);
-        return result;
-      }
-
-      console.log('Content: Clicking post button...');
-      postButton.click();
-
-      // Wait for posting to complete
-      await this.sleep(4000);
-
-      // Verify success
-      const success = await this.verifyTweetPosted();
-      
-      const result = {
-        success: success,
-        message: success ? 'Tweet posted successfully via content script' : 'Tweet posting could not be verified',
-        posted: success,
-        content: content
-      };
-
-      console.log('Content: Tweet posting result:', result);
-      this.sendTweetResult(result);
-      return result;
-      
-    } catch (error) {
-      console.error('Content: Error posting tweet:', error);
-      const result = {
-        success: false,
-        error: error.message,
-        posted: false
-      };
-      this.sendTweetResult(result);
-      return result;
-    }
-  }
-
-  // NEW: Send tweet result back to background script
-  sendTweetResult(result) {
-    chrome.runtime.sendMessage({
-      action: 'TWEET_RESULT',
-      result: result
-    });
-  }
-
-  // NEW: Wait for compose page to be ready
-  async waitForComposePage() {
-    const composePageElements = [
-      '[data-testid="tweetTextarea_0"]',
-      '[data-testid="tweetButton"]',
-      '[role="textbox"][aria-label*="Tweet"]'
-    ];
-
-    for (let i = 0; i < 30; i++) { // Wait up to 30 seconds
-      for (const selector of composePageElements) {
-        if (document.querySelector(selector)) {
-          console.log('Content: Compose page ready');
-          return;
-        }
-      }
-      await this.sleep(1000);
-    }
-    
-    throw new Error('Compose page did not load within timeout');
-  }
-
-  // NEW: Find tweet textarea with multiple fallback selectors
-  async findTweetTextarea() {
-    const selectors = [
-      '[data-testid="tweetTextarea_0"]',
-      '[role="textbox"][aria-label*="Tweet"]',
-      '[role="textbox"][aria-label*="What"]',
-      'div[contenteditable="true"][data-text="What\'s happening?"]',
-      'div[contenteditable="true"]'
-    ];
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element && this.isElementVisible(element)) {
-        console.log('Content: Found textarea with selector:', selector);
-        return element;
-      }
-    }
-
-    // Wait and try again
-    await this.sleep(2000);
-    
-    for (const selector of selectors) {
       const element = document.querySelector(selector);
       if (element) {
-        console.log('Content: Found textarea on retry with selector:', selector);
-        return element;
-      }
-    }
-
-    return null;
-  }
-
-  // NEW: Set tweet content with improved method
-  async setTweetContent(textArea, content) {
-    try {
-      // Focus the textarea
-      textArea.focus();
-      textArea.click();
-      
-      // Clear existing content
-      textArea.textContent = '';
-      textArea.innerHTML = '';
-      if (textArea.value !== undefined) {
-        textArea.value = '';
-      }
-
-      // Method 1: Direct assignment
-      textArea.textContent = content;
-      textArea.dispatchEvent(new Event('input', { bubbles: true }));
-      
-      await this.sleep(500);
-      
-      // Method 2: execCommand if available
-      if (document.execCommand) {
-        textArea.focus();
-        document.execCommand('selectAll');
-        document.execCommand('insertText', false, content);
-      }
-      
-      // Method 3: Simulate typing for complex cases
-      await this.simulateTyping(textArea, content);
-      
-      // Dispatch events
-      textArea.dispatchEvent(new Event('input', { bubbles: true }));
-      textArea.dispatchEvent(new Event('change', { bubbles: true }));
-      textArea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
-      
-    } catch (error) {
-      console.error('Content: Error setting tweet content:', error);
-      throw error;
-    }
-  }
-
-  // NEW: Alternative content setting method
-  async setTweetContentAlternative(textArea, content) {
-    try {
-      textArea.focus();
-      
-      // Use InputEvent if supported
-      if (typeof InputEvent !== 'undefined') {
-        textArea.dispatchEvent(new InputEvent('beforeinput', {
-          inputType: 'insertText',
-          data: content,
-          bubbles: true
-        }));
-      }
-      
-      // Set content directly
-      textArea.textContent = content;
-      textArea.innerHTML = content;
-      
-      // Use clipboard API as fallback
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(content);
-        textArea.focus();
-        document.execCommand('paste');
-      }
-      
-    } catch (error) {
-      console.warn('Content: Alternative content setting failed:', error);
-    }
-  }
-
-  // NEW: Simulate typing for better compatibility
-  async simulateTyping(element, text) {
-    element.focus();
-    
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      
-      // Dispatch keydown
-      element.dispatchEvent(new KeyboardEvent('keydown', {
-        key: char,
-        code: `Key${char.toUpperCase()}`,
-        bubbles: true
-      }));
-      
-      // Add character
-      element.textContent += char;
-      
-      // Dispatch input
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      
-      // Dispatch keyup
-      element.dispatchEvent(new KeyboardEvent('keyup', {
-        key: char,
-        code: `Key${char.toUpperCase()}`,
-        bubbles: true
-      }));
-      
-      // Small delay between characters
-      if (i % 10 === 0) await this.sleep(50);
-    }
-  }
-
-  // NEW: Get current tweet content
-  getTweetContent(textArea) {
-    return textArea.textContent || textArea.innerHTML || textArea.value || '';
-  }
-
-  // NEW: Find post button with multiple selectors
-  async findPostButton() {
-    const selectors = [
-      '[data-testid="tweetButton"]',
-      '[data-testid="tweetButtonInline"]',
-      '[role="button"][aria-label*="Post"]',
-      '[role="button"][aria-label*="Tweet"]',
-      'button:contains("Post")',
-      'button:contains("Tweet")'
-    ];
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element && this.isElementVisible(element)) {
-        console.log('Content: Found post button with selector:', selector);
-        return element;
-      }
-    }
-
-    return null;
-  }
-
-  // NEW: Verify tweet was posted
-  async verifyTweetPosted() {
-    // Method 1: Check if we're redirected away from compose
-    await this.sleep(2000);
-    
-    if (!window.location.href.includes('compose')) {
-      console.log('Content: Redirected away from compose page - likely posted');
-      return true;
-    }
-
-    // Method 2: Check if textarea is cleared
-    const textArea = document.querySelector('[data-testid="tweetTextarea_0"]');
-    if (textArea) {
-      const content = this.getTweetContent(textArea);
-      if (!content || content.trim() === '') {
-        console.log('Content: Textarea cleared - likely posted');
-        return true;
-      }
-    }
-
-    // Method 3: Look for success indicators
-    const successIndicators = [
-      '[data-testid="toast"]',
-      '[role="alert"]',
-      '.toast',
-      '[aria-live="polite"]'
-    ];
-
-    for (const selector of successIndicators) {
-      const element = document.querySelector(selector);
-      if (element && element.textContent.toLowerCase().includes('tweet')) {
-        console.log('Content: Found success indicator');
-        return true;
-      }
-    }
-
-    console.log('Content: Could not verify tweet posting');
-    return false;
-  }
-
-  // NEW: Check if element is visible
-  isElementVisible(element) {
-    if (!element) return false;
-    
-    const rect = element.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0 && 
-           element.offsetWidth > 0 && element.offsetHeight > 0;
-  }
-
-  // ENHANCED: Better element waiting with multiple selectors
-  async waitForElement(selectors, timeout = 10000) {
-    const selectorArray = Array.isArray(selectors) ? selectors : [selectors];
-    
-    return new Promise((resolve, reject) => {
-      // Check if any element already exists
-      for (const selector of selectorArray) {
-        const element = document.querySelector(selector);
-        if (element) {
-          resolve(element);
-          return;
-        }
+        resolve(element);
+        return;
       }
 
       const observer = new MutationObserver(() => {
-        for (const selector of selectorArray) {
-          const element = document.querySelector(selector);
-          if (element) {
-            observer.disconnect();
-            resolve(element);
-            return;
-          }
+        const element = document.querySelector(selector);
+        if (element) {
+          observer.disconnect();
+          resolve(element);
         }
       });
 
@@ -559,62 +57,274 @@ class TwitterContentScript {
 
       setTimeout(() => {
         observer.disconnect();
-        reject(new Error(`Elements ${selectorArray.join(', ')} not found within ${timeout}ms`));
+        resolve(null);
       }, timeout);
     });
   }
 
-  sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  notifyBackgroundReady() {
+    chrome.runtime.sendMessage({
+      action: 'CONTENT_SCRIPT_READY',
+      url: window.location.href
+    }, (response) => {
+      console.log('Background response to ready notification:', response);
+    });
   }
 
-  // ... keep existing performLogin method unchanged ...
-  async performLogin(credentials) {
+  async handleMessage(request, sender, sendResponse) {
     try {
-      if (!window.location.href.includes('login')) {
-        window.location.href = 'https://x.com/i/flow/login';
-        return { success: false, message: 'Redirecting to login page...' };
+      switch (request.action) {
+        case 'POST_TWEET':
+          const result = await this.postTweet(request.content);
+          sendResponse(result);
+          // Also notify background with result
+          chrome.runtime.sendMessage({
+            action: 'TWEET_RESULT',
+            result: result
+          });
+          break;
+
+        case 'FILL_CONTENT':
+          const fillResult = await this.fillContent(request.content);
+          sendResponse(fillResult);
+          break;
+
+        case 'CLICK_ELEMENT':
+          const clickResult = await this.clickElement(request.selector);
+          sendResponse(clickResult);
+          break;
+
+        case 'GET_DOM_INFO':
+          const domInfo = await this.getDomInfo();
+          sendResponse(domInfo);
+          break;
+
+        case 'CHECK_LOGIN_STATUS':
+          const loginStatus = await this.checkLoginStatus();
+          sendResponse(loginStatus);
+          break;
+
+        default:
+          sendResponse({ success: false, error: 'Unknown action' });
+      }
+    } catch (error) {
+      console.error('Content script error:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async postTweet(content) {
+    try {
+      console.log('Content script: Starting tweet posting process');
+      console.log('Content:', content);
+
+      // Step 1: Wait for compose area to be available
+      const composeArea = await this.waitForElement(
+        '[data-testid="tweetTextarea_0"], div[contenteditable="true"]', 
+        10000
+      );
+
+      if (!composeArea) {
+        return { success: false, error: 'Compose area not found' };
       }
 
-      await this.waitForElement('input[name="text"]');
-      
-      const usernameField = document.querySelector('input[name="text"]');
-      usernameField.value = credentials.username;
-      usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-
-      await this.sleep(1000);
-      const nextButton = Array.from(document.querySelectorAll('div[role="button"]'))
-        .find(el => el.textContent.includes('Next'));
-      if (nextButton) nextButton.click();
-
-      await this.sleep(2000);
-      const emailField = document.querySelector('input[data-testid="ocfEnterTextTextInput"]');
-      if (emailField && credentials.email) {
-        emailField.value = credentials.email;
-        emailField.dispatchEvent(new Event('input', { bubbles: true }));
-        await this.sleep(1000);
-        const emailNextButton = document.querySelector('[data-testid="ocfEnterTextNextButton"]');
-        if (emailNextButton) emailNextButton.click();
-        await this.sleep(2000);
+      // Step 2: Fill the content
+      const fillResult = await this.fillContent(content);
+      if (!fillResult.success) {
+        return fillResult;
       }
 
-      await this.waitForElement('input[name="password"]');
+      // Step 3: Wait a moment for the UI to update
+      await this.delay(1500);
+
+      // Step 4: Find and click the post button
+      const postButton = await this.waitForElement(
+        '[data-testid="tweetButtonInline"], [data-testid="tweetButton"]',
+        5000
+      );
+
+      if (!postButton) {
+        return { success: false, error: 'Post button not found' };
+      }
+
+      if (postButton.disabled) {
+        return { success: false, error: 'Post button is disabled' };
+      }
+
+      // Click the post button
+      postButton.click();
+      console.log('Content script: Post button clicked');
+
+      // Step 5: Wait for posting to complete
+      await this.delay(3000);
+
+      // Step 6: Verify posting (look for success indicators)
+      const successIndicator = document.querySelector('[data-testid="toast"]') || 
+                              document.querySelector('[aria-label*="posted"]') ||
+                              !document.querySelector('[data-testid="tweetTextarea_0"]');
+
+      if (successIndicator) {
+        return { 
+          success: true, 
+          message: 'Tweet posted successfully',
+          content: content,
+          timestamp: Date.now()
+        };
+      } else {
+        return { 
+          success: false, 
+          error: 'Could not verify tweet posting',
+          content: content 
+        };
+      }
+
+    } catch (error) {
+      console.error('Content script: Error posting tweet:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async fillContent(content) {
+    try {
+      // Use buildDomTree if available for better element detection
+      let textArea = null;
       
-      const passwordField = document.querySelector('input[name="password"]');
-      passwordField.value = credentials.password;
-      passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+      if (typeof buildDomTree === 'function') {
+        try {
+          const domTree = buildDomTree({
+            showHighlightElements: false,
+            debugMode: false
+          });
+          
+          // Look for text input elements in the DOM tree
+          // This would be more sophisticated with full DOM tree analysis
+          console.log('DOM tree analysis available');
+        } catch (domError) {
+          console.log('DOM tree analysis failed, using fallback:', domError);
+        }
+      }
 
-      await this.sleep(1000);
-      const loginButton = document.querySelector('[data-testid="LoginForm_Login_Button"]');
-      if (loginButton) loginButton.click();
+      // Fallback to direct selectors
+      textArea = document.querySelector('[data-testid="tweetTextarea_0"]') || 
+                document.querySelector('div[contenteditable="true"]') ||
+                document.querySelector('.public-DraftEditor-content');
 
-      return { success: true, message: 'Login attempted' };
+      if (!textArea) {
+        return { success: false, error: 'Text area not found' };
+      }
 
+      // Focus the text area
+      textArea.focus();
+      
+      // Clear existing content
+      textArea.innerHTML = '';
+      textArea.textContent = '';
+      
+      // Insert new content
+      textArea.textContent = content;
+      textArea.innerHTML = content;
+      
+      // Trigger input events to notify the application
+      const inputEvent = new Event('input', { bubbles: true });
+      const changeEvent = new Event('change', { bubbles: true });
+      
+      textArea.dispatchEvent(inputEvent);
+      textArea.dispatchEvent(changeEvent);
+      
+      // Additional trigger for React applications
+      const reactEvent = new Event('input', { bubbles: true });
+      Object.defineProperty(reactEvent, 'target', {
+        writable: false,
+        value: textArea
+      });
+      textArea.dispatchEvent(reactEvent);
+
+      console.log('Content filled successfully');
+      return { success: true, message: 'Content filled successfully' };
+      
+    } catch (error) {
+      console.error('Error filling content:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async clickElement(selector) {
+    try {
+      const element = await this.waitForElement(selector, 5000);
+      
+      if (!element) {
+        return { success: false, error: `Element not found: ${selector}` };
+      }
+
+      if (element.disabled) {
+        return { success: false, error: 'Element is disabled' };
+      }
+
+      element.click();
+      return { success: true, message: `Clicked element: ${selector}` };
+      
     } catch (error) {
       return { success: false, error: error.message };
     }
   }
+
+  async getDomInfo() {
+    try {
+      const info = {
+        url: window.location.href,
+        title: document.title,
+        isComposePageOpen: !!document.querySelector('[data-testid="tweetTextarea_0"]'),
+        isLoggedIn: !!document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]'),
+        hasPostButton: !!document.querySelector('[data-testid="tweetButtonInline"], [data-testid="tweetButton"]'),
+        readyState: document.readyState
+      };
+
+      // Use buildDomTree if available for more detailed analysis
+      if (typeof buildDomTree === 'function') {
+        try {
+          const domTree = buildDomTree({
+            showHighlightElements: false,
+            debugMode: false
+          });
+          info.domTreeAvailable = true;
+          info.interactiveElements = Object.keys(domTree).length;
+        } catch (error) {
+          info.domTreeAvailable = false;
+          info.domTreeError = error.message;
+        }
+      }
+
+      return { success: true, info: info };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async checkLoginStatus() {
+    try {
+      const isLoggedIn = !!(
+        document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
+        document.querySelector('[data-testid="AppTabBar_Profile_Link"]') ||
+        window.location.href.includes('/home')
+      );
+
+      return { 
+        success: true, 
+        isLoggedIn: isLoggedIn,
+        currentUrl: window.location.href
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 }
 
-// Initialize content script
-new TwitterContentScript();
+// Initialize the enhanced content script
+const enhancedContentScript = new EnhancedContentScript();
+
+// Export for testing
+window.enhancedContentScript = enhancedContentScript;

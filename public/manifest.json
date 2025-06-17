@@ -1,19 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "AI Twitter Agent",
+  "name": "AI Social Media Agent",
   "version": "1.0.0",
-  "description": "AI-powered Twitter posting agent with Anthropic Claude",
+  "description": "AI-powered social media automation with chat interface",
   "permissions": [
     "storage",
     "alarms",
     "activeTab",
     "scripting",
-    "tabs"
+    "tabs",
+    "debugger",
+    "webNavigation"
   ],
   "host_permissions": [
     "https://api.anthropic.com/*",
     "https://x.com/*",
-    "https://twitter.com/*"
+    "https://twitter.com/*",
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,7 +24,7 @@
   "content_scripts": [
     {
       "matches": ["https://x.com/*", "https://twitter.com/*"],
-      "js": ["content.js"],
+      "js": ["content.js", "buildDomTree.js"],
       "run_at": "document_end"
     }
   ],
