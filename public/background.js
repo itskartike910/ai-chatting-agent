@@ -1,125 +1,1408 @@
 /* global chrome */
 
-console.log('AI Web Agent Background Script Loading...');
+console.log('AI Twitter Agent Background Script Loading...');
 
-// Enhanced Error Handling for API Issues
-class APIErrorHandler {
-  static isOverloadedError(error) {
-    return error.message.includes('overloaded_error') || error.message.includes('529');
-  }
-
-  static isRateLimitError(error) {
-    return error.message.includes('rate_limit') || error.message.includes('429');
-  }
-
-  static isTokenLimitError(error) {
-    return error.message.includes('prompt is too long') || error.message.includes('maximum');
-  }
-
-  static async handleAPIError(error, llmService, retryCount = 0) {
-    console.warn(`API Error (attempt ${retryCount + 1}):`, error.message);
-    
-    if (retryCount >= 3) {
-      throw new Error(`API failed after 3 attempts: ${error.message}`);
-    }
-
-    if (this.isTokenLimitError(error)) {
-      console.error('Token limit exceeded - prompts need to be shortened');
-      return false; // Don't retry for token limit errors
-    }
-
-    if (this.isOverloadedError(error) || this.isRateLimitError(error)) {
-      const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
-      console.log(`Waiting ${delay}ms before retry...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return true; // Indicate retry should happen
-    }
-
-    return false; // Don't retry
-  }
-}
-
-// Lightweight Memory Manager (Token-Optimized)
-class TokenOptimizedMemoryManager {
+// Enhanced Memory Manager with proper content handling
+class ProceduralMemoryManager {
   constructor() {
     this.messages = [];
-    this.maxMessages = 3; // Keep only last 3 messages
-    this.maxTokensPerMessage = 1000; // Limit message size
+    this.proceduralSummaries = [];
+    this.maxMessages = 8;
+    this.maxSummaries = 3;
+    this.stepCounter = 0;
   }
 
   addMessage(message) {
-    // Truncate content if too long
-    if (message.content && message.content.length > this.maxTokensPerMessage * 4) {
-      message.content = message.content.substring(0, this.maxTokensPerMessage * 4) + '...[truncated]';
-    }
-
-    this.messages.push({
+    const safeMessage = {
       ...message,
-      timestamp: Date.now()
-    });
+      content: this.ensureString(message.content),
+      timestamp: Date.now(),
+      step: this.stepCounter++
+    };
 
-    // Keep only recent messages
+    this.messages.push(safeMessage);
+
     if (this.messages.length > this.maxMessages) {
-      this.messages.shift();
+      this.createProceduralSummary();
+      this.messages = this.messages.slice(-4);
     }
   }
 
-  getMessages() {
-    return this.messages;
+  ensureString(content) {
+    if (typeof content === 'string') return content;
+    if (content === null || content === undefined) return '';
+    if (typeof content === 'object') return JSON.stringify(content);
+    return String(content);
+  }
+
+  createProceduralSummary() {
+    const recentMessages = this.messages.slice(-4);
+    const summary = {
+      steps: `${Math.max(0, this.stepCounter - 4)}-${this.stepCounter}`,
+      actions: recentMessages.map(m => m.action || 'action').join(' → '),
+      findings: recentMessages.map(m => this.ensureString(m.content)).join(' '),
+      timestamp: Date.now()
+    };
+    
+    this.proceduralSummaries.push(summary);
+    if (this.proceduralSummaries.length > this.maxSummaries) {
+      this.proceduralSummaries.shift();
+    }
+  }
+
+  getContext() {
+    return {
+      recentMessages: this.messages.slice(-2).map(m => ({
+        ...m,
+        content: this.ensureString(m.content)
+      })),
+      proceduralSummaries: this.proceduralSummaries.map(s => ({
+        ...s,
+        findings: this.ensureString(s.findings)
+      })),
+      currentStep: this.stepCounter
+    };
   }
 
   clear() {
     this.messages = [];
+    this.proceduralSummaries = [];
+    this.stepCounter = 0;
   }
 }
 
-// Enhanced MultiLLM with Token Management
-class RobustMultiLLM {
-  constructor(config = {}) {
-    this.config = config;
-    this.providers = ['anthropic', 'openai'];
-    this.currentProviderIndex = 0;
+// 🔧 FIXED: Background Task Manager - Now Actually Used!
+class BackgroundTaskManager {
+  constructor() {
+    this.runningTasks = new Map();
+    this.taskResults = new Map();
+    this.maxConcurrentTasks = 2;
+    console.log('✅ BackgroundTaskManager initialized');
   }
 
-  async call(messages, options = {}) {
-    let lastError = null;
+  async startTask(taskId, taskData, executor, connectionManager) {
+    console.log(`🚀 BackgroundTaskManager starting: ${taskId}`);
     
-    // Try current provider first
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const provider = options.provider || this.config.aiProvider || this.providers[this.currentProviderIndex];
-        return await this.callProvider(provider, messages, options);
-      } catch (error) {
-        lastError = error;
-        
-        // Don't retry token limit errors
-        if (APIErrorHandler.isTokenLimitError(error)) {
-          throw error;
+    this.runningTasks.set(taskId, {
+      id: taskId,
+      data: taskData,
+      status: 'running',
+      startTime: Date.now(),
+      messages: [],
+      executor: executor  // Store executor reference for cancellation
+    });
+
+    setTimeout(() => {
+      this.executeTaskIndependently(taskId, taskData, executor, connectionManager);
+    }, 100);
+  }
+
+  async executeTaskIndependently(taskId, taskData, executor, connectionManager) {
+    try {
+      console.log(`⚙️ BackgroundTaskManager executing independently: ${taskId}`);
+      
+      // Create background-specific connection manager that persists
+      const backgroundConnectionManager = {
+        broadcast: (message) => {
+          const task = this.runningTasks.get(taskId);
+          if (task) {
+            task.messages.push({
+              ...message,
+              timestamp: Date.now()
+            });
+            
+            // Update task status
+            if (message.type === 'task_complete' || message.type === 'task_error') {
+              task.status = message.type === 'task_complete' ? 'completed' : 'error';
+              task.result = message.result || message;
+              task.endTime = Date.now();
+              
+              this.taskResults.set(taskId, task);
+              this.runningTasks.delete(taskId);
+              
+              console.log(`✅ BackgroundTaskManager completed: ${taskId}`);
+            }
+            
+            // Forward to active connections if any
+            if (connectionManager) {
+              connectionManager.broadcast(message);
+            }
+          }
         }
+      };
+
+      // Execute the task (continues in background)
+      await executor.execute(taskData.task, backgroundConnectionManager);
+
+    } catch (error) {
+      console.error(`❌ BackgroundTaskManager error: ${taskId}`, error);
+      
+      const task = this.runningTasks.get(taskId);
+      if (task) {
+        task.status = 'error';
+        task.error = error.message;
+        task.endTime = Date.now();
         
-        const shouldRetry = await APIErrorHandler.handleAPIError(error, this, attempt);
-        if (shouldRetry) {
-          continue; // Retry same provider
+        this.taskResults.set(taskId, task);
+        this.runningTasks.delete(taskId);
+      }
+    }
+  }
+
+  getTaskStatus(taskId) {
+    return this.runningTasks.get(taskId) || this.taskResults.get(taskId) || null;
+  }
+
+  getRecentMessages(taskId, limit = 10) {
+    const task = this.getTaskStatus(taskId);
+    return task?.messages?.slice(-limit) || [];
+  }
+
+  getAllRunningTasks() {
+    return Array.from(this.runningTasks.values());
+  }
+
+  getAllCompletedTasks() {
+    return Array.from(this.taskResults.values());
+  }
+
+  cancelTask(taskId) {
+    const task = this.runningTasks.get(taskId);
+    if (task && task.executor) {
+      console.log(`🛑 BackgroundTaskManager cancelling: ${taskId}`);
+      task.executor.cancel();
+      task.status = 'cancelled';
+      task.endTime = Date.now();
+      
+      this.taskResults.set(taskId, task);
+      this.runningTasks.delete(taskId);
+      return true;
+    }
+    return false;
+  }
+}
+
+// Action Registry with universal platform support
+class ActionRegistry {
+  constructor(browserContext) {
+    this.browserContext = browserContext;
+    this.actions = new Map();
+    this.initializeActions();
+  }
+
+  initializeActions() {
+    this.actions.set('go_to_url', {
+      handler: async (input) => {
+        try {
+          const result = await this.browserContext.ensureTab(input.url);
+          
+          // If Android mode or navigation failed, provide helpful response
+          if (result.androidMode || !result.success) {
+            return {
+              success: true, // Mark as success but with guidance
+              extractedContent: `🤖 I need to navigate to ${input.url} to complete this task. Since automatic navigation isn't supported on this platform, please manually navigate to the correct page and I'll continue from there.`,
+              includeInMemory: true,
+              needsManualNavigation: true
+            };
+          }
+          
+          return result;
+        } catch (error) {
+          return {
+            success: true, // Don't fail the task, just provide guidance
+            extractedContent: `🤖 I need to navigate to ${input.url} but automatic navigation isn't available. Please manually navigate to that page and I'll help you complete the task from there.`,
+            includeInMemory: true,
+            needsManualNavigation: true
+          };
         }
-        
-        // Try next provider
-        this.currentProviderIndex = (this.currentProviderIndex + 1) % this.providers.length;
-        console.log(`Switching to provider: ${this.providers[this.currentProviderIndex]}`);
+      }
+    });
+
+    this.actions.set('click_element', {
+      handler: async (input) => {
+        try {
+          // Ensure we have an active tab
+          if (!this.browserContext.activeTabId) {
+            const currentTab = await this.browserContext.getCurrentActiveTab();
+            this.browserContext.activeTabId = currentTab?.id;
+          }
+
+          if (!this.browserContext.activeTabId) {
+            throw new Error('No active tab available');
+          }
+
+          let result;
+          
+          // Try with index first
+          if (input.index !== undefined) {
+            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
+              action: 'CLICK_ELEMENT',
+              index: input.index
+            });
+          }
+          
+          // If that fails, try with selector
+          if (!result || !result.success) {
+            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
+              action: 'CLICK_ELEMENT',
+              selector: input.selector
+            });
+          }
+          
+          return {
+            success: result?.success !== false,
+            extractedContent: `Clicked element ${input.index || input.selector || 'target'}`,
+            includeInMemory: true
+          };
+        } catch (error) {
+          console.error('Click action error:', error);
+          return {
+            success: false,
+            error: error.message,
+            extractedContent: `Click failed: ${error.message}`,
+            includeInMemory: true
+          };
+        }
+      }
+    });
+
+    this.actions.set('input_text', {
+      handler: async (input) => {
+        try {
+          // Ensure we have an active tab
+          if (!this.browserContext.activeTabId) {
+            const currentTab = await this.browserContext.getCurrentActiveTab();
+            this.browserContext.activeTabId = currentTab?.id;
+          }
+
+          if (!this.browserContext.activeTabId) {
+            throw new Error('No active tab available');
+          }
+
+          // Try multiple approaches for text input
+          let result;
+          
+          // First try with index
+          if (input.index !== undefined) {
+            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
+              action: 'FILL_ELEMENT',
+              index: input.index,
+              text: input.text
+            });
+          }
+          
+          // If that fails, try with selector (for better compatibility)
+          if (!result || !result.success) {
+            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
+              action: 'FILL_ELEMENT',
+              selector: input.selector || `[data-testid="tweetTextarea_0"]`,
+              text: input.text
+            });
+          }
+          
+          // If still failing, try generic text area selectors
+          if (!result || !result.success) {
+            const selectors = [
+              '[role="textbox"][contenteditable="true"]',
+              'textarea',
+              '[contenteditable="true"]',
+              'input[type="text"]'
+            ];
+            
+            for (const selector of selectors) {
+              try {
+                result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
+                  action: 'FILL_ELEMENT',
+                  selector: selector,
+                  text: input.text
+                });
+                
+                if (result && result.success) {
+                  break;
+                }
+              } catch (e) {
+                // Try next selector
+              }
+            }
+          }
+          
+          return {
+            success: result?.success !== false,
+            extractedContent: `Input "${input.text}" into element ${input.index || 'auto-detected'}`,
+            includeInMemory: true
+          };
+        } catch (error) {
+          console.error('Input action error:', error);
+          return {
+            success: false,
+            error: error.message,
+            extractedContent: `Input failed: ${error.message}`,
+            includeInMemory: true
+          };
+        }
+      }
+    });
+
+    this.actions.set('scroll_down', {
+      handler: async (input) => {
+        try {
+          // Ensure we have an active tab
+          if (!this.browserContext.activeTabId) {
+            const currentTab = await this.browserContext.getCurrentActiveTab();
+            this.browserContext.activeTabId = currentTab?.id;
+          }
+
+          if (!this.browserContext.activeTabId) {
+            throw new Error('No active tab available');
+          }
+
+          const result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
+            action: 'SCROLL_DOWN',
+            amount: input.amount || 300
+          });
+          
+          return {
+            success: result?.success !== false,
+            extractedContent: `Scrolled down by ${input.amount || 300}px`,
+            includeInMemory: true
+          };
+        } catch (error) {
+          console.error('Scroll action error:', error);
+          return {
+            success: false,
+            error: error.message,
+            extractedContent: `Scroll failed: ${error.message}`,
+            includeInMemory: true
+          };
+        }
+      }
+    });
+
+    this.actions.set('wait', {
+      handler: async (input) => {
+        const duration = input.duration || 3000;
+        await new Promise(resolve => setTimeout(resolve, duration));
+        return {
+          success: true,
+          extractedContent: `Waited ${duration}ms`,
+          includeInMemory: true
+        };
+      }
+    });
+
+    this.actions.set('cache_content', {
+      handler: async (input) => {
+        return {
+          success: true,
+          extractedContent: `Cached: ${input.content}`,
+          includeInMemory: true,
+          cached: true
+        };
+      }
+    });
+
+    this.actions.set('done', {
+      handler: async (input) => {
+        return {
+          success: input.success !== false,
+          extractedContent: input.text || 'Task completed',
+          isDone: true,
+          includeInMemory: true
+        };
+      }
+    });
+  }
+
+  async executeAction(actionName, input) {
+    const action = this.actions.get(actionName);
+    if (!action) {
+      throw new Error(`Unknown action: ${actionName}`);
+    }
+
+    try {
+      return await action.handler(input);
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        extractedContent: `Action ${actionName} failed: ${error.message}`,
+        includeInMemory: true
+      };
+    }
+  }
+
+  getAvailableActions() {
+    return Array.from(this.actions.keys());
+  }
+}
+
+// Enhanced Planner Agent
+class PlannerAgent {
+  constructor(llmService, memoryManager) {
+    this.llmService = llmService;
+    this.memoryManager = memoryManager;
+  }
+
+  async plan(userTask, currentState, executionHistory) {
+    const context = this.memoryManager.getContext();
+    
+    const plannerPrompt = `You are a strategic web automation planner for social media platforms.
+
+Task: "${userTask}"
+
+Current Context:
+- URL: ${currentState.pageInfo?.url || 'unknown'}
+- Platform: ${this.detectPlatform(currentState.pageInfo?.url)}
+- Step: ${context.currentStep}
+- Login Status: ${currentState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
+- Page Type: ${currentState.pageContext?.pageType || 'unknown'}
+
+Recent Actions:
+${context.recentMessages.map(m => `${m.action || 'action'}: ${this.ensureString(m.content).substring(0, 50)}...`).join('\n') || 'No recent actions'}
+
+Interactive Elements Available:
+${this.formatElements(currentState.interactiveElements || [])}
+
+Platform Capabilities:
+${this.getPlatformCapabilities(currentState.pageContext?.platform)}
+
+RESPONSE FORMAT (JSON only):
+{
+  "observation": "current state analysis and what needs to be done",
+  "done": false,
+  "next_steps": "specific actionable steps for this platform",
+  "reasoning": "explanation of approach for this social media platform",
+  "web_task": true,
+  "platform": "twitter|linkedin|facebook|instagram|youtube|tiktok|unknown",
+  "required_navigation": "url_if_navigation_needed_or_null",
+  "completion_criteria": "how to determine when task is complete"
+}`;
+
+    try {
+      const response = await this.llmService.call([
+        { role: 'user', content: plannerPrompt }
+      ], { maxTokens: 800 });
+      
+      const plan = JSON.parse(this.cleanJSONResponse(response));
+      
+      this.memoryManager.addMessage({
+        role: 'planner',
+        action: 'plan',
+        content: plan.next_steps || 'Plan created'
+      });
+      
+      return plan;
+    } catch (error) {
+      console.error('Planner failed:', error);
+      return this.getFallbackPlan(userTask, currentState);
+    }
+  }
+
+  ensureString(content) {
+    if (typeof content === 'string') return content;
+    if (content === null || content === undefined) return '';
+    if (typeof content === 'object') return JSON.stringify(content);
+    return String(content);
+  }
+
+  detectPlatform(url) {
+    if (!url) return 'unknown';
+    const lowerUrl = url.toLowerCase();
+    
+    if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
+    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
+    if (lowerUrl.includes('facebook.com')) return 'facebook';
+    if (lowerUrl.includes('instagram.com')) return 'instagram';
+    if (lowerUrl.includes('youtube.com')) return 'youtube';
+    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
+    if (lowerUrl.includes('reddit.com')) return 'reddit';
+    
+    return 'unknown';
+  }
+
+  getPlatformCapabilities(platform) {
+    const capabilities = {
+      'twitter': 'Post tweets, like, retweet, follow, reply, search',
+      'linkedin': 'Post updates, like, comment, connect, share',
+      'facebook': 'Post status, like, comment, share, react',
+      'instagram': 'Post photos, like, comment, follow, story',
+      'youtube': 'Like videos, comment, subscribe, create playlists',
+      'tiktok': 'Like videos, comment, follow, share',
+      'reddit': 'Post, comment, upvote, downvote, join communities',
+      'discord': 'Send messages, react, join servers',
+      'unknown': 'General web interactions available'
+    };
+    
+    return capabilities[platform] || capabilities['unknown'];
+  }
+
+  formatElements(elements) {
+    if (!elements || elements.length === 0) return "No interactive elements found.";
+    
+    return elements.slice(0, 10).map(el => 
+      `[${el.index}]<${el.tagName}>${(el.text || '').substring(0, 30)}${(el.text || '').length > 30 ? '...' : ''}</${el.tagName}>${el.ariaLabel ? ` (${el.ariaLabel})` : ''}`
+    ).join('\n');
+  }
+
+  cleanJSONResponse(response) {
+    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    return jsonMatch ? jsonMatch[0] : cleaned;
+  }
+
+  getFallbackPlan(userTask, currentState) {
+    const lowerTask = userTask.toLowerCase();
+    const platform = this.detectPlatform(currentState.pageInfo?.url);
+    
+    if (lowerTask.includes('post') || lowerTask.includes('tweet') || lowerTask.includes('share')) {
+      const platformUrls = {
+        'twitter': 'https://x.com/compose/post',
+        'linkedin': 'https://www.linkedin.com',
+        'facebook': 'https://www.facebook.com',
+        'instagram': 'https://www.instagram.com',
+        'youtube': 'https://www.youtube.com'
+      };
+      
+      return {
+        observation: `Need to post content on ${platform}`,
+        done: false,
+        next_steps: `Navigate to ${platform} posting interface and create content`,
+        web_task: true,
+        platform: platform,
+        required_navigation: platformUrls[platform] || null,
+        completion_criteria: "Content successfully posted"
+      };
+    }
+    
+    return {
+      observation: "General social media automation task",
+      done: false,
+      next_steps: "Analyze page and execute appropriate social media actions",
+      web_task: true,
+      platform: platform,
+      completion_criteria: "Task objectives achieved"
+    };
+  }
+}
+
+// Navigator Agent (same structure, just enhanced)
+class NavigatorAgent {
+  constructor(llmService, memoryManager, actionRegistry) {
+    this.llmService = llmService;
+    this.memoryManager = memoryManager;
+    this.actionRegistry = actionRegistry;
+  }
+
+  async navigate(plan, currentState) {
+    const context = this.memoryManager.getContext();
+    
+    const navigatorPrompt = `You are a social media automation navigator.
+
+Plan: ${JSON.stringify(plan.next_steps)}
+Platform: ${plan.platform}
+Current Step: ${context.currentStep}
+
+Current State:
+- URL: ${currentState.pageInfo?.url}
+- Platform: ${currentState.pageContext?.platform || 'unknown'}
+- Page Type: ${currentState.pageContext?.pageType || 'unknown'}
+- Login Status: ${currentState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
+- Elements: ${currentState.interactiveElements?.length || 0} interactive elements
+
+Interactive Elements:
+${this.formatElements(currentState.interactiveElements || [])}
+
+Available Actions: ${this.actionRegistry.getAvailableActions().join(', ')}
+
+CRITICAL RULES:
+1. Use element indices from the Interactive Elements list above
+2. For social media posting, find compose/post/write buttons and text areas
+3. Only mark done when task is actually completed
+4. Consider platform-specific UI patterns
+
+RESPONSE FORMAT (JSON only):
+{
+  "current_state": {
+    "evaluation_previous_goal": "Success|Failed|Unknown - analysis of previous action",
+    "memory": "what has been accomplished so far", 
+    "next_goal": "immediate next objective to achieve"
+  },
+  "action": [
+    {
+      "action_name": {
+        "intent": "description of what this achieves",
+        "index": number_if_interacting_with_element,
+        "text": "text_if_filling_form",
+        "url": "url_if_navigating",
+        "duration": number_if_waiting
+      }
+    }
+  ]
+}`;
+
+    try {
+      const response = await this.llmService.call([
+        { role: 'user', content: navigatorPrompt }
+      ], { maxTokens: 600 });
+      
+      const navResult = JSON.parse(this.cleanJSONResponse(response));
+      
+      this.memoryManager.addMessage({
+        role: 'navigator',
+        action: 'navigate',
+        content: navResult.current_state?.next_goal || 'Navigation planned'
+      });
+      
+      return navResult;
+    } catch (error) {
+      console.error('Navigator failed:', error);
+      return this.getFallbackNavigation(plan, currentState);
+    }
+  }
+
+  formatElements(elements) {
+    if (!elements || elements.length === 0) return "No interactive elements found.";
+    
+    return elements.slice(0, 10).map(el => 
+      `[${el.index}]<${el.tagName}>${(el.text || '').substring(0, 30)}${(el.text || '').length > 30 ? '...' : ''}</${el.tagName}>${el.ariaLabel ? ` (${el.ariaLabel})` : ''}`
+    ).join('\n');
+  }
+
+  cleanJSONResponse(response) {
+    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    return jsonMatch ? jsonMatch[0] : cleaned;
+  }
+
+  getFallbackNavigation(plan, currentState) {
+    // Check if we need navigation but can't do it automatically
+    if (plan.required_navigation && plan.required_navigation !== currentState.pageInfo?.url) {
+      return {
+        current_state: {
+          evaluation_previous_goal: "Navigation needed",
+          memory: "Need to navigate to target platform but automatic navigation not supported",
+          next_goal: "Guide user to navigate manually"
+        },
+        action: [{
+          "cache_content": {
+            "intent": "Inform user about manual navigation",
+            "content": `🤖 I need to access ${plan.required_navigation} to complete this task. Please navigate to that page manually, and I'll continue helping you from there. On mobile browsers, automatic navigation may not be supported.`
+          }
+        }]
+      };
+    }
+    
+    // If we're on the right platform, try to find elements to interact with
+    const currentUrl = currentState.pageInfo?.url || '';
+    if (currentUrl.includes('x.com') || currentUrl.includes('twitter.com')) {
+      // Look for compose elements
+      const hasComposeElements = currentState.interactiveElements?.some(el => 
+        el.isTextArea || el.isTweetButton || 
+        el.text?.toLowerCase().includes('tweet') ||
+        el.ariaLabel?.toLowerCase().includes('tweet')
+      );
+      
+      if (hasComposeElements) {
+        return {
+          current_state: {
+            evaluation_previous_goal: "Found elements",
+            memory: "Located interactive elements on current page",
+            next_goal: "Interact with available elements"
+          },
+          action: [{
+            "wait": {
+              "intent": "Analyze available elements",
+              "duration": 1000
+            }
+          }]
+        };
       }
     }
     
-    throw lastError || new Error('All providers failed');
+    return {
+      current_state: {
+        evaluation_previous_goal: "Unknown",
+        memory: "Using fallback navigation approach",
+        next_goal: "Wait and analyze page"
+      },
+      action: [{
+        "wait": {
+          "intent": "Wait for page analysis", 
+          "duration": 3000
+        }
+      }]
+    };
+  }
+}
+
+// Validator Agent (same structure)
+class ValidatorAgent {
+  constructor(llmService, memoryManager) {
+    this.llmService = llmService;
+    this.memoryManager = memoryManager;
   }
 
-  async callProvider(provider, messages, options) {
-    switch (provider) {
-      case 'anthropic':
-        return await this.callAnthropic(messages, options);
-      case 'openai':
-        return await this.callOpenAI(messages, options);
-      default:
-        throw new Error(`Unsupported AI provider: ${provider}`);
+  async validate(originalTask, executionHistory, finalState) {
+    const validatorPrompt = `You are a social media task completion validator.
+
+Original Task: "${originalTask}"
+
+Execution History:
+${executionHistory.map((h, i) => `Step ${i + 1}: ${h.navigation || 'action'} - ${h.success ? 'SUCCESS' : 'FAILED'}`).join('\n')}
+
+Final State:
+- URL: ${finalState.pageInfo?.url}
+- Platform: ${this.detectPlatform(finalState.pageInfo?.url)}
+- Page Type: ${finalState.pageContext?.pageType || 'unknown'}
+- Login Status: ${finalState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
+
+RESPONSE FORMAT (JSON only):
+{
+  "is_valid": boolean,
+  "reason": "detailed explanation of completion status",
+  "answer": "comprehensive summary of what was accomplished",
+  "success_confidence": 0.8,
+  "completion_evidence": "specific evidence of task completion",
+  "platform_specific_notes": "notes about platform-specific completion"
+}`;
+
+    try {
+      const response = await this.llmService.call([
+        { role: 'user', content: validatorPrompt }
+      ], { maxTokens: 400 });
+      
+      const validation = JSON.parse(this.cleanJSONResponse(response));
+      
+      this.memoryManager.addMessage({
+        role: 'validator',
+        action: 'validate',
+        content: validation.answer || 'Validation completed'
+      });
+      
+      return validation;
+    } catch (error) {
+      console.error('Validator failed:', error);
+      return {
+        is_valid: executionHistory.some(h => h.success),
+        reason: "Validation failed, assuming partial success based on execution history",
+        answer: "Social media task execution completed with mixed results",
+        success_confidence: 0.6,
+        completion_evidence: "Validation service unavailable",
+        platform_specific_notes: "Manual verification recommended"
+      };
     }
+  }
+
+  detectPlatform(url) {
+    if (!url) return 'unknown';
+    const lowerUrl = url.toLowerCase();
+    
+    const platforms = {
+      'twitter': ['x.com', 'twitter.com'],
+      'linkedin': ['linkedin.com'],
+      'facebook': ['facebook.com'],
+      'instagram': ['instagram.com'],
+      'youtube': ['youtube.com'],
+      'tiktok': ['tiktok.com']
+    };
+    
+    for (const [platform, domains] of Object.entries(platforms)) {
+      if (domains.some(domain => lowerUrl.includes(domain))) {
+        return platform;
+      }
+    }
+    
+    return 'unknown';
+  }
+
+  cleanJSONResponse(response) {
+    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    return jsonMatch ? jsonMatch[0] : cleaned;
+  }
+}
+
+// Browser Context Manager (same as before)
+class BrowserContextManager {
+  constructor() {
+    this.activeTabId = null;
+  }
+
+  async ensureTab(url) {
+    try {
+      const currentTab = await this.getCurrentActiveTab();
+      
+      // For Android/WootzApp - chrome.tabs.update not supported
+      if (!currentTab || this.isRestrictedPage(currentTab.url)) {
+        console.log('Creating new tab for restricted page');
+        const newTab = await chrome.tabs.create({ url: url, active: true });
+        this.activeTabId = newTab.id;
+        await this.waitForReady(newTab.id);
+        return {
+          success: true,
+          extractedContent: `Navigated to ${url}`,
+          includeInMemory: true
+        };
+      }
+
+      // Android compatibility - work with current tab instead of updating
+      console.log('Android mode: Working with current tab instead of navigating to:', url);
+      this.activeTabId = currentTab.id;
+      
+      return {
+        success: true,
+        extractedContent: `Working with current page: ${currentTab.url}. For navigation to ${url}, please navigate manually.`,
+        includeInMemory: true,
+        androidMode: true
+      };
+      
+    } catch (error) {
+      console.error('Tab management error:', error);
+      return {
+        success: false,
+        error: error.message,
+        extractedContent: `Navigation not supported on this platform: ${error.message}. Please navigate manually to the desired page.`,
+        includeInMemory: true
+      };
+    }
+  }
+
+  async waitForReady(tabId, timeout = 10000) {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      
+      const checkReady = () => {
+        if (Date.now() - startTime > timeout) {
+          resolve({ id: tabId, status: 'timeout' });
+          return;
+        }
+        
+        chrome.tabs.get(tabId, (tab) => {
+          if (chrome.runtime.lastError || !tab) {
+            setTimeout(checkReady, 500);
+          } else if (tab.status === 'complete') {
+            resolve(tab);
+          } else {
+            setTimeout(checkReady, 500);
+          }
+        });
+      };
+      
+      checkReady();
+    });
+  }
+
+  async getCurrentActiveTab() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      return tabs[0];
+    } catch (error) {
+      return null;
+    }
+  }
+
+  isRestrictedPage(url) {
+    if (!url) return true;
+    
+    const restrictedPages = [
+      'chrome-native://',
+      'chrome-extension://',
+      'chrome://',
+      'about:',
+      'moz-extension://'
+    ];
+    
+    return restrictedPages.some(prefix => url.startsWith(prefix));
+  }
+
+  async ensureContentScript(tabId) {
+    try {
+      // Test if content script is already injected
+      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
+      console.log('Content script already available');
+      return true;
+    } catch (error) {
+      // Content script not available, inject it
+      try {
+        console.log('Injecting content script');
+        
+        // First inject buildDomTree.js (dependency)
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['buildDomTree.js']
+        });
+        
+        // Then inject content.js
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        });
+        
+        // Wait longer for Android initialization
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Test if injection worked
+        try {
+          await chrome.tabs.sendMessage(tabId, { action: 'PING' });
+          console.log('Content scripts injected and working');
+          return true;
+        } catch (testError) {
+          console.error('Content script injection verification failed:', testError);
+          return false;
+        }
+      } catch (injectError) {
+        console.error('Failed to inject content script:', injectError);
+        return false;
+      }
+    }
+  }
+
+  async closeExcessTabs() {
+    try {
+      const tabs = await chrome.tabs.query({});
+      const twitterTabs = tabs.filter(tab => 
+        tab.url.includes('twitter.com') || tab.url.includes('x.com')
+      );
+      
+      // Keep only the active Twitter tab, close others
+      if (twitterTabs.length > 1) {
+        for (let i = 1; i < twitterTabs.length; i++) {
+          try {
+            await chrome.tabs.remove(twitterTabs[i].id);
+            console.log(`Closed excess Twitter tab: ${twitterTabs[i].id}`);
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Could not close excess tabs:', error);
+    }
+  }
+}
+
+// Multi-Agent Executor with BackgroundTaskManager Integration
+class MultiAgentExecutor {
+  constructor(llmService) {
+    this.llmService = llmService;
+    this.memoryManager = new ProceduralMemoryManager();
+    this.browserContext = new BrowserContextManager();
+    this.actionRegistry = new ActionRegistry(this.browserContext);
+    
+    this.planner = new PlannerAgent(this.llmService, this.memoryManager);
+    this.navigator = new NavigatorAgent(this.llmService, this.memoryManager, this.actionRegistry);
+    this.validator = new ValidatorAgent(this.llmService, this.memoryManager);
+    
+    this.maxSteps = 12;
+    this.executionHistory = [];
+    this.currentStep = 0;
+    this.cancelled = false;
+  }
+
+  async execute(userTask, connectionManager) {
+    // Reset step counter at start of each execution
+    this.currentStep = 0;
+    this.executionHistory = [];
+    this.cancelled = false;
+    
+    try {
+      let taskCompleted = false;
+      let finalResult = null;
+
+      console.log(`🚀 Multi-agent execution: ${userTask}`);
+      connectionManager.broadcast({
+        type: 'task_start',
+        message: `🚀 Starting: ${userTask}`
+      });
+
+      while (!taskCompleted && this.currentStep < this.maxSteps && !this.cancelled) {
+        this.currentStep++;
+        
+        console.log(`🔄 Step ${this.currentStep}/${this.maxSteps}`);
+        connectionManager.broadcast({
+          type: 'status_update',
+          message: `🔄 Step ${this.currentStep}/${this.maxSteps}: Multi-agent processing...`
+        });
+
+        // Check for cancellation
+        if (this.cancelled) {
+          finalResult = {
+            success: false,
+            response: '🛑 Task cancelled by user',
+            message: 'Task cancelled',
+            steps: this.currentStep
+          };
+          break;
+        }
+
+        // 1. Get current state
+        const currentState = await this.getCurrentState();
+        
+        // 2. Planner Agent
+        connectionManager.broadcast({
+          type: 'status_update',
+          message: `🧠 Planner Agent: Analyzing ${currentState.pageContext?.platform || 'platform'}...`
+        });
+
+        const plan = await this.planner.plan(userTask, currentState, this.executionHistory);
+        console.log(`Step ${this.currentStep} Plan:`, plan);
+
+        if (plan.done) {
+          taskCompleted = true;
+          finalResult = {
+            success: true,
+            response: plan.observation,
+            message: 'Task completed during planning',
+            steps: this.currentStep
+          };
+          break;
+        }
+
+        // 3. Navigator Agent
+        connectionManager.broadcast({
+          type: 'status_update',
+          message: `🧭 Navigator Agent: Executing for ${plan.platform}...`
+        });
+
+        const navigation = await this.navigator.navigate(plan, currentState);
+        console.log(`Step ${this.currentStep} Navigation:`, navigation);
+
+        // 4. Action Execution
+        connectionManager.broadcast({
+          type: 'status_update',
+          message: `⚡ Performing ${navigation.action?.length || 0} actions...`
+        });
+
+        const actionResults = await this.executeActionSequence(navigation.action || [], connectionManager);
+        
+        this.executionHistory.push({
+          step: this.currentStep,
+          plan: plan.next_steps,
+          navigation: navigation.current_state?.next_goal,
+          results: actionResults,
+          success: actionResults.some(r => r.success)
+        });
+
+        // Check if done
+        const doneAction = actionResults.find(a => a.result?.isDone);
+        if (doneAction) {
+          taskCompleted = true;
+          
+          connectionManager.broadcast({
+            type: 'status_update',
+            message: `✅ Validator Agent: Checking completion...`
+          });
+
+          const finalState = await this.getCurrentState();
+          const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
+
+          finalResult = {
+            success: validation.is_valid,
+            response: validation.answer,
+            message: validation.answer,
+            steps: this.currentStep,
+            confidence: validation.success_confidence,
+            platform: plan.platform
+          };
+          break;
+        }
+
+        await this.delay(2000);
+      }
+
+      if (this.cancelled) {
+        connectionManager.broadcast({
+          type: 'task_cancelled',
+          result: finalResult
+        });
+      } else if (!taskCompleted) {
+        finalResult = {
+          success: false,
+          response: `❌ Task not completed within ${this.maxSteps} steps.`,
+          message: 'Task execution timeout',
+          steps: this.currentStep
+        };
+        
+        connectionManager.broadcast({
+          type: 'task_complete',
+          result: finalResult
+        });
+      }
+
+      return finalResult;
+
+    } catch (error) {
+      console.error('❌ Multi-agent execution error:', error);
+      const errorResult = {
+        success: false,
+        response: `❌ Execution error: ${error.message}`,
+        message: error.message,
+        steps: this.currentStep
+      };
+
+      connectionManager.broadcast({
+        type: 'task_error',
+        result: errorResult
+      });
+
+      return errorResult;
+    }
+  }
+
+  async getCurrentState() {
+    try {
+      const tab = await this.browserContext.getCurrentActiveTab();
+      if (!tab) {
+        return this.getDefaultState();
+      }
+
+      // Ensure content script is available
+      await this.browserContext.ensureContentScript(tab.id);
+      
+      this.browserContext.activeTabId = tab.id;
+
+      try {
+        console.log('Getting page state from content script');
+        const pageState = await chrome.tabs.sendMessage(tab.id, {
+          action: 'GET_PAGE_STATE'
+        });
+
+        if (pageState && pageState.success) {
+          return {
+            pageInfo: {
+              url: tab.url,
+              title: tab.title,
+              status: tab.status
+            },
+            pageContext: {
+              platform: this.detectPlatform(tab.url),
+              pageType: this.determinePageType(tab.url)
+            },
+            loginStatus: {
+              isLoggedIn: this.checkBasicLoginStatus(tab.url)
+            },
+            interactiveElements: pageState.pageState?.interactiveElements || [],
+            viewportInfo: pageState.pageState?.pageInfo?.viewport || {},
+            extractedContent: pageState.pageState?.pageInfo ? 
+              `${pageState.pageState.pageInfo.platform} page with ${pageState.pageState.interactiveElements?.length || 0} interactive elements` :
+              'Page content extracted'
+          };
+        } else {
+          console.log('Content script returned invalid response:', pageState);
+          return this.getDefaultState();
+        }
+      } catch (contentError) {
+        console.log('Could not get page state from content script:', contentError);
+        return this.getDefaultState();
+      }
+    } catch (error) {
+      console.log('Could not get current state:', error);
+      return this.getDefaultState();
+    }
+  }
+
+  getDefaultState() {
+    return {
+      pageInfo: { 
+        url: 'unknown', 
+        title: 'Unknown Page' 
+      },
+      pageContext: { 
+        platform: 'unknown', 
+        pageType: 'unknown' 
+      },
+      loginStatus: { 
+        isLoggedIn: false 
+      },
+      interactiveElements: [],
+      viewportInfo: {},
+      extractedContent: 'No content available'
+    };
+  }
+
+  checkBasicLoginStatus(url) {
+    return !url.includes('/login') && !url.includes('/signin');
+  }
+
+  determinePageType(url) {
+    if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
+    if (url.includes('/home') || url.includes('/timeline')) return 'home';
+    if (url.includes('/login') || url.includes('/signin')) return 'login';
+    if (url.includes('/profile') || url.includes('/user/')) return 'profile';
+    return 'general';
+  }
+
+  // Add delay method if missing
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async executeActionSequence(actions, connectionManager) {
+    const results = [];
+    
+    for (let i = 0; i < actions.length; i++) {
+      const actionObj = actions[i];
+      const actionName = Object.keys(actionObj)[0];
+      const actionInput = actionObj[actionName];
+      
+      try {
+        connectionManager.broadcast({
+          type: 'status_update',
+          message: `🎯 ${actionInput.intent || `Executing ${actionName}`}...`
+        });
+        
+        // Check if cancelled before executing action
+        if (this.cancelled) {
+          console.log('🛑 Action sequence cancelled');
+          break;
+        }
+        
+        const result = await this.actionRegistry.executeAction(actionName, actionInput);
+        
+        results.push({
+          action: actionName,
+          input: actionInput,
+          result: result,
+          success: result.success !== false
+        });
+        
+        if (actionName === 'go_to_url') {
+          await this.delay(4000);
+          break;
+        }
+        
+        if (!result.success) {
+          console.log(`❌ Action failed: ${actionName}`);
+          break;
+        }
+        
+        if (result.isDone) {
+          break;
+        }
+        
+        await this.delay(1500);
+        
+      } catch (error) {
+        console.error(`❌ Action error: ${actionName}`, error);
+        results.push({
+          action: actionName,
+          input: actionInput,
+          result: { success: false, error: error.message },
+          success: false
+        });
+        break;
+      }
+    }
+    
+    return results;
+  }
+
+  detectPlatform(url) {
+    if (!url) return 'unknown';
+    const lowerUrl = url.toLowerCase();
+    
+    if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
+    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
+    if (lowerUrl.includes('facebook.com')) return 'facebook';
+    if (lowerUrl.includes('instagram.com')) return 'instagram';
+    if (lowerUrl.includes('youtube.com')) return 'youtube';
+    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
+    
+    return 'unknown';
+  }
+
+  cancel() {
+    console.log('🛑 Cancelling multi-agent execution');
+    this.cancelled = true;
+  }
+
+  async ensureContentScriptInjected(tabId) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
+    } catch (error) {
+      console.log('Injecting content script into tab:', tabId);
+      
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['buildDomTree.js']
+        });
+        
+        await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          files: ['content.js']
+        });
+        
+        await this.delay(1500);
+      } catch (injectionError) {
+        console.error('Content script injection failed:', injectionError);
+        throw injectionError;
+      }
+    }
+  }
+}
+
+// Enhanced LLM Service (same as before)
+class RobustMultiLLM {
+  constructor(config = {}) {
+    this.config = config;
+    this.providers = ['anthropic', 'openai', 'gemini'];
+    this.currentProviderIndex = 0;
+    console.log('🤖 LLM Service initialized with model:', this.getModelName(config.aiProvider || 'anthropic'));
+  }
+
+  getModelName(provider, agentType = 'navigator') {
+    // Use agent-specific models from settings, fallback to general models, then defaults
+    const modelMap = {
+      'anthropic': 
+        (agentType === 'navigator' ? this.config.navigatorModel : 
+         agentType === 'planner' ? this.config.plannerModel :
+         agentType === 'validator' ? this.config.validatorModel : null) ||
+        this.config.anthropicModel || 'claude-3-5-sonnet-20241022',
+      'openai': 
+        (agentType === 'navigator' ? this.config.navigatorModel : 
+         agentType === 'planner' ? this.config.plannerModel :
+         agentType === 'validator' ? this.config.validatorModel : null) ||
+        this.config.openaiModel || 'gpt-4o',
+      'gemini': 
+        (agentType === 'navigator' ? this.config.navigatorModel : 
+         agentType === 'planner' ? this.config.plannerModel :
+         agentType === 'validator' ? this.config.validatorModel : null) ||
+        this.config.geminiModel || 'gemini-1.5-pro'
+    };
+    
+    return modelMap[provider] || modelMap['anthropic'];
+  }
+
+  async call(messages, options = {}, agentType = 'navigator') {
+    const provider = this.config.aiProvider || 'anthropic';
+    const modelName = this.getModelName(provider, agentType);
+    
+    console.log(`🤖 ${agentType} using ${provider} model: ${modelName}`);
+    
+    let lastError = null;
+    
+    // Try primary provider first
+    try {
+      return await this.callProvider(provider, messages, options);
+    } catch (error) {
+      console.error(`❌ ${provider} failed:`, error);
+      lastError = error;
+    }
+    
+    // Try fallback providers
+    for (const fallbackProvider of this.providers.filter(p => p !== provider)) {
+      try {
+        const fallbackModel = this.getModelName(fallbackProvider, agentType);
+        console.log(`🔄 Trying fallback: ${fallbackProvider} with ${fallbackModel}`);
+        return await this.callProvider(fallbackProvider, messages, options);
+      } catch (error) {
+        console.error(`❌ Fallback ${fallbackProvider} failed:`, error);
+        lastError = error;
+      }
+    }
+    
+    throw lastError || new Error('All LLM providers failed');
   }
 
   async callAnthropic(messages, options = {}) {
@@ -127,18 +1410,21 @@ class RobustMultiLLM {
       throw new Error('Anthropic API key not configured');
     }
 
+    const model = options.model || this.getModelName('anthropic');
+    console.log(`🔥 Calling Anthropic with model: ${model}`);
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': this.config.anthropicApiKey,
         'Content-Type': 'application/json',
         'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'anthropic-dangerous-direct-browser-access': 'true' // ✅ ADD THIS LINE
       },
       body: JSON.stringify({
-        model: options.model || 'claude-3-sonnet-20240229',
-        max_tokens: options.maxTokens || 1500,
-        temperature: options.temperature || 0.7,
+        model: model,
+        max_tokens: options.maxTokens || 1000,
+        temperature: options.temperature || 0.3,
         messages: messages
       })
     });
@@ -157,6 +1443,9 @@ class RobustMultiLLM {
       throw new Error('OpenAI API key not configured');
     }
 
+    const model = options.model || this.getModelName('openai');
+    console.log(`🔥 Calling OpenAI with model: ${model}`);
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -164,10 +1453,10 @@ class RobustMultiLLM {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: options.model || 'gpt-4',
+        model: model,
         messages: messages,
-        max_tokens: options.maxTokens || 1500,
-        temperature: options.temperature || 0.7
+        max_tokens: options.maxTokens || 1000,
+        temperature: options.temperature || 0.3
       })
     });
 
@@ -179,317 +1468,115 @@ class RobustMultiLLM {
     const data = await response.json();
     return data.choices[0].message.content;
   }
-}
 
-// Compact Task Analyzer (Token-Optimized)
-class CompactTaskAnalyzer {
-  constructor(llmService, memoryManager) {
-    this.llmService = llmService;
-    this.memoryManager = memoryManager;
-  }
-
-  async analyze(userTask, pageState, currentTab) {
-    const compactPrompt = `Task: "${userTask}"
-
-Current Context:
-- URL: ${currentTab?.url || 'unknown'}
-- Platform: ${pageState.pageContext?.platform || 'unknown'}
-- Page Type: ${pageState.pageContext?.pageType || 'unknown'}
-- Elements: ${pageState.interactiveElements?.length || 0}
-
-Top 10 Interactive Elements:
-${this.formatElements(pageState.interactiveElements || [])}
-
-Android Rules:
-1. If not on Twitter for Twitter tasks, navigate to x.com
-2. Use element indices for clicking
-3. For posting: navigate to x.com/compose/post
-4. For liking: find like buttons on x.com/home
-
-Respond with valid JSON only:
-{
-  "action": "navigate|click|fill|chat",
-  "target": "url_or_element_index",
-  "text": "content_if_filling",
-  "reasoning": "brief explanation"
-}`;
-
-    try {
-      const response = await this.llmService.call([
-        { role: 'user', content: compactPrompt }
-      ], { maxTokens: 800 });
-      
-      // Clean JSON response
-      const cleanResponse = this.cleanJSONResponse(response);
-      return JSON.parse(cleanResponse);
-    } catch (error) {
-      console.error('Task analyzer failed:', error);
-      return this.getFallbackAnalysis(userTask, currentTab);
+  // Add missing callProvider method
+  async callProvider(provider, messages, options) {
+    switch (provider) {
+      case 'anthropic':
+        return await this.callAnthropic(messages, options);
+      case 'openai':
+        return await this.callOpenAI(messages, options);
+      case 'gemini':
+        return await this.callGemini(messages, options);
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
     }
   }
 
-  cleanJSONResponse(response) {
-    // Remove markdown code blocks
-    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-    
-    // Extract JSON from response
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return jsonMatch[0];
-    }
-    
-    return cleaned;
-  }
-
-  formatElements(elements) {
-    if (!elements || elements.length === 0) {
-      return "No interactive elements found.";
+  // Add missing Gemini support
+  async callGemini(messages, options = {}) {
+    if (!this.config.geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
-    return elements.slice(0, 10).map(el => 
-      `[${el.index}] ${el.tagName} - "${el.text.substring(0, 30)}${el.text.length > 30 ? '...' : ''}"${el.ariaLabel ? ` (${el.ariaLabel})` : ''}`
-    ).join('\n');
-  }
+    const model = options.model || this.getModelName('gemini');
+    console.log(`🔥 Calling Gemini with model: ${model}`);
 
-  getFallbackAnalysis(userTask, currentTab) {
-    const lowerTask = userTask.toLowerCase();
-    const currentUrl = currentTab?.url || '';
-    
-    // Determine action based on task and current page
-    if (lowerTask.includes('tweet') || lowerTask.includes('post')) {
-      if (!currentUrl.includes('x.com')) {
-        return {
-          action: 'navigate',
-          target: 'https://x.com/compose/post',
-          reasoning: 'Need to navigate to Twitter compose page'
-        };
-      }
-    }
-    
-    if (lowerTask.includes('like')) {
-      if (!currentUrl.includes('x.com')) {
-        return {
-          action: 'navigate',
-          target: 'https://x.com/home',
-          reasoning: 'Need to navigate to Twitter home feed'
-        };
-      }
-    }
-    
-    return {
-      action: 'chat',
-      reasoning: 'Unable to determine specific action, defaulting to chat'
-    };
-  }
-}
+    const geminiMessages = messages.map(msg => ({
+      role: msg.role === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
 
-// Android-Optimized Tab Manager
-class AndroidTabManager {
-  async ensureCorrectTab(targetUrl, currentTab) {
-    try {
-      // If we're on a restricted page, create new tab
-      if (this.isRestrictedPage(currentTab?.url)) {
-        console.log('Creating new tab for restricted page:', currentTab?.url);
-        const newTab = await chrome.tabs.create({ url: targetUrl });
-        return newTab;
-      }
-      
-      // If current tab is suitable, navigate it
-      if (currentTab && currentTab.id) {
-        console.log('Navigating current tab to:', targetUrl);
-        await chrome.tabs.update(currentTab.id, { url: targetUrl });
-        return currentTab;
-      }
-      
-      // Create new tab as fallback
-      console.log('Creating new tab as fallback');
-      const newTab = await chrome.tabs.create({ url: targetUrl });
-      return newTab;
-      
-    } catch (error) {
-      console.error('Tab management error:', error);
-      throw error;
-    }
-  }
-
-  isRestrictedPage(url) {
-    if (!url) return true;
-    
-    const restrictedPages = [
-      'chrome-native://',
-      'chrome-extension://',
-      'chrome://',
-      'about:',
-      'moz-extension://'
-    ];
-    
-    return restrictedPages.some(prefix => url.startsWith(prefix));
-  }
-
-  async waitForTabReady(tabId, timeout = 15000) {
-    return new Promise((resolve, reject) => {
-      const startTime = Date.now();
-      
-      const checkReady = () => {
-        if (Date.now() - startTime > timeout) {
-          reject(new Error('Tab load timeout'));
-          return;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.geminiApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: geminiMessages,
+        generationConfig: {
+          maxOutputTokens: options.maxTokens || 4096,
+          temperature: options.temperature || 0.3
         }
-        
-        chrome.tabs.get(tabId, (tab) => {
-          if (chrome.runtime.lastError) {
-            setTimeout(checkReady, 500);
-          } else if (tab.status === 'complete') {
-            resolve(tab);
-          } else {
-            setTimeout(checkReady, 500);
-          }
-        });
-      };
-      
-      checkReady();
+      })
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
   }
 }
 
-// Streamlined Action Executor
-class ActionExecutor {
-  constructor(tabManager) {
-    this.tabManager = tabManager;
+// Persistent Connection Manager with BackgroundTaskManager Integration
+class PersistentConnectionManager {
+  constructor(backgroundTaskManager) {
+    this.connections = new Map();
+    this.messageQueue = [];
+    this.backgroundTaskManager = backgroundTaskManager;
+    this.activeTask = null;
   }
 
-  async execute(analysis, port) {
-    try {
-      const currentTab = await this.getCurrentActiveTab();
-      
-      switch (analysis.action) {
-        case 'navigate':
-          return await this.handleNavigation(analysis.target, currentTab, port);
-          
-        case 'click':
-          return await this.handleClick(analysis.target, currentTab.id, port);
-          
-        case 'fill':
-          return await this.handleFill(analysis.target, analysis.text, currentTab.id, port);
-          
-        case 'chat':
-          return await this.handleChat(analysis.reasoning);
-          
-        default:
-          return { success: false, error: `Unknown action: ${analysis.action}` };
+  addConnection(connectionId, port) {
+    console.log(`🔗 Adding connection: ${connectionId}`);
+    
+    this.connections.set(connectionId, {
+      port: port,
+      connected: true,
+      lastActivity: Date.now()
+    });
+
+    // Send queued messages
+    if (this.messageQueue.length > 0) {
+      console.log(`📤 Sending ${this.messageQueue.length} queued messages`);
+      this.messageQueue.forEach(message => {
+        this.safePortMessage(port, message);
+      });
+      this.messageQueue = [];
+    }
+
+    // Send recent messages from active background task
+    if (this.activeTask) {
+      const recentMessages = this.backgroundTaskManager.getRecentMessages(this.activeTask, 3);
+      recentMessages.forEach(message => {
+        this.safePortMessage(port, message);
+      });
+    }
+  }
+
+  removeConnection(connectionId) {
+    console.log(`🔌 Removing connection: ${connectionId}`);
+    this.connections.delete(connectionId);
+  }
+
+  broadcast(message) {
+    let messageSent = false;
+    
+    this.connections.forEach((connection, connectionId) => {
+      if (connection.connected && this.safePortMessage(connection.port, message)) {
+        messageSent = true;
       }
-    } catch (error) {
-      console.error('Action execution error:', error);
-      return { success: false, error: error.message };
+    });
+
+    // Queue for background persistence
+    this.messageQueue.unshift(message);
+    if (this.messageQueue.length > 20) {
+      this.messageQueue.pop();
     }
-  }
 
-  async handleNavigation(targetUrl, currentTab, port) {
-    try {
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: `🌐 Navigating to ${targetUrl}...`
-      });
-
-      const tab = await this.tabManager.ensureCorrectTab(targetUrl, currentTab);
-      await this.tabManager.waitForTabReady(tab.id);
-      
-      // Wait for Android page load
-      await this.delay(3000);
-      
-      // Inject content script
-      await this.ensureContentScriptInjected(tab.id);
-      
-      return {
-        success: true,
-        message: `Successfully navigated to ${targetUrl}`,
-        tabId: tab.id
-      };
-    } catch (error) {
-      return { success: false, error: `Navigation failed: ${error.message}` };
-    }
-  }
-
-  async handleClick(elementIndex, tabId, port) {
-    try {
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: `👆 Clicking element ${elementIndex}...`
-      });
-
-      await this.ensureContentScriptInjected(tabId);
-      
-      const result = await chrome.tabs.sendMessage(tabId, {
-        action: 'CLICK_ELEMENT',
-        index: elementIndex
-      });
-      
-      return result;
-    } catch (error) {
-      return { success: false, error: `Click failed: ${error.message}` };
-    }
-  }
-
-  async handleFill(elementIndex, text, tabId, port) {
-    try {
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: `✍️ Filling element ${elementIndex}...`
-      });
-
-      await this.ensureContentScriptInjected(tabId);
-      
-      const result = await chrome.tabs.sendMessage(tabId, {
-        action: 'FILL_ELEMENT',
-        index: elementIndex,
-        text: text
-      });
-      
-      return result;
-    } catch (error) {
-      return { success: false, error: `Fill failed: ${error.message}` };
-    }
-  }
-
-  async handleChat(reasoning) {
-    return {
-      success: true,
-      message: reasoning || 'Task completed',
-      response: reasoning || 'I understand your request. How can I help you further?'
-    };
-  }
-
-  async getCurrentActiveTab() {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tabs[0];
-  }
-
-  async ensureContentScriptInjected(tabId) {
-    try {
-      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
-    } catch (error) {
-      await this.injectContentScript(tabId);
-    }
-  }
-
-  async injectContentScript(tabId) {
-    try {
-      console.log('Injecting content script into tab:', tabId);
-      
-      await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['buildDomTree.js']
-      });
-      
-      await chrome.scripting.executeScript({
-        target: { tabId: tabId },
-        files: ['content.js']
-      });
-      
-      console.log('Content script injected successfully');
-    } catch (error) {
-      console.error('Failed to inject content script:', error);
-      throw error;
+    if (!messageSent) {
+      console.log('📦 Queued for background persistence:', message.type);
     }
   }
 
@@ -506,22 +1593,27 @@ class ActionExecutor {
     return false;
   }
 
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  setActiveTask(taskId) {
+    this.activeTask = taskId;
+  }
+
+  getActiveTask() {
+    return this.activeTask;
   }
 }
 
-// Main Background Script Agent
+// 🔧 FIXED: Main Background Script Agent with BackgroundTaskManager Integration
 class BackgroundScriptAgent {
   constructor() {
-    this.setupMessageHandlers();
+    this.backgroundTaskManager = new BackgroundTaskManager();
+    this.connectionManager = new PersistentConnectionManager(this.backgroundTaskManager);
     this.activeTasks = new Map();
-    this.connections = new Map();
     this.llmService = null;
-    this.memoryManager = new TokenOptimizedMemoryManager();
-    this.taskAnalyzer = null;
-    this.tabManager = new AndroidTabManager();
-    this.actionExecutor = new ActionExecutor(this.tabManager);
+    this.multiAgentExecutor = null;
+    this.taskRouter = null; // ✅ ADD THIS LINE
+    
+    this.setupMessageHandlers();
+    console.log('✅ BackgroundScriptAgent initialized with BackgroundTaskManager');
   }
 
   setupMessageHandlers() {
@@ -530,18 +1622,14 @@ class BackgroundScriptAgent {
         const connectionId = Date.now().toString();
         console.log('Background script connected:', connectionId);
         
-        this.connections.set(connectionId, {
-          port: port,
-          connected: true,
-          lastActivity: Date.now()
-        });
+        this.connectionManager.addConnection(connectionId, port);
         
         port.onMessage.addListener(async (message) => {
           try {
             await this.handlePortMessage(message, port, connectionId);
           } catch (error) {
             console.error('Message handling error:', error);
-            this.safePortMessage(port, {
+            this.connectionManager.safePortMessage(port, {
               type: 'error',
               error: error.message
             });
@@ -550,13 +1638,15 @@ class BackgroundScriptAgent {
 
         port.onDisconnect.addListener(() => {
           console.log('Background script disconnected:', connectionId);
-          this.connections.delete(connectionId);
+          this.connectionManager.removeConnection(connectionId);
+          // ✅ Tasks continue running in BackgroundTaskManager even after disconnect!
         });
 
         setTimeout(() => {
-          this.safePortMessage(port, {
+          this.connectionManager.safePortMessage(port, {
             type: 'connected',
-            connectionId: connectionId
+            connectionId: connectionId,
+            activeTask: this.connectionManager.getActiveTask()
           });
         }, 100);
       }
@@ -570,136 +1660,107 @@ class BackgroundScriptAgent {
 
   async handlePortMessage(message, port, connectionId) {
     const { type } = message;
-    console.log('Background script handling:', type, 'from:', connectionId);
+    console.log('Handling:', type, 'from:', connectionId);
 
     switch (type) {
       case 'new_task':
         const taskId = Date.now().toString();
         this.activeTasks.set(taskId, { 
           task: message.task, 
-          port: port, 
           connectionId: connectionId,
           startTime: Date.now()
         });
         
-        await this.executeTask(message.task, port, taskId);
+        this.connectionManager.setActiveTask(taskId);
+        await this.executeTaskWithBackgroundManager(message.task, taskId);
+        break;
+
+      case 'cancel_task':
+        console.log('🛑 Received cancel_task request');
+        const activeTaskId = this.connectionManager.getActiveTask();
+        if (activeTaskId) {
+          // Cancel in background task manager
+          const cancelled = this.backgroundTaskManager.cancelTask(activeTaskId);
+          
+          // Also cancel in active tasks
+          this.activeTasks.delete(activeTaskId);
+          this.connectionManager.setActiveTask(null);
+          
+          this.connectionManager.broadcast({
+            type: 'task_cancelled',
+            message: 'Task cancelled by user',
+            cancelled: cancelled
+          });
+          
+          console.log(`✅ Task ${activeTaskId} cancelled: ${cancelled}`);
+        } else {
+          console.log('⚠️ No active task to cancel');
+        }
         break;
 
       case 'get_status':
         const status = await this.getAgentStatus();
-        this.safePortMessage(port, {
+        this.connectionManager.safePortMessage(port, {
           type: 'status_response',
           status: status
         });
         break;
 
       default:
-        this.safePortMessage(port, {
+        this.connectionManager.safePortMessage(port, {
           type: 'error',
           error: `Unknown message type: ${type}`
         });
     }
   }
 
-  async executeTask(task, port, taskId) {
+  // ✅ FIXED: New method that actually uses BackgroundTaskManager
+  async executeTaskWithBackgroundManager(task, taskId) {
     try {
-      console.log('Executing task:', task, 'ID:', taskId);
+      console.log('🚀 Executing task with BackgroundTaskManager:', task, 'ID:', taskId);
       
-      // Initialize services
+      // Initialize services if needed
       if (!this.llmService) {
         const config = await this.getConfig();
         this.llmService = new RobustMultiLLM(config);
-        this.taskAnalyzer = new CompactTaskAnalyzer(this.llmService, this.memoryManager);
+        this.multiAgentExecutor = new MultiAgentExecutor(this.llmService);
+        this.taskRouter = new AITaskRouter(this.llmService);
       }
 
-      this.safePortMessage(port, {
-        type: 'task_start',
-        task: task,
-        taskId: taskId
-      });
-
-      // Check if it's a simple chat
-      if (this.isSimpleChat(task)) {
+      // AI-powered task classification
+      const classification = await this.taskRouter.analyzeAndRoute(task);
+      
+      if (classification.intent === 'CHAT') {
         const result = await this.handleSimpleChat(task);
-        this.safePortMessage(port, {
+        this.connectionManager.broadcast({
           type: 'task_complete',
           result: result,
           taskId: taskId
         });
+        this.activeTasks.delete(taskId);
         return;
       }
 
-      // Get current context
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: '👁️ Analyzing current page...'
-      });
-
-      const currentTab = await this.getCurrentActiveTab();
-      const pageState = await this.getPageState(currentTab?.id);
-
-      // Analyze task
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: '🧠 Planning action...'
-      });
-
-      const analysis = await this.taskAnalyzer.analyze(task, pageState, currentTab);
-      console.log('Task analysis:', analysis);
-
-      // Execute action
-      const result = await this.actionExecutor.execute(analysis, port);
-
-      // If navigation was successful, try to complete the original task
-      if (analysis.action === 'navigate' && result.success) {
-        await this.delay(2000);
-        
-        // Re-analyze on new page
-        const newTab = await this.getCurrentActiveTab();
-        const newPageState = await this.getPageState(newTab.id);
-        const newAnalysis = await this.taskAnalyzer.analyze(task, newPageState, newTab);
-        
-        if (newAnalysis.action !== 'navigate') {
-          const finalResult = await this.actionExecutor.execute(newAnalysis, port);
-          this.safePortMessage(port, {
-            type: 'task_complete',
-            result: finalResult,
-            taskId: taskId
-          });
-          return;
-        }
-      }
-
-      this.safePortMessage(port, {
-        type: 'task_complete',
-        result: result,
-        taskId: taskId
-      });
-
-      this.activeTasks.delete(taskId);
-
-    } catch (error) {
-      console.error('Task execution error:', error);
+      // Use BackgroundTaskManager for automation tasks
+      await this.backgroundTaskManager.startTask(
+        taskId, 
+        { task }, 
+        this.multiAgentExecutor, 
+        this.connectionManager
+      );
       
-      this.safePortMessage(port, {
+    } catch (error) {
+      console.error('Background task execution error:', error);
+      
+      this.connectionManager.broadcast({
         type: 'task_error',
         error: error.message,
         taskId: taskId
       });
       
       this.activeTasks.delete(taskId);
+      this.connectionManager.setActiveTask(null);
     }
-  }
-
-  isSimpleChat(task) {
-    const chatKeywords = ['hello', 'hi', 'how are you', 'what is', 'explain', 'tell me about', 'help'];
-    const automationKeywords = ['post', 'tweet', 'like', 'follow', 'login', 'search', 'find', 'navigate', 'click', 'fill'];
-    
-    const lowerTask = task.toLowerCase();
-    const hasChatKeywords = chatKeywords.some(keyword => lowerTask.includes(keyword));
-    const hasAutomationKeywords = automationKeywords.some(keyword => lowerTask.includes(keyword));
-    
-    return hasChatKeywords && !hasAutomationKeywords;
   }
 
   async handleSimpleChat(task) {
@@ -707,9 +1768,9 @@ class BackgroundScriptAgent {
       const response = await this.llmService.call([
         { 
           role: 'user', 
-          content: `You are a helpful AI assistant. Respond naturally to: "${task}"` 
+          content: `You are a helpful AI assistant specializing in social media automation. Respond to: "${task}"` 
         }
-      ], { maxTokens: 500 });
+      ], { maxTokens: 300 });
 
       return {
         success: true,
@@ -719,51 +1780,10 @@ class BackgroundScriptAgent {
     } catch (error) {
       return {
         success: true,
-        response: `I understand you said: "${task}"\n\nI'm your AI web automation assistant for Android! I can help with social media tasks and browsing. What would you like me to help you with?`,
+        response: `I understand you said: "${task}"\n\nI'm your AI social media automation assistant! I can help with posting on Twitter, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more. What would you like me to help you with?`,
         message: 'Fallback chat response'
       };
     }
-  }
-
-  async getCurrentActiveTab() {
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tabs[0];
-  }
-
-  async getPageState(tabId) {
-    if (!tabId) return {};
-    
-    try {
-      await this.ensureContentScriptInjected(tabId);
-      const response = await chrome.tabs.sendMessage(tabId, {
-        action: 'GET_PAGE_STATE'
-      });
-      return response.success ? response.pageState : {};
-    } catch (error) {
-      console.warn('Could not get page state:', error);
-      return {};
-    }
-  }
-
-  async ensureContentScriptInjected(tabId) {
-    try {
-      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
-    } catch (error) {
-      await this.actionExecutor.injectContentScript(tabId);
-    }
-  }
-
-  safePortMessage(port, message) {
-    try {
-      if (port && typeof port.postMessage === 'function') {
-        port.postMessage(message);
-        return true;
-      }
-    } catch (error) {
-      console.error('Port message failed:', error);
-      return false;
-    }
-    return false;
   }
 
   async getConfig() {
@@ -798,13 +1818,16 @@ class BackgroundScriptAgent {
       isRunning: true,
       hasAgent: true,
       activeTasks: this.activeTasks.size,
-      connections: this.connections.size,
-      androidOptimized: true,
-      tokenOptimized: true,
+      backgroundTasks: this.backgroundTaskManager.getAllRunningTasks().length,
+      completedTasks: this.backgroundTaskManager.getAllCompletedTasks().length,
+      activeTask: this.connectionManager.getActiveTask(),
+      connections: this.connectionManager.connections.size,
+      backgroundPersistence: true,
+      multiAgentSystem: true,
+      universalPlatforms: ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok', 'reddit'],
       config: {
         hasAnthropicKey: !!config.anthropicApiKey,
         hasOpenAIKey: !!config.openaiApiKey,
-        hasGeminiKey: !!config.geminiApiKey,
         aiProvider: config.aiProvider || 'anthropic'
       }
     };
@@ -814,18 +1837,93 @@ class BackgroundScriptAgent {
     try {
       await chrome.storage.sync.set({ agentConfig: config });
       this.llmService = new RobustMultiLLM(config);
-      this.taskAnalyzer = new CompactTaskAnalyzer(this.llmService, this.memoryManager);
-      return { success: true, message: 'Configuration updated successfully' };
+      this.multiAgentExecutor = new MultiAgentExecutor(this.llmService);
+      return { success: true, message: 'Configuration updated' };
     } catch (error) {
       return { success: false, error: error.message };
     }
   }
+}
 
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+// Add this class before BackgroundScriptAgent
+
+class AITaskRouter {
+  constructor(llmService) {
+    this.llmService = llmService;
+  }
+
+  async analyzeAndRoute(userMessage, currentContext = {}) {
+    try {
+      const classificationPrompt = `You are an intelligent intent classifier.
+
+Analyze: "${userMessage}"
+
+Respond with JSON only:
+{
+  "intent": "CHAT|SOCIAL_ACTION|AUTOMATION",
+  "confidence": 0.0-1.0,
+  "reasoning": "brief explanation"
+}
+
+Rules:
+- CHAT: Greetings, questions, explanations ("hello", "what is", "how are you")
+- SOCIAL_ACTION: Social media tasks ("post", "tweet", "share", "like", "follow")
+- AUTOMATION: Other browser tasks ("navigate", "click", "fill form")`;
+
+      const response = await this.llmService.call([
+        { role: 'user', content: classificationPrompt }
+      ], { maxTokens: 150 });
+
+      const classification = this.parseJSONResponse(response);
+      return classification.intent ? classification : this.fallbackRouting(userMessage);
+
+    } catch (error) {
+      console.error('AI classification failed:', error);
+      return this.fallbackRouting(userMessage);
+    }
+  }
+
+  parseJSONResponse(response) {
+    try {
+      let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+    } catch (error) {
+      return {};
+    }
+  }
+
+  fallbackRouting(userMessage) {
+    const lowerMessage = userMessage.toLowerCase();
+    
+    const socialKeywords = ['post', 'tweet', 'share', 'like', 'follow', 'comment'];
+    const chatKeywords = ['hello', 'hi', 'what', 'how', 'why', 'explain'];
+    
+    const hasSocialKeywords = socialKeywords.some(keyword => lowerMessage.includes(keyword));
+    const hasChatKeywords = chatKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    if (hasSocialKeywords) {
+      return {
+        intent: 'SOCIAL_ACTION',
+        confidence: 0.7,
+        reasoning: 'Contains social media keywords'
+      };
+    } else if (hasChatKeywords) {
+      return {
+        intent: 'CHAT',
+        confidence: 0.8,
+        reasoning: 'Contains conversational keywords'
+      };
+    }
+    
+    return {
+      intent: 'CHAT',
+      confidence: 0.5,
+      reasoning: 'Default classification'
+    };
   }
 }
 
-// Initialize the background script agent
+// Initialize
 const backgroundScriptAgent = new BackgroundScriptAgent();
 console.log('AI Web Agent Background Script Initialized 🚀');

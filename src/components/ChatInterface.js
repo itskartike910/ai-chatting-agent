@@ -98,6 +98,16 @@ const ChatInterface = () => {
               });
               break;
 
+            case 'task_cancelled':
+              setIsExecuting(false);
+              setTaskStatus({ status: 'cancelled', message: 'Task cancelled' });
+              addMessage({
+                type: 'system',
+                content: '🛑 Task cancelled by user',
+                timestamp: Date.now()
+              });
+              break;
+
             case 'error':
               addMessage({
                 type: 'error',
@@ -130,7 +140,7 @@ const ChatInterface = () => {
               console.log('Attempting to reconnect...');
               setupConnection();
             }
-          }, 2000); // Increased delay to 2 seconds
+          }, 2000);
         });
 
         setConnectionStatus('connecting');
@@ -149,7 +159,7 @@ const ChatInterface = () => {
           if (mounted && !isConnectingRef.current) {
             setupConnection();
           }
-        }, 3000); // Longer delay for error recovery
+        }, 3000);
       }
     };
 
@@ -181,7 +191,7 @@ const ChatInterface = () => {
         }
       }
     };
-  }, []); // Remove addMessage dependency to prevent re-connections
+  }, []);
 
   const handleSendMessage = async (message) => {
     // Add user message immediately
@@ -221,6 +231,21 @@ const ChatInterface = () => {
     }
   };
 
+  const handleStopExecution = () => {
+    if (portRef.current && isExecuting) {
+      try {
+        console.log('Stopping task execution...');
+        portRef.current.postMessage({
+          type: 'cancel_task'
+        });
+      } catch (error) {
+        console.error('Error stopping task:', error);
+        setIsExecuting(false);
+        setTaskStatus({ status: 'error', message: 'Failed to stop task' });
+      }
+    }
+  };
+
   const handleNewChat = () => {
     clearMessages();
     setTaskStatus(null);
@@ -246,12 +271,15 @@ const ChatInterface = () => {
 
   return (
     <div className="chat-interface" style={{ 
-      width: '400px', 
-      height: '600px', 
+      width: '100vw',
+      height: '100vh',
+      maxWidth: '400px',
+      maxHeight: '600px',
       display: 'flex', 
       flexDirection: 'column',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      overflow: 'hidden'
     }}>
       {/* Header */}
       <div className="header" style={{ 
@@ -260,7 +288,8 @@ const ChatInterface = () => {
         alignItems: 'center', 
         padding: '12px 16px',
         borderBottom: '1px solid #e1e8ed',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        flexShrink: 0
       }}>
         <div>
           <h3 style={{ margin: 0, color: '#1da1f2', fontSize: '18px', fontWeight: 'bold' }}>
@@ -280,6 +309,24 @@ const ChatInterface = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          {isExecuting && (
+            <button 
+              onClick={handleStopExecution}
+              style={{ 
+                padding: '6px 12px', 
+                backgroundColor: '#e0245e',
+                color: 'white',
+                border: 'none',
+                borderRadius: '16px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}
+              title="Stop Execution"
+            >
+              🛑 Stop
+            </button>
+          )}
           <button 
             onClick={handleNewChat}
             style={{ 
@@ -320,7 +367,7 @@ const ChatInterface = () => {
       {/* Input */}
       <ChatInput 
         onSendMessage={handleSendMessage}
-        disabled={isExecuting || connectionStatus !== 'connected'}
+        disabled={connectionStatus !== 'connected'}
         placeholder={
           connectionStatus === 'connected' 
             ? (isExecuting ? "Processing your request..." : "Ask me anything or request social media tasks...")

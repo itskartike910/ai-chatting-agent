@@ -21,9 +21,14 @@ class AndroidContentScript {
   async handleMessage(request, sender, sendResponse) {
     try {
       switch (request.action) {
+        case 'GET_ENHANCED_PAGE_STATE': // ✅ ADD THIS CASE
+          const enhancedState = await this.getEnhancedPageState(request.options);
+          sendResponse({ success: true, pageState: enhancedState });
+          break;
+          
         case 'GET_PAGE_STATE':
           const pageState = await this.getFullPageState();
-          sendResponse({ success: true, pageState });
+          sendResponse({ success: true, pageState: pageState });
           break;
 
         case 'CLICK_ELEMENT':
@@ -51,10 +56,10 @@ class AndroidContentScript {
           break;
 
         default:
-          sendResponse({ success: false, error: `Unknown action: ${request.action}` });
+          sendResponse({ success: false, error: 'Unknown action' });
       }
     } catch (error) {
-      console.error('Android content script error:', error);
+      console.error('Content script error:', error);
       sendResponse({ success: false, error: error.message });
     }
   }
@@ -387,149 +392,281 @@ class AndroidContentScript {
     return context;
   }
 
-  checkLoginStatus() {
-    const url = window.location.href;
-    
-    if (url.includes('x.com') || url.includes('twitter.com')) {
-      const isLoggedIn = !!(
-        document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
-        document.querySelector('[data-testid="primaryNavigation"]') ||
-        document.querySelector('[aria-label="Profile"]')
-      );
+  async getEnhancedPageState(options = {}) {
+    try {
+      const domState = await this.buildCurrentDomTree(options);
       
       return {
-        platform: 'twitter',
-        isLoggedIn
+        url: window.location.href,
+        title: document.title,
+        platform: this.detectPlatform(window.location.href),
+        pageType: this.determinePageType(window.location.href),
+        
+        interactiveElements: domState.interactiveElements || [],
+        
+        loginStatus: {
+          isLoggedIn: this.checkLoginStatus(),
+          hasLoginForm: this.hasLoginElements(),
+          hasSignupPrompts: this.hasSignupElements()
+        },
+        
+        contentContext: {
+          hasComposeForm: this.hasComposeElements(),
+          hasPostForm: this.hasPostElements(),
+          canPost: this.canUserPost(),
+          composerState: this.getComposerState()
+        },
+        
+        domStats: {
+          totalElements: domState.totalElements || 0,
+          interactiveElements: domState.interactiveElements?.length || 0,
+          visibleElements: domState.visibleElements || 0
+        }
       };
+    } catch (error) {
+      console.error('Enhanced page state extraction failed:', error);
+      return this.getFullPageState();
     }
+  }
+
+  detectPlatform(url) {
+    if (url.includes('x.com') || url.includes('twitter.com')) return 'twitter';
+    if (url.includes('linkedin.com')) return 'linkedin';
+    if (url.includes('facebook.com')) return 'facebook';
+    if (url.includes('instagram.com')) return 'instagram';
+    return 'unknown';
+  }
+
+  determinePageType(url) {
+    if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
+    if (url.includes('/home') || url.includes('/timeline')) return 'home';
+    if (url.includes('/login') || url.includes('/signin')) return 'login';
+    if (url.includes('/profile') || url.includes('/user/')) return 'profile';
+    return 'general';
+  }
+
+  checkLoginStatus() {
+    const platform = this.detectPlatform(window.location.href);
     
-    return { platform: 'unknown', isLoggedIn: false };
+    switch (platform) {
+      case 'twitter':
+        const userAvatar = document.querySelector('[data-testid="AppTabBar_Profile_Link"]');
+        const loggedInIndicators = document.querySelectorAll('[aria-label*="Account menu"]');
+        return userAvatar !== null || loggedInIndicators.length > 0;
+      default:
+        return !window.location.href.includes('/login') && 
+               !window.location.href.includes('/signin');
+    }
+  }
+
+  hasComposeElements() {
+    const platform = this.detectPlatform(window.location.href);
+    
+    switch (platform) {
+      case 'twitter':
+        const composeButton = document.querySelector('[data-testid="SideNav_NewTweet_Button"]');
+        const tweetTextarea = document.querySelector('[data-testid="tweetTextarea_0"]');
+        return composeButton !== null || tweetTextarea !== null;
+      default:
+        return false;
+    }
+  }
+
+  getComposerState() {
+    const platform = this.detectPlatform(window.location.href);
+    
+    switch (platform) {
+      case 'twitter':
+        const textarea = document.querySelector('[data-testid="tweetTextarea_0"]');
+        const postButton = document.querySelector('[data-testid="tweetButtonInline"]');
+        
+        return {
+          isOpen: textarea !== null,
+          hasContent: textarea?.textContent?.trim().length > 0,
+          canPost: postButton && !postButton.disabled,
+          characterCount: textarea?.textContent?.length || 0,
+          maxCharacters: 280
+        };
+      default:
+        return { isOpen: false, hasContent: false, canPost: false };
+    }
+  }
+
+  hasLoginElements() {
+    return document.querySelector('input[type="password"]') !== null ||
+           document.querySelector('[data-testid="loginButton"]') !== null;
+  }
+
+  hasSignupElements() {
+    return document.querySelector('[data-testid="signupButton"]') !== null ||
+           document.querySelector('a[href*="signup"]') !== null;
+  }
+
+  hasPostElements() {
+    return document.querySelector('[data-testid="tweetButtonInline"]') !== null ||
+           document.querySelector('[data-testid="tweetButton"]') !== null;
+  }
+
+  canUserPost() {
+    const postButton = document.querySelector('[data-testid="tweetButtonInline"]') ||
+                      document.querySelector('[data-testid="tweetButton"]');
+    return postButton && !postButton.disabled;
   }
 
   async clickElement(selector) {
     try {
-      let element;
+      let element = null;
       
+      // Try different approaches to find the element
       if (typeof selector === 'number') {
-        if (this.domCache && this.domCache.interactiveElements) {
-          const targetElement = this.domCache.interactiveElements.find(el => el.index === selector);
-          if (targetElement) {
-            element = targetElement.element;
-          }
-        } else {
-          const domResult = this.domCache || await this.buildCurrentDomTree();
-          const interactiveElements = this.extractInteractiveElements(domResult);
-          const targetElement = interactiveElements.find(el => el.index === selector);
-          
-          if (targetElement) {
-            element = this.getElementByXPath(targetElement.xpath);
-          }
-        }
-        
-        if (!element) {
-          return { success: false, error: `No element found with index ${selector}` };
-        }
-      } else {
+        // Find by index from DOM tree
+        const domResult = await this.buildCurrentDomTree();
+        const targetElement = domResult.interactiveElements?.find(el => el.index === selector);
+        element = targetElement?.element || document.querySelector(`[data-element-index="${selector}"]`);
+      } else if (typeof selector === 'string') {
+        // Find by CSS selector
         element = document.querySelector(selector);
       }
       
+      // If still not found, try Twitter-specific selectors
       if (!element) {
-        return { success: false, error: `Element not found: ${selector}` };
+        const twitterSelectors = [
+          '[data-testid="tweetButton"]',
+          '[data-testid="tweetButtonInline"]',
+          '[role="button"]',
+          'button'
+        ];
+        
+        for (const sel of twitterSelectors) {
+          element = document.querySelector(sel);
+          if (element && this.isElementVisible(element)) {
+            break;
+          }
+        }
       }
       
-      // Android-optimized clicking
+      if (!element) {
+        return { success: false, error: 'Element not found', message: 'Could not locate element' };
+      }
+      
+      if (!this.isElementVisible(element)) {
+        return { success: false, error: 'Element not visible', message: 'Element exists but not visible' };
+      }
+      
+      // Android-compatible click
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await this.delay(1000);
+      await this.delay(500);
       
-      // Multiple click attempts for Android
-      element.focus();
-      element.click();
+      // Try multiple click methods for Android compatibility
+      try {
+        element.click();
+      } catch (e) {
+        // Fallback to dispatch event
+        element.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+        }));
+      }
       
-      // Dispatch touch events for Android
-      const rect = element.getBoundingClientRect();
-      const touchEvent = new TouchEvent('touchstart', {
-        bubbles: true,
-        cancelable: true,
-        touches: [new Touch({
-          identifier: 0,
-          target: element,
-          clientX: rect.left + rect.width / 2,
-          clientY: rect.top + rect.height / 2
-        })]
-      });
-      element.dispatchEvent(touchEvent);
+      await this.delay(300);
       
-      await this.delay(100);
+      return { 
+        success: true, 
+        message: `Clicked element: ${element.tagName}`,
+        elementInfo: {
+          tagName: element.tagName,
+          text: element.textContent?.substring(0, 50),
+          selector: selector
+        }
+      };
       
-      const touchEndEvent = new TouchEvent('touchend', {
-        bubbles: true,
-        cancelable: true,
-        changedTouches: [new Touch({
-          identifier: 0,
-          target: element,
-          clientX: rect.left + rect.width / 2,
-          clientY: rect.top + rect.height / 2
-        })]
-      });
-      element.dispatchEvent(touchEndEvent);
-      
-      return { success: true, message: `Clicked element: ${selector}` };
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('Click element error:', error);
+      return { success: false, error: error.message, message: 'Click failed' };
     }
   }
 
   async fillElement(selector, text) {
     try {
-      let element;
+      let element = null;
       
+      // Try different approaches to find the element
       if (typeof selector === 'number') {
-        if (this.domCache && this.domCache.interactiveElements) {
-          const targetElement = this.domCache.interactiveElements.find(el => el.index === selector);
-          if (targetElement) {
-            element = targetElement.element;
-          }
-        } else {
-          const domResult = this.domCache || await this.buildCurrentDomTree();
-          const interactiveElements = this.extractInteractiveElements(domResult);
-          const targetElement = interactiveElements.find(el => el.index === selector);
-          
-          if (targetElement) {
-            element = this.getElementByXPath(targetElement.xpath);
-          }
-        }
-        
-        if (!element) {
-          return { success: false, error: `No element found with index ${selector}` };
-        }
-      } else {
+        // Find by index from DOM tree
+        const domResult = await this.buildCurrentDomTree();
+        const targetElement = domResult.interactiveElements?.find(el => el.index === selector);
+        element = targetElement?.element;
+      } else if (typeof selector === 'string') {
+        // Find by CSS selector
         element = document.querySelector(selector);
       }
       
+      // If still not found, try Twitter-specific text input selectors
       if (!element) {
-        return { success: false, error: `Element not found: ${selector}` };
+        const textSelectors = [
+          '[data-testid="tweetTextarea_0"]',
+          '[role="textbox"][contenteditable="true"]',
+          'textarea',
+          '[contenteditable="true"]',
+          'input[type="text"]'
+        ];
+        
+        for (const sel of textSelectors) {
+          element = document.querySelector(sel);
+          if (element && this.isElementVisible(element)) {
+            console.log(`Found text element with selector: ${sel}`);
+            break;
+          }
+        }
       }
       
+      if (!element) {
+        return { success: false, error: 'Text input element not found' };
+      }
+      
+      if (!this.isElementVisible(element)) {
+        return { success: false, error: 'Text input element not visible' };
+      }
+      
+      // Focus and clear the element
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       await this.delay(500);
       
       element.focus();
+      await this.delay(200);
       
-      // Clear and fill based on element type
-      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+      // Clear existing content
+      if (element.contentEditable === 'true') {
+        element.innerHTML = '';
+        element.textContent = text;
+        
+        // Trigger input events for contenteditable
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+      } else {
         element.value = '';
         element.value = text;
-      } else if (element.contentEditable === 'true') {
-        element.textContent = '';
-        element.textContent = text;
+        
+        // Trigger events for regular inputs
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
       }
       
-      // Trigger events
-      element.dispatchEvent(new Event('input', { bubbles: true }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
+      await this.delay(300);
       
-      return { success: true, message: `Filled element with: ${text}` };
+      return { 
+        success: true, 
+        message: `Filled text: "${text.substring(0, 50)}..."`,
+        elementInfo: {
+          tagName: element.tagName,
+          type: element.type || 'contenteditable',
+          selector: selector
+        }
+      };
+      
     } catch (error) {
+      console.error('Fill element error:', error);
       return { success: false, error: error.message };
     }
   }

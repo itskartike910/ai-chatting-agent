@@ -20,22 +20,27 @@ const SettingsModal = ({ onClose }) => {
     left: 0,
     right: 0,
     bottom: 0,
+    width: '100vw',
+    height: '100vh',
     backgroundColor: 'rgba(0,0,0,0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000
+    zIndex: 1000,
+    overflow: 'auto'
   };
 
   const contentStyle = {
     backgroundColor: 'white',
     borderRadius: '12px',
     padding: '24px',
-    width: '90%',
+    width: '100%',
+    height: '100%',
     maxWidth: '500px',
-    maxHeight: '80%',
+    maxHeight: '90%',
     overflowY: 'auto',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+    margin: '20px'
   };
 
   return (
@@ -45,7 +50,11 @@ const SettingsModal = ({ onClose }) => {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          marginBottom: '24px' 
+          marginBottom: '24px',
+          position: 'sticky',
+          top: 0,
+          backgroundColor: 'white',
+          zIndex: 1
         }}>
           <h3 style={{ margin: 0, color: '#1da1f2' }}>Settings</h3>
           <button 
@@ -112,7 +121,8 @@ const SettingsModal = ({ onClose }) => {
                   padding: '10px', 
                   borderRadius: '8px', 
                   border: '1px solid #e1e8ed',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
@@ -138,7 +148,8 @@ const SettingsModal = ({ onClose }) => {
                   padding: '10px', 
                   borderRadius: '8px', 
                   border: '1px solid #e1e8ed',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
@@ -168,7 +179,8 @@ const SettingsModal = ({ onClose }) => {
                 padding: '8px', 
                 borderRadius: '6px', 
                 border: '1px solid #e1e8ed',
-                fontSize: '13px'
+                fontSize: '13px',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -192,7 +204,8 @@ const SettingsModal = ({ onClose }) => {
                 padding: '8px', 
                 borderRadius: '6px', 
                 border: '1px solid #e1e8ed',
-                fontSize: '13px'
+                fontSize: '13px',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -216,7 +229,8 @@ const SettingsModal = ({ onClose }) => {
                 padding: '8px', 
                 borderRadius: '6px', 
                 border: '1px solid #e1e8ed',
-                fontSize: '13px'
+                fontSize: '13px',
+                boxSizing: 'border-box'
               }}
             />
           </div>
@@ -249,7 +263,17 @@ const SettingsModal = ({ onClose }) => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          justifyContent: 'flex-end',
+          position: 'sticky',
+          bottom: 0,
+          backgroundColor: 'white',
+          paddingTop: '16px',
+          borderTop: '1px solid #e1e8ed',
+          marginTop: '24px'
+        }}>
           <button 
             onClick={onClose}
             style={{ 
