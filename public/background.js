@@ -1,16 +1,117 @@
 /* global chrome */
 
-console.log('Enhanced background script loaded');
+console.log('AI Web Agent Background Script Loading...');
 
-// Simple MultiLLM implementation (inline to avoid import issues)
-class BackgroundMultiLLM {
+// Enhanced Error Handling for API Issues
+class APIErrorHandler {
+  static isOverloadedError(error) {
+    return error.message.includes('overloaded_error') || error.message.includes('529');
+  }
+
+  static isRateLimitError(error) {
+    return error.message.includes('rate_limit') || error.message.includes('429');
+  }
+
+  static isTokenLimitError(error) {
+    return error.message.includes('prompt is too long') || error.message.includes('maximum');
+  }
+
+  static async handleAPIError(error, llmService, retryCount = 0) {
+    console.warn(`API Error (attempt ${retryCount + 1}):`, error.message);
+    
+    if (retryCount >= 3) {
+      throw new Error(`API failed after 3 attempts: ${error.message}`);
+    }
+
+    if (this.isTokenLimitError(error)) {
+      console.error('Token limit exceeded - prompts need to be shortened');
+      return false; // Don't retry for token limit errors
+    }
+
+    if (this.isOverloadedError(error) || this.isRateLimitError(error)) {
+      const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+      console.log(`Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return true; // Indicate retry should happen
+    }
+
+    return false; // Don't retry
+  }
+}
+
+// Lightweight Memory Manager (Token-Optimized)
+class TokenOptimizedMemoryManager {
+  constructor() {
+    this.messages = [];
+    this.maxMessages = 3; // Keep only last 3 messages
+    this.maxTokensPerMessage = 1000; // Limit message size
+  }
+
+  addMessage(message) {
+    // Truncate content if too long
+    if (message.content && message.content.length > this.maxTokensPerMessage * 4) {
+      message.content = message.content.substring(0, this.maxTokensPerMessage * 4) + '...[truncated]';
+    }
+
+    this.messages.push({
+      ...message,
+      timestamp: Date.now()
+    });
+
+    // Keep only recent messages
+    if (this.messages.length > this.maxMessages) {
+      this.messages.shift();
+    }
+  }
+
+  getMessages() {
+    return this.messages;
+  }
+
+  clear() {
+    this.messages = [];
+  }
+}
+
+// Enhanced MultiLLM with Token Management
+class RobustMultiLLM {
   constructor(config = {}) {
     this.config = config;
+    this.providers = ['anthropic', 'openai'];
+    this.currentProviderIndex = 0;
   }
 
   async call(messages, options = {}) {
-    const provider = options.provider || this.config.aiProvider || 'anthropic';
+    let lastError = null;
     
+    // Try current provider first
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const provider = options.provider || this.config.aiProvider || this.providers[this.currentProviderIndex];
+        return await this.callProvider(provider, messages, options);
+      } catch (error) {
+        lastError = error;
+        
+        // Don't retry token limit errors
+        if (APIErrorHandler.isTokenLimitError(error)) {
+          throw error;
+        }
+        
+        const shouldRetry = await APIErrorHandler.handleAPIError(error, this, attempt);
+        if (shouldRetry) {
+          continue; // Retry same provider
+        }
+        
+        // Try next provider
+        this.currentProviderIndex = (this.currentProviderIndex + 1) % this.providers.length;
+        console.log(`Switching to provider: ${this.providers[this.currentProviderIndex]}`);
+      }
+    }
+    
+    throw lastError || new Error('All providers failed');
+  }
+
+  async callProvider(provider, messages, options) {
     switch (provider) {
       case 'anthropic':
         return await this.callAnthropic(messages, options);
@@ -36,7 +137,7 @@ class BackgroundMultiLLM {
       },
       body: JSON.stringify({
         model: options.model || 'claude-3-sonnet-20240229',
-        max_tokens: options.maxTokens || 1000,
+        max_tokens: options.maxTokens || 1500,
         temperature: options.temperature || 0.7,
         messages: messages
       })
@@ -65,7 +166,7 @@ class BackgroundMultiLLM {
       body: JSON.stringify({
         model: options.model || 'gpt-4',
         messages: messages,
-        max_tokens: options.maxTokens || 1000,
+        max_tokens: options.maxTokens || 1500,
         temperature: options.temperature || 0.7
       })
     });
@@ -80,24 +181,355 @@ class BackgroundMultiLLM {
   }
 }
 
-// Enhanced Social Agent with better port management
-class EnhancedSocialAgent {
+// Compact Task Analyzer (Token-Optimized)
+class CompactTaskAnalyzer {
+  constructor(llmService, memoryManager) {
+    this.llmService = llmService;
+    this.memoryManager = memoryManager;
+  }
+
+  async analyze(userTask, pageState, currentTab) {
+    const compactPrompt = `Task: "${userTask}"
+
+Current Context:
+- URL: ${currentTab?.url || 'unknown'}
+- Platform: ${pageState.pageContext?.platform || 'unknown'}
+- Page Type: ${pageState.pageContext?.pageType || 'unknown'}
+- Elements: ${pageState.interactiveElements?.length || 0}
+
+Top 10 Interactive Elements:
+${this.formatElements(pageState.interactiveElements || [])}
+
+Android Rules:
+1. If not on Twitter for Twitter tasks, navigate to x.com
+2. Use element indices for clicking
+3. For posting: navigate to x.com/compose/post
+4. For liking: find like buttons on x.com/home
+
+Respond with valid JSON only:
+{
+  "action": "navigate|click|fill|chat",
+  "target": "url_or_element_index",
+  "text": "content_if_filling",
+  "reasoning": "brief explanation"
+}`;
+
+    try {
+      const response = await this.llmService.call([
+        { role: 'user', content: compactPrompt }
+      ], { maxTokens: 800 });
+      
+      // Clean JSON response
+      const cleanResponse = this.cleanJSONResponse(response);
+      return JSON.parse(cleanResponse);
+    } catch (error) {
+      console.error('Task analyzer failed:', error);
+      return this.getFallbackAnalysis(userTask, currentTab);
+    }
+  }
+
+  cleanJSONResponse(response) {
+    // Remove markdown code blocks
+    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    
+    // Extract JSON from response
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return jsonMatch[0];
+    }
+    
+    return cleaned;
+  }
+
+  formatElements(elements) {
+    if (!elements || elements.length === 0) {
+      return "No interactive elements found.";
+    }
+
+    return elements.slice(0, 10).map(el => 
+      `[${el.index}] ${el.tagName} - "${el.text.substring(0, 30)}${el.text.length > 30 ? '...' : ''}"${el.ariaLabel ? ` (${el.ariaLabel})` : ''}`
+    ).join('\n');
+  }
+
+  getFallbackAnalysis(userTask, currentTab) {
+    const lowerTask = userTask.toLowerCase();
+    const currentUrl = currentTab?.url || '';
+    
+    // Determine action based on task and current page
+    if (lowerTask.includes('tweet') || lowerTask.includes('post')) {
+      if (!currentUrl.includes('x.com')) {
+        return {
+          action: 'navigate',
+          target: 'https://x.com/compose/post',
+          reasoning: 'Need to navigate to Twitter compose page'
+        };
+      }
+    }
+    
+    if (lowerTask.includes('like')) {
+      if (!currentUrl.includes('x.com')) {
+        return {
+          action: 'navigate',
+          target: 'https://x.com/home',
+          reasoning: 'Need to navigate to Twitter home feed'
+        };
+      }
+    }
+    
+    return {
+      action: 'chat',
+      reasoning: 'Unable to determine specific action, defaulting to chat'
+    };
+  }
+}
+
+// Android-Optimized Tab Manager
+class AndroidTabManager {
+  async ensureCorrectTab(targetUrl, currentTab) {
+    try {
+      // If we're on a restricted page, create new tab
+      if (this.isRestrictedPage(currentTab?.url)) {
+        console.log('Creating new tab for restricted page:', currentTab?.url);
+        const newTab = await chrome.tabs.create({ url: targetUrl });
+        return newTab;
+      }
+      
+      // If current tab is suitable, navigate it
+      if (currentTab && currentTab.id) {
+        console.log('Navigating current tab to:', targetUrl);
+        await chrome.tabs.update(currentTab.id, { url: targetUrl });
+        return currentTab;
+      }
+      
+      // Create new tab as fallback
+      console.log('Creating new tab as fallback');
+      const newTab = await chrome.tabs.create({ url: targetUrl });
+      return newTab;
+      
+    } catch (error) {
+      console.error('Tab management error:', error);
+      throw error;
+    }
+  }
+
+  isRestrictedPage(url) {
+    if (!url) return true;
+    
+    const restrictedPages = [
+      'chrome-native://',
+      'chrome-extension://',
+      'chrome://',
+      'about:',
+      'moz-extension://'
+    ];
+    
+    return restrictedPages.some(prefix => url.startsWith(prefix));
+  }
+
+  async waitForTabReady(tabId, timeout = 15000) {
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      
+      const checkReady = () => {
+        if (Date.now() - startTime > timeout) {
+          reject(new Error('Tab load timeout'));
+          return;
+        }
+        
+        chrome.tabs.get(tabId, (tab) => {
+          if (chrome.runtime.lastError) {
+            setTimeout(checkReady, 500);
+          } else if (tab.status === 'complete') {
+            resolve(tab);
+          } else {
+            setTimeout(checkReady, 500);
+          }
+        });
+      };
+      
+      checkReady();
+    });
+  }
+}
+
+// Streamlined Action Executor
+class ActionExecutor {
+  constructor(tabManager) {
+    this.tabManager = tabManager;
+  }
+
+  async execute(analysis, port) {
+    try {
+      const currentTab = await this.getCurrentActiveTab();
+      
+      switch (analysis.action) {
+        case 'navigate':
+          return await this.handleNavigation(analysis.target, currentTab, port);
+          
+        case 'click':
+          return await this.handleClick(analysis.target, currentTab.id, port);
+          
+        case 'fill':
+          return await this.handleFill(analysis.target, analysis.text, currentTab.id, port);
+          
+        case 'chat':
+          return await this.handleChat(analysis.reasoning);
+          
+        default:
+          return { success: false, error: `Unknown action: ${analysis.action}` };
+      }
+    } catch (error) {
+      console.error('Action execution error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  async handleNavigation(targetUrl, currentTab, port) {
+    try {
+      this.safePortMessage(port, {
+        type: 'status_update',
+        message: `🌐 Navigating to ${targetUrl}...`
+      });
+
+      const tab = await this.tabManager.ensureCorrectTab(targetUrl, currentTab);
+      await this.tabManager.waitForTabReady(tab.id);
+      
+      // Wait for Android page load
+      await this.delay(3000);
+      
+      // Inject content script
+      await this.ensureContentScriptInjected(tab.id);
+      
+      return {
+        success: true,
+        message: `Successfully navigated to ${targetUrl}`,
+        tabId: tab.id
+      };
+    } catch (error) {
+      return { success: false, error: `Navigation failed: ${error.message}` };
+    }
+  }
+
+  async handleClick(elementIndex, tabId, port) {
+    try {
+      this.safePortMessage(port, {
+        type: 'status_update',
+        message: `👆 Clicking element ${elementIndex}...`
+      });
+
+      await this.ensureContentScriptInjected(tabId);
+      
+      const result = await chrome.tabs.sendMessage(tabId, {
+        action: 'CLICK_ELEMENT',
+        index: elementIndex
+      });
+      
+      return result;
+    } catch (error) {
+      return { success: false, error: `Click failed: ${error.message}` };
+    }
+  }
+
+  async handleFill(elementIndex, text, tabId, port) {
+    try {
+      this.safePortMessage(port, {
+        type: 'status_update',
+        message: `✍️ Filling element ${elementIndex}...`
+      });
+
+      await this.ensureContentScriptInjected(tabId);
+      
+      const result = await chrome.tabs.sendMessage(tabId, {
+        action: 'FILL_ELEMENT',
+        index: elementIndex,
+        text: text
+      });
+      
+      return result;
+    } catch (error) {
+      return { success: false, error: `Fill failed: ${error.message}` };
+    }
+  }
+
+  async handleChat(reasoning) {
+    return {
+      success: true,
+      message: reasoning || 'Task completed',
+      response: reasoning || 'I understand your request. How can I help you further?'
+    };
+  }
+
+  async getCurrentActiveTab() {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tabs[0];
+  }
+
+  async ensureContentScriptInjected(tabId) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
+    } catch (error) {
+      await this.injectContentScript(tabId);
+    }
+  }
+
+  async injectContentScript(tabId) {
+    try {
+      console.log('Injecting content script into tab:', tabId);
+      
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['buildDomTree.js']
+      });
+      
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      });
+      
+      console.log('Content script injected successfully');
+    } catch (error) {
+      console.error('Failed to inject content script:', error);
+      throw error;
+    }
+  }
+
+  safePortMessage(port, message) {
+    try {
+      if (port && typeof port.postMessage === 'function') {
+        port.postMessage(message);
+        return true;
+      }
+    } catch (error) {
+      console.error('Port message failed:', error);
+      return false;
+    }
+    return false;
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// Main Background Script Agent
+class BackgroundScriptAgent {
   constructor() {
     this.setupMessageHandlers();
     this.activeTasks = new Map();
     this.connections = new Map();
     this.llmService = null;
-    this.taskQueue = [];
+    this.memoryManager = new TokenOptimizedMemoryManager();
+    this.taskAnalyzer = null;
+    this.tabManager = new AndroidTabManager();
+    this.actionExecutor = new ActionExecutor(this.tabManager);
   }
 
   setupMessageHandlers() {
-    // Handle popup connections with better error handling
     chrome.runtime.onConnect.addListener((port) => {
       if (port.name === 'popup-connection') {
         const connectionId = Date.now().toString();
-        console.log('Popup connected:', connectionId);
+        console.log('Background script connected:', connectionId);
         
-        // Store connection with metadata
         this.connections.set(connectionId, {
           port: port,
           connected: true,
@@ -106,16 +538,9 @@ class EnhancedSocialAgent {
         
         port.onMessage.addListener(async (message) => {
           try {
-            // Update last activity
-            const connection = this.connections.get(connectionId);
-            if (connection) {
-              connection.lastActivity = Date.now();
-            }
-            
             await this.handlePortMessage(message, port, connectionId);
           } catch (error) {
             console.error('Message handling error:', error);
-            // Try to send error if port is still connected
             this.safePortMessage(port, {
               type: 'error',
               error: error.message
@@ -124,15 +549,10 @@ class EnhancedSocialAgent {
         });
 
         port.onDisconnect.addListener(() => {
-          console.log('Popup disconnected:', connectionId);
-          const connection = this.connections.get(connectionId);
-          if (connection) {
-            connection.connected = false;
-          }
+          console.log('Background script disconnected:', connectionId);
           this.connections.delete(connectionId);
         });
 
-        // Send connection confirmation immediately
         setTimeout(() => {
           this.safePortMessage(port, {
             type: 'connected',
@@ -142,37 +562,18 @@ class EnhancedSocialAgent {
       }
     });
 
-    // Handle one-time messages
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       this.handleMessage(request, sender, sendResponse);
       return true;
     });
   }
 
-  // Safe port messaging with enhanced connection check
-  safePortMessage(port, message) {
-    try {
-      if (port && typeof port.postMessage === 'function') {
-        // Check if port is still alive by accessing its properties
-        if (port.name && port.sender) {
-          port.postMessage(message);
-          return true;
-        }
-      }
-    } catch (error) {
-      console.error('Port message failed:', error.message);
-      return false;
-    }
-    return false;
-  }
-
   async handlePortMessage(message, port, connectionId) {
     const { type } = message;
-    console.log('Handling message type:', type, 'from connection:', connectionId);
+    console.log('Background script handling:', type, 'from:', connectionId);
 
     switch (type) {
       case 'new_task':
-        // Add task to queue and execute
         const taskId = Date.now().toString();
         this.activeTasks.set(taskId, { 
           task: message.task, 
@@ -182,10 +583,6 @@ class EnhancedSocialAgent {
         });
         
         await this.executeTask(message.task, port, taskId);
-        break;
-
-      case 'heartbeat':
-        this.safePortMessage(port, { type: 'heartbeat_ack' });
         break;
 
       case 'get_status':
@@ -208,261 +605,165 @@ class EnhancedSocialAgent {
     try {
       console.log('Executing task:', task, 'ID:', taskId);
       
-      // Initialize LLM service if needed
+      // Initialize services
       if (!this.llmService) {
         const config = await this.getConfig();
-        this.llmService = new BackgroundMultiLLM(config);
+        this.llmService = new RobustMultiLLM(config);
+        this.taskAnalyzer = new CompactTaskAnalyzer(this.llmService, this.memoryManager);
       }
 
-      // Send task start notification
-      if (!this.safePortMessage(port, {
+      this.safePortMessage(port, {
         type: 'task_start',
         task: task,
         taskId: taskId
-      })) {
-        console.warn('Failed to send task_start message');
-        return;
-      }
+      });
 
-      let result;
-      
-      // Route task based on content
-      if (!this.containsActionKeywords(task)) {
-        result = await this.handleChatMessage(task, port);
-      } else if (task.toLowerCase().includes('post') || task.toLowerCase().includes('tweet')) {
-        result = await this.handlePostTask(task, port);
-      } else if (task.toLowerCase().includes('login')) {
-        result = await this.handleLoginTask(port);
-      } else {
-        result = await this.handleChatMessage(task, port);
-      }
-
-      // Send completion notification with retry mechanism
-      let messageSent = false;
-      let retries = 3;
-      
-      while (!messageSent && retries > 0) {
-        messageSent = this.safePortMessage(port, {
+      // Check if it's a simple chat
+      if (this.isSimpleChat(task)) {
+        const result = await this.handleSimpleChat(task);
+        this.safePortMessage(port, {
           type: 'task_complete',
           result: result,
           taskId: taskId
         });
-        
-        if (!messageSent) {
-          console.warn(`Failed to send task_complete, retries left: ${retries - 1}`);
-          await this.delay(500);
-          retries--;
-        }
-      }
-      
-      if (!messageSent) {
-        console.error('Failed to deliver task result after all retries');
+        return;
       }
 
-      // Clean up task
+      // Get current context
+      this.safePortMessage(port, {
+        type: 'status_update',
+        message: '👁️ Analyzing current page...'
+      });
+
+      const currentTab = await this.getCurrentActiveTab();
+      const pageState = await this.getPageState(currentTab?.id);
+
+      // Analyze task
+      this.safePortMessage(port, {
+        type: 'status_update',
+        message: '🧠 Planning action...'
+      });
+
+      const analysis = await this.taskAnalyzer.analyze(task, pageState, currentTab);
+      console.log('Task analysis:', analysis);
+
+      // Execute action
+      const result = await this.actionExecutor.execute(analysis, port);
+
+      // If navigation was successful, try to complete the original task
+      if (analysis.action === 'navigate' && result.success) {
+        await this.delay(2000);
+        
+        // Re-analyze on new page
+        const newTab = await this.getCurrentActiveTab();
+        const newPageState = await this.getPageState(newTab.id);
+        const newAnalysis = await this.taskAnalyzer.analyze(task, newPageState, newTab);
+        
+        if (newAnalysis.action !== 'navigate') {
+          const finalResult = await this.actionExecutor.execute(newAnalysis, port);
+          this.safePortMessage(port, {
+            type: 'task_complete',
+            result: finalResult,
+            taskId: taskId
+          });
+          return;
+        }
+      }
+
+      this.safePortMessage(port, {
+        type: 'task_complete',
+        result: result,
+        taskId: taskId
+      });
+
       this.activeTasks.delete(taskId);
-      
-      return result;
+
     } catch (error) {
       console.error('Task execution error:', error);
       
-      // Try to send error message
       this.safePortMessage(port, {
         type: 'task_error',
         error: error.message,
         taskId: taskId
       });
       
-      // Clean up task
       this.activeTasks.delete(taskId);
-      throw error;
     }
   }
 
-  containsActionKeywords(task) {
-    const actionKeywords = ['post', 'tweet', 'login', 'navigate', 'click', 'fill'];
-    return actionKeywords.some(keyword => task.toLowerCase().includes(keyword));
+  isSimpleChat(task) {
+    const chatKeywords = ['hello', 'hi', 'how are you', 'what is', 'explain', 'tell me about', 'help'];
+    const automationKeywords = ['post', 'tweet', 'like', 'follow', 'login', 'search', 'find', 'navigate', 'click', 'fill'];
+    
+    const lowerTask = task.toLowerCase();
+    const hasChatKeywords = chatKeywords.some(keyword => lowerTask.includes(keyword));
+    const hasAutomationKeywords = automationKeywords.some(keyword => lowerTask.includes(keyword));
+    
+    return hasChatKeywords && !hasAutomationKeywords;
   }
 
-  async handleChatMessage(task, port) {
+  async handleSimpleChat(task) {
     try {
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: 'Thinking...'
-      });
-
-      if (!this.llmService) {
-        const config = await this.getConfig();
-        this.llmService = new BackgroundMultiLLM(config);
-      }
-
       const response = await this.llmService.call([
         { 
           role: 'user', 
-          content: `You are a helpful AI assistant. You can chat about anything and everything - answer questions, have conversations, provide information on any topic, tell jokes, discuss current events, explain concepts, help with problems, and more.
-
-You also happen to be great at social media management, particularly X (Twitter), so if someone asks about posting tweets, logging in, or social media tasks, you can help with those too.
-
-But feel free to chat about absolutely anything! You're not limited to social media topics.
-
-User message: "${task}"
-
-Please respond naturally and helpfully to whatever they're asking about.` 
+          content: `You are a helpful AI assistant. Respond naturally to: "${task}"` 
         }
-      ]);
+      ], { maxTokens: 500 });
 
       return {
         success: true,
         response: response,
-        message: response,
-        actions: [{ success: true, message: 'Chat response generated' }]
+        message: response
       };
     } catch (error) {
-      console.error('Chat message error:', error);
-      // Fallback response if AI is not configured
-      const fallbackResponse = this.getFallbackResponse(task);
       return {
         success: true,
-        response: fallbackResponse,
-        message: fallbackResponse,
-        actions: [{ success: true, message: 'Fallback response used' }]
+        response: `I understand you said: "${task}"\n\nI'm your AI web automation assistant for Android! I can help with social media tasks and browsing. What would you like me to help you with?`,
+        message: 'Fallback chat response'
       };
     }
   }
 
-  getFallbackResponse(task) {
-    const lowerTask = task.toLowerCase();
-    
-    if (lowerTask.includes('hello') || lowerTask.includes('hi')) {
-      return "👋 Hello! I'm your AI Social Media Assistant. I can help you with:\n\n• Posting tweets on X (Twitter)\n• Logging into your accounts\n• Generating content ideas\n• General social media tasks\n\nWhat would you like to do today?";
-    }
-    
-    if (lowerTask.includes('help')) {
-      return "🤖 I'm here to help with your social media tasks! Here's what I can do:\n\n• **Post Content**: 'Post a tweet about AI technology'\n• **Login Help**: 'Help me login to X'\n• **Content Ideas**: 'Generate content about [topic]'\n• **General Chat**: Just talk to me!\n\nTo get started, you'll need to configure your AI API key in settings (⚙️).";
-    }
-    
-    return "I understand you said: '" + task + "'\n\nI'm your AI Social Media Assistant! I can help with posting tweets, logging in, and generating content. To enable full AI capabilities, please configure your API key in settings.\n\nWhat would you like to do?";
+  async getCurrentActiveTab() {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tabs[0];
   }
 
-  async handlePostTask(task, port) {
+  async getPageState(tabId) {
+    if (!tabId) return {};
+    
     try {
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: 'Generating content...'
+      await this.ensureContentScriptInjected(tabId);
+      const response = await chrome.tabs.sendMessage(tabId, {
+        action: 'GET_PAGE_STATE'
       });
-
-      // Extract or generate content
-      let content = this.extractContent(task);
-      
-      if (!content) {
-        if (!this.llmService) {
-          const config = await this.getConfig();
-          this.llmService = new BackgroundMultiLLM(config);
-        }
-        // Generate content using AI
-        content = await this.llmService.call([
-          { role: 'user', content: `Generate a tweet about: ${task}. Keep it under 280 characters, engaging, and appropriate for X (Twitter).` }
-        ]);
-      }
-
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: 'Opening X/Twitter...'
-      });
-
-      // Find or open X tab
-      const tabs = await chrome.tabs.query({ url: ['https://x.com/*', 'https://twitter.com/*'] });
-      let activeTab;
-      
-      if (tabs.length === 0) {
-        activeTab = await chrome.tabs.create({ url: 'https://x.com/compose/post' });
-        await this.waitForTabReady(activeTab.id);
-      } else {
-        activeTab = tabs[0];
-        await chrome.tabs.update(activeTab.id, { active: true });
-      }
-
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: 'Posting content...'
-      });
-
-      // Send to content script
-      const response = await chrome.tabs.sendMessage(activeTab.id, {
-        action: 'POST_TWEET',
-        content: content.trim()
-      });
-
-      return {
-        success: response.success,
-        response: response.success ? `✅ Posted: "${content.trim()}"` : `❌ ${response.error}`,
-        message: response.success ? `Posted: "${content.trim()}"` : response.error,
-        content: content.trim(),
-        actions: [response]
-      };
+      return response.success ? response.pageState : {};
     } catch (error) {
-      return {
-        success: false,
-        response: `❌ Error posting: ${error.message}`,
-        message: `Error posting: ${error.message}`,
-        error: error.message
-      };
+      console.warn('Could not get page state:', error);
+      return {};
     }
   }
 
-  async handleLoginTask(port) {
+  async ensureContentScriptInjected(tabId) {
     try {
-      this.safePortMessage(port, {
-        type: 'status_update',
-        message: 'Opening X login page...'
-      });
-
-      const tab = await chrome.tabs.create({
-        url: 'https://x.com/i/flow/login',
-        active: true
-      });
-
-      return {
-        success: true,
-        response: "🔐 Login page opened! Please complete the login process manually. I'll help you with tasks once you're logged in.",
-        message: 'Login page opened - please complete manually',
-        actions: [{ success: true, message: 'Login page opened' }]
-      };
+      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
     } catch (error) {
-      return {
-        success: false,
-        response: `❌ Login error: ${error.message}`,
-        message: `Login error: ${error.message}`,
-        error: error.message
-      };
+      await this.actionExecutor.injectContentScript(tabId);
     }
   }
 
-  extractContent(task) {
-    // Extract quoted content
-    const match = task.match(/"([^"]+)"/);
-    if (match) return match[1];
-    
-    // Extract content after "post" or "tweet"
-    const postMatch = task.match(/(?:post|tweet)\s+(?:about\s+)?(.+)/i);
-    if (postMatch) return postMatch[1];
-    
-    return null;
-  }
-
-  async waitForTabReady(tabId) {
-    return new Promise((resolve) => {
-      const checkReady = () => {
-        chrome.tabs.sendMessage(tabId, { action: 'PING' }, (response) => {
-          if (chrome.runtime.lastError) {
-            setTimeout(checkReady, 1000);
-          } else {
-            resolve();
-          }
-        });
-      };
-      setTimeout(checkReady, 3000);
-    });
+  safePortMessage(port, message) {
+    try {
+      if (port && typeof port.postMessage === 'function') {
+        port.postMessage(message);
+        return true;
+      }
+    } catch (error) {
+      console.error('Port message failed:', error);
+      return false;
+    }
+    return false;
   }
 
   async getConfig() {
@@ -498,6 +799,8 @@ Please respond naturally and helpfully to whatever they're asking about.`
       hasAgent: true,
       activeTasks: this.activeTasks.size,
       connections: this.connections.size,
+      androidOptimized: true,
+      tokenOptimized: true,
       config: {
         hasAnthropicKey: !!config.anthropicApiKey,
         hasOpenAIKey: !!config.openaiApiKey,
@@ -510,10 +813,8 @@ Please respond naturally and helpfully to whatever they're asking about.`
   async updateConfig(config) {
     try {
       await chrome.storage.sync.set({ agentConfig: config });
-      
-      // Reinitialize LLM service
-      this.llmService = new BackgroundMultiLLM(config);
-      
+      this.llmService = new RobustMultiLLM(config);
+      this.taskAnalyzer = new CompactTaskAnalyzer(this.llmService, this.memoryManager);
       return { success: true, message: 'Configuration updated successfully' };
     } catch (error) {
       return { success: false, error: error.message };
@@ -525,6 +826,6 @@ Please respond naturally and helpfully to whatever they're asking about.`
   }
 }
 
-// Initialize the enhanced agent
-const enhancedAgent = new EnhancedSocialAgent();
-console.log('Enhanced Social Agent initialized');
+// Initialize the background script agent
+const backgroundScriptAgent = new BackgroundScriptAgent();
+console.log('AI Web Agent Background Script Initialized 🚀');

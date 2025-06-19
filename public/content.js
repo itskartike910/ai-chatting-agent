@@ -1,320 +1,689 @@
-/*global chrome, buildDomTree */
+/* global chrome, buildDomTree */
 
-console.log('Enhanced content script loaded on:', window.location.href);
-
-// Enhanced content script with DOM tree integration
-class EnhancedContentScript {
+// Android-Optimized Content Script
+class AndroidContentScript {
   constructor() {
-    this.isReady = false;
-    this.domObserver = null;
     this.setupMessageHandlers();
-    this.waitForPageReady();
+    this.isInitialized = false;
+    this.pageState = null;
+    this.lastDomUpdate = 0;
+    this.domCache = null;
+    console.log('Android content script initialized');
   }
 
   setupMessageHandlers() {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      console.log('Content script received message:', request.action);
       this.handleMessage(request, sender, sendResponse);
-      return true; // Keep message channel open
-    });
-  }
-
-  async waitForPageReady() {
-    // Wait for page to be fully loaded
-    if (document.readyState === 'loading') {
-      await new Promise(resolve => {
-        document.addEventListener('DOMContentLoaded', resolve);
-      });
-    }
-
-    // Additional wait for X's dynamic content
-    await this.waitForElement('[data-testid="primaryColumn"]', 10000);
-    
-    this.isReady = true;
-    this.notifyBackgroundReady();
-  }
-
-  async waitForElement(selector, timeout = 5000) {
-    return new Promise((resolve) => {
-      const element = document.querySelector(selector);
-      if (element) {
-        resolve(element);
-        return;
-      }
-
-      const observer = new MutationObserver(() => {
-        const element = document.querySelector(selector);
-        if (element) {
-          observer.disconnect();
-          resolve(element);
-        }
-      });
-
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-
-      setTimeout(() => {
-        observer.disconnect();
-        resolve(null);
-      }, timeout);
-    });
-  }
-
-  notifyBackgroundReady() {
-    chrome.runtime.sendMessage({
-      action: 'CONTENT_SCRIPT_READY',
-      url: window.location.href
-    }, (response) => {
-      console.log('Background response to ready notification:', response);
+      return true;
     });
   }
 
   async handleMessage(request, sender, sendResponse) {
     try {
       switch (request.action) {
-        case 'POST_TWEET':
-          const result = await this.postTweet(request.content);
-          sendResponse(result);
-          // Also notify background with result
-          chrome.runtime.sendMessage({
-            action: 'TWEET_RESULT',
-            result: result
-          });
-          break;
-
-        case 'FILL_CONTENT':
-          const fillResult = await this.fillContent(request.content);
-          sendResponse(fillResult);
+        case 'GET_PAGE_STATE':
+          const pageState = await this.getFullPageState();
+          sendResponse({ success: true, pageState });
           break;
 
         case 'CLICK_ELEMENT':
-          const clickResult = await this.clickElement(request.selector);
+          const clickResult = await this.clickElement(request.selector || request.index);
           sendResponse(clickResult);
           break;
 
-        case 'GET_DOM_INFO':
-          const domInfo = await this.getDomInfo();
-          sendResponse(domInfo);
+        case 'FILL_ELEMENT':
+          const fillResult = await this.fillElement(request.selector || request.index, request.text);
+          sendResponse(fillResult);
           break;
 
-        case 'CHECK_LOGIN_STATUS':
-          const loginStatus = await this.checkLoginStatus();
-          sendResponse(loginStatus);
+        case 'SCROLL_DOWN':
+          const scrollResult = await this.scrollDown();
+          sendResponse(scrollResult);
+          break;
+
+        case 'POST_TWEET':
+          const tweetResult = await this.postTweet(request.content);
+          sendResponse(tweetResult);
+          break;
+
+        case 'PING':
+          sendResponse({ success: true, status: 'ready' });
           break;
 
         default:
-          sendResponse({ success: false, error: 'Unknown action' });
+          sendResponse({ success: false, error: `Unknown action: ${request.action}` });
       }
     } catch (error) {
-      console.error('Content script error:', error);
+      console.error('Android content script error:', error);
       sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async getFullPageState() {
+    try {
+      const domResult = await this.buildCurrentDomTree({
+        showHighlightElements: false,
+        debugMode: false,
+        viewportExpansion: 200
+      });
+
+      const pageInfo = {
+        url: window.location.href,
+        title: document.title,
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          scrollX: window.scrollX,
+          scrollY: window.scrollY
+        },
+        platform: this.detectPlatform(),
+        loginStatus: this.checkLoginStatus(),
+        readyState: document.readyState,
+        isMobile: this.isMobileView()
+      };
+
+      const interactiveElements = this.extractInteractiveElements(domResult);
+      const pageContext = this.analyzePageContext();
+
+      return {
+        pageInfo,
+        interactiveElements,
+        pageContext,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('Error getting Android page state:', error);
+      return {
+        pageInfo: {
+          url: window.location.href,
+          title: document.title,
+          error: error.message
+        },
+        interactiveElements: [],
+        pageContext: { platform: 'unknown' },
+        timestamp: Date.now()
+      };
+    }
+  }
+
+  async buildCurrentDomTree(options = {}) {
+    if (typeof buildDomTree !== 'function') {
+      console.warn('buildDomTree function not available, creating fallback');
+      return this.createFallbackDomTree();
+    }
+
+    const defaultOptions = {
+      showHighlightElements: false,
+      focusHighlightIndex: -1,
+      viewportExpansion: 200,
+      debugMode: false,
+      ...options
+    };
+
+    try {
+      const result = buildDomTree(defaultOptions);
+      this.domCache = result;
+      this.lastDomUpdate = Date.now();
+      return result;
+    } catch (error) {
+      console.error('Error building DOM tree:', error);
+      return this.createFallbackDomTree();
+    }
+  }
+
+  createFallbackDomTree() {
+    const interactiveElements = [];
+    let index = 0;
+
+    // Find Twitter-specific elements first
+    const twitterElements = [
+      // Tweet compose area
+      '[data-testid="tweetTextarea_0"]',
+      '[role="textbox"][contenteditable="true"]',
+      // Post buttons
+      '[data-testid="tweetButton"]',
+      '[data-testid="tweetButtonInline"]',
+      // Like buttons
+      '[data-testid="like"]',
+      '[aria-label*="Like"]',
+      // General buttons
+      'button',
+      '[role="button"]',
+      // Input elements
+      'input',
+      'textarea'
+    ];
+
+    twitterElements.forEach(selector => {
+      document.querySelectorAll(selector).forEach(el => {
+        if (this.isElementVisible(el) && !this.isElementAlreadyAdded(el, interactiveElements)) {
+          interactiveElements.push({
+            index: index++,
+            element: el,
+            tagName: el.tagName.toLowerCase(),
+            text: this.getElementText(el),
+            ariaLabel: el.getAttribute('aria-label') || '',
+            dataTestId: el.getAttribute('data-testid') || '',
+            xpath: this.getXPath(el),
+            isLikeButton: this.isLikeButtonFromElement(el),
+            isTweetButton: this.isTweetButtonFromElement(el),
+            isTextArea: this.isTextAreaFromElement(el)
+          });
+        }
+      });
+    });
+
+    return {
+      rootId: 'fallback-root',
+      map: {},
+      interactiveElements: interactiveElements
+    };
+  }
+
+  isElementAlreadyAdded(element, list) {
+    return list.some(item => item.element === element);
+  }
+
+  getElementText(element) {
+    return (element.textContent || element.value || element.placeholder || '').trim().substring(0, 100);
+  }
+
+  extractInteractiveElements(domResult) {
+    // If using fallback DOM tree
+    if (domResult.interactiveElements) {
+      return domResult.interactiveElements.map(el => ({
+        index: el.index,
+        tagName: el.tagName,
+        attributes: {
+          'data-testid': el.dataTestId,
+          'aria-label': el.ariaLabel
+        },
+        xpath: el.xpath,
+        isVisible: true,
+        isTopElement: true,
+        isInViewport: true,
+        text: el.text,
+        ariaLabel: el.ariaLabel,
+        role: el.element?.getAttribute('role'),
+        type: el.element?.type,
+        isLikeButton: el.isLikeButton,
+        isTweetButton: el.isTweetButton,
+        isTextArea: el.isTextArea
+      }));
+    }
+
+    // Original DOM tree processing
+    const interactiveElements = [];
+    if (!domResult || !domResult.map) return interactiveElements;
+
+    const processNode = (nodeId) => {
+      const node = domResult.map[nodeId];
+      if (!node) return;
+
+      if (node.isInteractive && typeof node.highlightIndex === 'number') {
+        const text = this.extractElementText(node);
+        const ariaLabel = node.attributes?.['aria-label'] || '';
+        
+        interactiveElements.push({
+          index: node.highlightIndex,
+          tagName: node.tagName,
+          attributes: node.attributes || {},
+          xpath: node.xpath,
+          isVisible: node.isVisible,
+          isTopElement: node.isTopElement,
+          isInViewport: node.isInViewport,
+          text: text,
+          ariaLabel: ariaLabel,
+          role: node.attributes?.role,
+          type: node.attributes?.type,
+          isLikeButton: this.isLikeButton(node, text, ariaLabel),
+          isTweetButton: this.isTweetButton(node, text, ariaLabel),
+          isTextArea: this.isTextArea(node, text, ariaLabel)
+        });
+      }
+
+      if (node.children && Array.isArray(node.children)) {
+        node.children.forEach(processNode);
+      }
+    };
+
+    if (domResult.rootId) {
+      processNode(domResult.rootId);
+    }
+
+    return interactiveElements.sort((a, b) => a.index - b.index);
+  }
+
+  isLikeButton(node, text, ariaLabel) {
+    const lowerText = (text || '').toLowerCase();
+    const lowerAria = (ariaLabel || '').toLowerCase();
+    
+    return (
+      lowerText.includes('like') ||
+      lowerAria.includes('like') ||
+      lowerAria.includes('favorite') ||
+      node.attributes?.['data-testid']?.includes('like')
+    );
+  }
+
+  isLikeButtonFromElement(element) {
+    if (!element) return false;
+    const text = this.getElementText(element).toLowerCase();
+    const ariaLabel = (element.getAttribute('aria-label') || '').toLowerCase();
+    const dataTestId = element.getAttribute('data-testid') || '';
+    
+    return (
+      text.includes('like') ||
+      ariaLabel.includes('like') ||
+      dataTestId.includes('like')
+    );
+  }
+
+  isTweetButton(node, text, ariaLabel) {
+    const lowerText = (text || '').toLowerCase();
+    const lowerAria = (ariaLabel || '').toLowerCase();
+    
+    return (
+      lowerText.includes('tweet') ||
+      lowerText.includes('post') ||
+      lowerAria.includes('tweet') ||
+      lowerAria.includes('post') ||
+      node.attributes?.['data-testid']?.includes('tweet') ||
+      node.attributes?.['data-testid']?.includes('post')
+    );
+  }
+
+  isTweetButtonFromElement(element) {
+    if (!element) return false;
+    const text = this.getElementText(element).toLowerCase();
+    const ariaLabel = (element.getAttribute('aria-label') || '').toLowerCase();
+    const dataTestId = element.getAttribute('data-testid') || '';
+    
+    return (
+      text.includes('tweet') ||
+      text.includes('post') ||
+      ariaLabel.includes('tweet') ||
+      ariaLabel.includes('post') ||
+      dataTestId.includes('tweet') ||
+      dataTestId.includes('post')
+    );
+  }
+
+  isTextArea(node, text, ariaLabel) {
+    return (
+      node.tagName === 'textarea' ||
+      node.attributes?.contenteditable === 'true' ||
+      node.attributes?.role === 'textbox'
+    );
+  }
+
+  isTextAreaFromElement(element) {
+    if (!element) return false;
+    return (
+      element.tagName === 'TEXTAREA' ||
+      element.contentEditable === 'true' ||
+      element.getAttribute('role') === 'textbox'
+    );
+  }
+
+  extractElementText(node) {
+    let text = '';
+    
+    if (node.children && Array.isArray(node.children)) {
+      for (const childId of node.children) {
+        const child = this.domCache?.map[childId];
+        if (child) {
+          if (child.type === 'TEXT_NODE' && child.text) {
+            text += child.text + ' ';
+          } else {
+            text += this.extractElementText(child) + ' ';
+          }
+        }
+      }
+    }
+    
+    return text.trim();
+  }
+
+  isMobileView() {
+    return window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent);
+  }
+
+  detectPlatform() {
+    const url = window.location.href;
+    
+    if (url.includes('x.com') || url.includes('twitter.com')) {
+      return {
+        name: 'twitter',
+        isMobile: this.isMobileView()
+      };
+    }
+    
+    return { name: 'unknown', isMobile: this.isMobileView() };
+  }
+
+  analyzePageContext() {
+    const url = window.location.href;
+    const context = {
+      platform: 'unknown',
+      pageType: 'unknown',
+      capabilities: [],
+      isMobile: this.isMobileView()
+    };
+
+    if (url.includes('x.com') || url.includes('twitter.com')) {
+      context.platform = 'twitter';
+      context.capabilities = ['post', 'like', 'retweet', 'follow'];
+      
+      if (url.includes('/compose')) {
+        context.pageType = 'compose';
+      } else if (url.includes('/home')) {
+        context.pageType = 'home';
+      } else {
+        context.pageType = 'feed';
+      }
+    }
+
+    return context;
+  }
+
+  checkLoginStatus() {
+    const url = window.location.href;
+    
+    if (url.includes('x.com') || url.includes('twitter.com')) {
+      const isLoggedIn = !!(
+        document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
+        document.querySelector('[data-testid="primaryNavigation"]') ||
+        document.querySelector('[aria-label="Profile"]')
+      );
+      
+      return {
+        platform: 'twitter',
+        isLoggedIn
+      };
+    }
+    
+    return { platform: 'unknown', isLoggedIn: false };
+  }
+
+  async clickElement(selector) {
+    try {
+      let element;
+      
+      if (typeof selector === 'number') {
+        if (this.domCache && this.domCache.interactiveElements) {
+          const targetElement = this.domCache.interactiveElements.find(el => el.index === selector);
+          if (targetElement) {
+            element = targetElement.element;
+          }
+        } else {
+          const domResult = this.domCache || await this.buildCurrentDomTree();
+          const interactiveElements = this.extractInteractiveElements(domResult);
+          const targetElement = interactiveElements.find(el => el.index === selector);
+          
+          if (targetElement) {
+            element = this.getElementByXPath(targetElement.xpath);
+          }
+        }
+        
+        if (!element) {
+          return { success: false, error: `No element found with index ${selector}` };
+        }
+      } else {
+        element = document.querySelector(selector);
+      }
+      
+      if (!element) {
+        return { success: false, error: `Element not found: ${selector}` };
+      }
+      
+      // Android-optimized clicking
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await this.delay(1000);
+      
+      // Multiple click attempts for Android
+      element.focus();
+      element.click();
+      
+      // Dispatch touch events for Android
+      const rect = element.getBoundingClientRect();
+      const touchEvent = new TouchEvent('touchstart', {
+        bubbles: true,
+        cancelable: true,
+        touches: [new Touch({
+          identifier: 0,
+          target: element,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2
+        })]
+      });
+      element.dispatchEvent(touchEvent);
+      
+      await this.delay(100);
+      
+      const touchEndEvent = new TouchEvent('touchend', {
+        bubbles: true,
+        cancelable: true,
+        changedTouches: [new Touch({
+          identifier: 0,
+          target: element,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2
+        })]
+      });
+      element.dispatchEvent(touchEndEvent);
+      
+      return { success: true, message: `Clicked element: ${selector}` };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async fillElement(selector, text) {
+    try {
+      let element;
+      
+      if (typeof selector === 'number') {
+        if (this.domCache && this.domCache.interactiveElements) {
+          const targetElement = this.domCache.interactiveElements.find(el => el.index === selector);
+          if (targetElement) {
+            element = targetElement.element;
+          }
+        } else {
+          const domResult = this.domCache || await this.buildCurrentDomTree();
+          const interactiveElements = this.extractInteractiveElements(domResult);
+          const targetElement = interactiveElements.find(el => el.index === selector);
+          
+          if (targetElement) {
+            element = this.getElementByXPath(targetElement.xpath);
+          }
+        }
+        
+        if (!element) {
+          return { success: false, error: `No element found with index ${selector}` };
+        }
+      } else {
+        element = document.querySelector(selector);
+      }
+      
+      if (!element) {
+        return { success: false, error: `Element not found: ${selector}` };
+      }
+      
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await this.delay(500);
+      
+      element.focus();
+      
+      // Clear and fill based on element type
+      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        element.value = '';
+        element.value = text;
+      } else if (element.contentEditable === 'true') {
+        element.textContent = '';
+        element.textContent = text;
+      }
+      
+      // Trigger events
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      return { success: true, message: `Filled element with: ${text}` };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  async scrollDown() {
+    try {
+      const scrollAmount = window.innerHeight * 0.8;
+      window.scrollBy({
+        top: scrollAmount,
+        behavior: 'smooth'
+      });
+      
+      await this.delay(1500);
+      
+      return { 
+        success: true, 
+        message: `Scrolled down by ${scrollAmount}px`,
+        scrollY: window.scrollY
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   }
 
   async postTweet(content) {
     try {
-      console.log('Content script: Starting tweet posting process');
-      console.log('Content:', content);
-
-      // Step 1: Wait for compose area to be available
-      const composeArea = await this.waitForElement(
-        '[data-testid="tweetTextarea_0"], div[contenteditable="true"]', 
-        10000
-      );
-
-      if (!composeArea) {
-        return { success: false, error: 'Compose area not found' };
+      if (!content) {
+        content = "🤖 Exploring Chromium Browser features with my AI agent! The open-source foundation powering modern web browsing. #ChromiumBrowser #WebTech #AI";
       }
 
-      // Step 2: Fill the content
-      const fillResult = await this.fillContent(content);
-      if (!fillResult.success) {
-        return fillResult;
+      // Find textarea with multiple selectors
+      const textAreaSelectors = [
+        '[data-testid="tweetTextarea_0"]',
+        '[role="textbox"][contenteditable="true"]',
+        'div[contenteditable="true"]',
+        'textarea'
+      ];
+      
+      let textArea = null;
+      for (const selector of textAreaSelectors) {
+        textArea = document.querySelector(selector);
+        if (textArea) break;
       }
-
-      // Step 3: Wait a moment for the UI to update
-      await this.delay(1500);
-
-      // Step 4: Find and click the post button
-      const postButton = await this.waitForElement(
-        '[data-testid="tweetButtonInline"], [data-testid="tweetButton"]',
-        5000
-      );
-
+      
+      if (!textArea) {
+        return { success: false, error: 'Tweet textarea not found' };
+      }
+      
+      // Fill content
+      textArea.focus();
+      if (textArea.tagName === 'TEXTAREA') {
+        textArea.value = content;
+      } else {
+        textArea.textContent = content;
+      }
+      
+      textArea.dispatchEvent(new Event('input', { bubbles: true }));
+      await this.delay(1000);
+      
+      // Find post button
+      const postButtonSelectors = [
+        '[data-testid="tweetButton"]',
+        '[data-testid="tweetButtonInline"]',
+        'button[type="submit"]',
+        'button:contains("Post")',
+        'button:contains("Tweet")'
+      ];
+      
+      let postButton = null;
+      for (const selector of postButtonSelectors) {
+        postButton = document.querySelector(selector);
+        if (postButton) break;
+      }
+      
+      // Fallback: find by text content
+      if (!postButton) {
+        const buttons = document.querySelectorAll('button, [role="button"]');
+        for (const btn of buttons) {
+          const text = btn.textContent?.toLowerCase() || '';
+          if (text.includes('post') || text.includes('tweet')) {
+            postButton = btn;
+            break;
+          }
+        }
+      }
+      
       if (!postButton) {
         return { success: false, error: 'Post button not found' };
       }
-
-      if (postButton.disabled) {
-        return { success: false, error: 'Post button is disabled' };
-      }
-
-      // Click the post button
+      
       postButton.click();
-      console.log('Content script: Post button clicked');
-
-      // Step 5: Wait for posting to complete
-      await this.delay(3000);
-
-      // Step 6: Verify posting (look for success indicators)
-      const successIndicator = document.querySelector('[data-testid="toast"]') || 
-                              document.querySelector('[aria-label*="posted"]') ||
-                              !document.querySelector('[data-testid="tweetTextarea_0"]');
-
-      if (successIndicator) {
-        return { 
-          success: true, 
-          message: 'Tweet posted successfully',
-          content: content,
-          timestamp: Date.now()
-        };
-      } else {
-        return { 
-          success: false, 
-          error: 'Could not verify tweet posting',
-          content: content 
-        };
-      }
-
-    } catch (error) {
-      console.error('Content script: Error posting tweet:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async fillContent(content) {
-    try {
-      // Use buildDomTree if available for better element detection
-      let textArea = null;
       
-      if (typeof buildDomTree === 'function') {
-        try {
-          const domTree = buildDomTree({
-            showHighlightElements: false,
-            debugMode: false
-          });
-          
-          // Look for text input elements in the DOM tree
-          // This would be more sophisticated with full DOM tree analysis
-          console.log('DOM tree analysis available');
-        } catch (domError) {
-          console.log('DOM tree analysis failed, using fallback:', domError);
-        }
-      }
-
-      // Fallback to direct selectors
-      textArea = document.querySelector('[data-testid="tweetTextarea_0"]') || 
-                document.querySelector('div[contenteditable="true"]') ||
-                document.querySelector('.public-DraftEditor-content');
-
-      if (!textArea) {
-        return { success: false, error: 'Text area not found' };
-      }
-
-      // Focus the text area
-      textArea.focus();
-      
-      // Clear existing content
-      textArea.innerHTML = '';
-      textArea.textContent = '';
-      
-      // Insert new content
-      textArea.textContent = content;
-      textArea.innerHTML = content;
-      
-      // Trigger input events to notify the application
-      const inputEvent = new Event('input', { bubbles: true });
-      const changeEvent = new Event('change', { bubbles: true });
-      
-      textArea.dispatchEvent(inputEvent);
-      textArea.dispatchEvent(changeEvent);
-      
-      // Additional trigger for React applications
-      const reactEvent = new Event('input', { bubbles: true });
-      Object.defineProperty(reactEvent, 'target', {
-        writable: false,
-        value: textArea
-      });
-      textArea.dispatchEvent(reactEvent);
-
-      console.log('Content filled successfully');
-      return { success: true, message: 'Content filled successfully' };
-      
-    } catch (error) {
-      console.error('Error filling content:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  async clickElement(selector) {
-    try {
-      const element = await this.waitForElement(selector, 5000);
-      
-      if (!element) {
-        return { success: false, error: `Element not found: ${selector}` };
-      }
-
-      if (element.disabled) {
-        return { success: false, error: 'Element is disabled' };
-      }
-
-      element.click();
-      return { success: true, message: `Clicked element: ${selector}` };
-      
+      return { success: true, message: 'Tweet posted successfully' };
     } catch (error) {
       return { success: false, error: error.message };
     }
   }
 
-  async getDomInfo() {
+  // Utility methods
+  getElementByXPath(xpath) {
     try {
-      const info = {
-        url: window.location.href,
-        title: document.title,
-        isComposePageOpen: !!document.querySelector('[data-testid="tweetTextarea_0"]'),
-        isLoggedIn: !!document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]'),
-        hasPostButton: !!document.querySelector('[data-testid="tweetButtonInline"], [data-testid="tweetButton"]'),
-        readyState: document.readyState
-      };
-
-      // Use buildDomTree if available for more detailed analysis
-      if (typeof buildDomTree === 'function') {
-        try {
-          const domTree = buildDomTree({
-            showHighlightElements: false,
-            debugMode: false
-          });
-          info.domTreeAvailable = true;
-          info.interactiveElements = Object.keys(domTree).length;
-        } catch (error) {
-          info.domTreeAvailable = false;
-          info.domTreeError = error.message;
-        }
-      }
-
-      return { success: true, info: info };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  }
-
-  async checkLoginStatus() {
-    try {
-      const isLoggedIn = !!(
-        document.querySelector('[data-testid="SideNav_AccountSwitcher_Button"]') ||
-        document.querySelector('[data-testid="AppTabBar_Profile_Link"]') ||
-        window.location.href.includes('/home')
+      const result = document.evaluate(
+        xpath,
+        document,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
       );
-
-      return { 
-        success: true, 
-        isLoggedIn: isLoggedIn,
-        currentUrl: window.location.href
-      };
+      return result.singleNodeValue;
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('XPath evaluation failed:', error);
+      return null;
+    }
+  }
+
+  getXPath(element) {
+    try {
+      if (element.id !== '') {
+        return 'id("' + element.id + '")';
+      }
+      if (element === document.body) {
+        return element.tagName;
+      }
+      
+      let ix = 0;
+      const siblings = element.parentNode.childNodes;
+      for (let i = 0; i < siblings.length; i++) {
+        const sibling = siblings[i];
+        if (sibling === element) {
+          return this.getXPath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';
+        }
+        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
+          ix++;
+        }
+      }
+    } catch (error) {
+      return '//*[@id="unknown"]';
+    }
+  }
+
+  isElementVisible(element) {
+    try {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      
+      return (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        style.opacity !== '0'
+      );
+    } catch (error) {
+      return true;
     }
   }
 
@@ -323,8 +692,6 @@ class EnhancedContentScript {
   }
 }
 
-// Initialize the enhanced content script
-const enhancedContentScript = new EnhancedContentScript();
-
-// Export for testing
-window.enhancedContentScript = enhancedContentScript;
+// Initialize the Android content script
+const androidContentScript = new AndroidContentScript();
+console.log('Android-optimized content script loaded');

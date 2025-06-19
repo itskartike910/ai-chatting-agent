@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig';
 
@@ -246,17 +245,6 @@ const SettingsModal = ({ onClose }) => {
                 onChange={(e) => setLocalConfig({...localConfig, safeMode: e.target.checked})}
               />
               <span style={{ fontSize: '14px' }}>Safe mode (human-like delays)</span>
-            </label>
-          </div>
-
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="checkbox"
-                checked={localConfig.voiceInput !== false}
-                onChange={(e) => setLocalConfig({...localConfig, voiceInput: e.target.checked})}
-              />
-              <span style={{ fontSize: '14px' }}>Enable voice input</span>
             </label>
           </div>
         </div>
