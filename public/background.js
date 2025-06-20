@@ -1050,7 +1050,7 @@ class MultiAgentExecutor {
     this.navigator = new NavigatorAgent(this.llmService, this.memoryManager, this.actionRegistry);
     this.validator = new ValidatorAgent(this.llmService, this.memoryManager);
     
-    this.maxSteps = 12;
+    this.maxSteps = 15;
     this.executionHistory = [];
     this.currentStep = 0;
     this.cancelled = false;
@@ -1215,47 +1215,76 @@ class MultiAgentExecutor {
 
       // Ensure content script is available
       await this.browserContext.ensureContentScript(tab.id);
-      
       this.browserContext.activeTabId = tab.id;
 
       try {
-        console.log('Getting page state from content script');
-        const pageState = await chrome.tabs.sendMessage(tab.id, {
-          action: 'GET_PAGE_STATE'
+        console.log('Getting enhanced page state from content script');
+        
+        // Use enhanced DOM service
+        if (!this.domService) {
+          this.domService = new EnhancedDOMService();
+        }
+        
+        const pageState = await this.domService.getPageState(tab.id, {
+          debugMode: false, // Set to true for debugging
+          showHighlightElements: false,
+          maxElements: 30
         });
 
-        if (pageState && pageState.success) {
-          return {
-            pageInfo: {
-              url: tab.url,
-              title: tab.title,
-              status: tab.status
-            },
-            pageContext: {
-              platform: this.detectPlatform(tab.url),
-              pageType: this.determinePageType(tab.url)
-            },
-            loginStatus: {
-              isLoggedIn: this.checkBasicLoginStatus(tab.url)
-            },
-            interactiveElements: pageState.pageState?.interactiveElements || [],
-            viewportInfo: pageState.pageState?.pageInfo?.viewport || {},
-            extractedContent: pageState.pageState?.pageInfo ? 
-              `${pageState.pageState.pageInfo.platform} page with ${pageState.pageState.interactiveElements?.length || 0} interactive elements` :
-              'Page content extracted'
-          };
-        } else {
-          console.log('Content script returned invalid response:', pageState);
-          return this.getDefaultState();
-        }
+        console.log(`📊 Enhanced DOM: Found ${pageState.interactiveElements.length} ranked elements`);
+        console.log('🔍 Top elements:', pageState.interactiveElements.slice(0, 5).map(el => ({
+          index: el.originalIndex,
+          type: el.elementType,
+          text: el.contextText?.substring(0, 30),
+          relevance: el.relevanceScore,
+          isLogin: el.isLoginElement
+        })));
+
+        return pageState;
+
       } catch (contentError) {
-        console.log('Could not get page state from content script:', contentError);
-        return this.getDefaultState();
+        console.log('Enhanced DOM failed, using fallback:', contentError);
+        return this.getCurrentStateWithFallback();
       }
     } catch (error) {
       console.log('Could not get current state:', error);
       return this.getDefaultState();
     }
+  }
+
+  async getCurrentStateWithFallback() {
+    try {
+      const tab = await this.browserContext.getCurrentActiveTab();
+      if (!tab) return this.getDefaultState();
+
+      const pageState = await chrome.tabs.sendMessage(tab.id, {
+        action: 'GET_PAGE_STATE'
+      });
+
+      if (pageState && pageState.success) {
+        return {
+          pageInfo: {
+            url: tab.url,
+            title: tab.title,
+            status: tab.status
+          },
+          pageContext: {
+            platform: this.detectPlatform(tab.url),
+            pageType: this.determinePageType(tab.url)
+          },
+          loginStatus: {
+            isLoggedIn: this.checkBasicLoginStatus(tab.url)
+          },
+          interactiveElements: pageState.pageState?.interactiveElements || [],
+          viewportInfo: pageState.pageState?.pageInfo?.viewport || {},
+          extractedContent: 'Fallback page state extraction'
+        };
+      }
+    } catch (error) {
+      console.log('Fallback state extraction failed:', error);
+    }
+    
+    return this.getDefaultState();
   }
 
   getDefaultState() {
@@ -1977,6 +2006,308 @@ Rules:
       confidence: 0.5,
       reasoning: 'Default classification'
     };
+  }
+}
+
+// Add this comprehensive DOM service class before other classes
+class EnhancedDOMService {
+  constructor() {
+    this.debugMode = false;
+    this.highlightElements = true;
+  }
+
+  async getPageState(tabId, options = {}) {
+    try {
+      const result = await chrome.tabs.sendMessage(tabId, {
+        action: 'GET_ENHANCED_PAGE_STATE',
+        options: {
+          debugMode: options.debugMode || this.debugMode,
+          showHighlightElements: options.showHighlightElements || this.highlightElements,
+          viewportExpansion: options.viewportExpansion || 200,
+          maxElements: options.maxElements || 50
+        }
+      });
+
+      if (result && result.success) {
+        return this.processPageState(result.pageState);
+      } else {
+        throw new Error('Failed to get page state from content script');
+      }
+    } catch (error) {
+      console.error('Enhanced DOM service error:', error);
+      throw error;
+    }
+  }
+
+  processPageState(rawPageState) {
+    const processedElements = this.filterAndRankElements(rawPageState.interactiveElements || []);
+    
+    return {
+      pageInfo: {
+        url: rawPageState.url,
+        title: rawPageState.title,
+        platform: this.detectPlatform(rawPageState.url),
+        pageType: this.determinePageType(rawPageState.url),
+        viewport: rawPageState.viewport || {}
+      },
+      pageContext: {
+        platform: this.detectPlatform(rawPageState.url),
+        pageType: this.determinePageType(rawPageState.url),
+        hasLoginForm: this.hasLoginElements(processedElements),
+        hasPostForm: this.hasPostElements(processedElements),
+        canPost: this.canUserPost(processedElements)
+      },
+      loginStatus: {
+        isLoggedIn: this.checkLoginStatus(rawPageState.url, processedElements),
+        hasLoginForm: this.hasLoginElements(processedElements)
+      },
+      interactiveElements: processedElements,
+      elementStats: {
+        total: rawPageState.interactiveElements?.length || 0,
+        filtered: processedElements.length,
+        buttons: processedElements.filter(el => el.elementType === 'button').length,
+        inputs: processedElements.filter(el => el.elementType === 'input').length,
+        links: processedElements.filter(el => el.elementType === 'link').length
+      },
+      extractedContent: this.generateContentSummary(processedElements, rawPageState)
+    };
+  }
+
+  filterAndRankElements(elements) {
+    if (!elements || elements.length === 0) return [];
+
+    // Filter out invalid elements
+    const validElements = elements.filter(el => 
+      el && 
+      typeof el.index === 'number' && 
+      el.isVisible !== false &&
+      el.text !== undefined
+    );
+
+    // Rank elements by relevance
+    const rankedElements = validElements.map(el => ({
+      ...el,
+      relevanceScore: this.calculateRelevanceScore(el),
+      elementType: this.categorizeElement(el),
+      contextText: this.extractContextText(el),
+      isLoginElement: this.isLoginRelated(el),
+      isPostElement: this.isPostRelated(el)
+    }));
+
+    // Sort by relevance and limit
+    return rankedElements
+      .sort((a, b) => b.relevanceScore - a.relevanceScore)
+      .slice(0, 30)
+      .map((el, index) => ({
+        ...el,
+        displayIndex: index,
+        originalIndex: el.index
+      }));
+  }
+
+  calculateRelevanceScore(element) {
+    let score = 0;
+    const text = (element.text || '').toLowerCase();
+    const ariaLabel = (element.ariaLabel || '').toLowerCase();
+    const tagName = element.tagName?.toLowerCase() || '';
+
+    // Base scores by element type
+    if (tagName === 'button') score += 20;
+    else if (tagName === 'input') score += 18;
+    else if (tagName === 'textarea') score += 16;
+    else if (element.role === 'button') score += 15;
+    else if (element.role === 'textbox') score += 15;
+    else if (tagName === 'a') score += 10;
+
+    // Boost for login-related terms
+    const loginKeywords = ['login', 'sign in', 'email', 'password', 'username', 'continue'];
+    if (loginKeywords.some(keyword => text.includes(keyword) || ariaLabel.includes(keyword))) {
+      score += 25;
+    }
+
+    // Boost for post-related elements
+    const postKeywords = ['tweet', 'post', 'share', 'publish', 'compose'];
+    if (postKeywords.some(keyword => text.includes(keyword) || ariaLabel.includes(keyword))) {
+      score += 20;
+    }
+
+    // Boost for interactive elements
+    if (element.isClickable) score += 10;
+    if (element.isFocusable) score += 8;
+
+    // Penalty for hidden or tiny elements
+    if (element.isVisible === false) score -= 50;
+    if (element.boundingRect && (element.boundingRect.width < 10 || element.boundingRect.height < 10)) {
+      score -= 20;
+    }
+
+    // Boost for elements in viewport
+    if (element.isInViewport) score += 15;
+
+    // Boost for elements with clear text
+    if (text.length > 3 && text.length < 50) score += 5;
+
+    return Math.max(0, score);
+  }
+
+  categorizeElement(element) {
+    const tagName = element.tagName?.toLowerCase() || '';
+    const type = element.type?.toLowerCase() || '';
+    const role = element.role?.toLowerCase() || '';
+
+    if (tagName === 'button' || role === 'button') return 'button';
+    if (tagName === 'input') {
+      if (type === 'text' || type === 'email') return 'input';
+      if (type === 'password') return 'password';
+      if (type === 'submit') return 'submit';
+      return 'input';
+    }
+    if (tagName === 'textarea' || role === 'textbox') return 'textarea';
+    if (tagName === 'a') return 'link';
+    if (element.contentEditable === 'true') return 'contenteditable';
+    return 'other';
+  }
+
+  extractContextText(element) {
+    const parts = [];
+    
+    if (element.text) parts.push(element.text.trim());
+    if (element.ariaLabel && element.ariaLabel !== element.text) {
+      parts.push(`[${element.ariaLabel.trim()}]`);
+    }
+    if (element.placeholder) parts.push(`(${element.placeholder.trim()})`);
+    
+    return parts.join(' ').substring(0, 100);
+  }
+
+  isLoginRelated(element) {
+    const text = (element.text || '').toLowerCase();
+    const ariaLabel = (element.ariaLabel || '').toLowerCase();
+    const placeholder = (element.placeholder || '').toLowerCase();
+    
+    const loginKeywords = [
+      'login', 'sign in', 'log in', 'sign-in', 'signin',
+      'email', 'username', 'password', 'continue',
+      'next', 'submit', 'enter'
+    ];
+    
+    return loginKeywords.some(keyword => 
+      text.includes(keyword) || 
+      ariaLabel.includes(keyword) || 
+      placeholder.includes(keyword)
+    );
+  }
+
+  isPostRelated(element) {
+    const text = (element.text || '').toLowerCase();
+    const ariaLabel = (element.ariaLabel || '').toLowerCase();
+    
+    const postKeywords = [
+      'tweet', 'post', 'share', 'publish', 'compose',
+      'write', 'create', 'send', 'submit'
+    ];
+    
+    return postKeywords.some(keyword => 
+      text.includes(keyword) || 
+      ariaLabel.includes(keyword)
+    );
+  }
+
+  hasLoginElements(elements) {
+    return elements.some(el => el.isLoginElement);
+  }
+
+  hasPostElements(elements) {
+    return elements.some(el => el.isPostElement);
+  }
+
+  canUserPost(elements) {
+    const hasTextArea = elements.some(el => 
+      el.elementType === 'textarea' || 
+      el.elementType === 'contenteditable'
+    );
+    const hasPostButton = elements.some(el => 
+      el.elementType === 'button' && el.isPostElement
+    );
+    return hasTextArea && hasPostButton;
+  }
+
+  checkLoginStatus(url, elements) {
+    // If URL contains login/signin, probably not logged in
+    if (url && (url.includes('/login') || url.includes('/signin'))) {
+      return false;
+    }
+    
+    // If we have login elements, probably not logged in
+    if (this.hasLoginElements(elements)) {
+      return false;
+    }
+    
+    // Look for logout or profile elements (signs of being logged in)
+    const hasProfileElements = elements.some(el => {
+      const text = (el.text || '').toLowerCase();
+      const ariaLabel = (el.ariaLabel || '').toLowerCase();
+      return text.includes('profile') || 
+             text.includes('logout') || 
+             text.includes('sign out') ||
+             ariaLabel.includes('profile') ||
+             ariaLabel.includes('account menu');
+    });
+    
+    return hasProfileElements;
+  }
+
+  detectPlatform(url) {
+    if (!url) return 'unknown';
+    const lowerUrl = url.toLowerCase();
+    
+    if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
+    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
+    if (lowerUrl.includes('facebook.com')) return 'facebook';
+    if (lowerUrl.includes('instagram.com')) return 'instagram';
+    if (lowerUrl.includes('youtube.com')) return 'youtube';
+    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
+    
+    return 'unknown';
+  }
+
+  determinePageType(url) {
+    if (!url) return 'unknown';
+    const lowerUrl = url.toLowerCase();
+    
+    if (lowerUrl.includes('/login') || lowerUrl.includes('/signin')) return 'login';
+    if (lowerUrl.includes('/compose') || lowerUrl.includes('/intent/tweet')) return 'compose';
+    if (lowerUrl.includes('/home') || lowerUrl.includes('/timeline')) return 'home';
+    if (lowerUrl.includes('/profile') || lowerUrl.includes('/user/')) return 'profile';
+    return 'general';
+  }
+
+  generateContentSummary(elements, rawPageState) {
+    const platform = this.detectPlatform(rawPageState.url);
+    const elementCount = elements.length;
+    const loginElements = elements.filter(el => el.isLoginElement).length;
+    const postElements = elements.filter(el => el.isPostElement).length;
+    
+    let summary = `${platform} page with ${elementCount} interactive elements`;
+    
+    if (loginElements > 0) {
+      summary += `, ${loginElements} login-related elements`;
+    }
+    if (postElements > 0) {
+      summary += `, ${postElements} post-related elements`;
+    }
+    
+    return summary;
+  }
+
+  enableDebugMode() {
+    this.debugMode = true;
+    this.highlightElements = true;
+  }
+
+  disableDebugMode() {
+    this.debugMode = false;
+    this.highlightElements = false;
   }
 }
 
