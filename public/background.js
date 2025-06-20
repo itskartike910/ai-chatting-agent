@@ -194,25 +194,42 @@ class ActionRegistry {
     this.actions.set('go_to_url', {
       handler: async (input) => {
         try {
-          const result = await this.browserContext.ensureTab(input.url);
+          console.log(`🌐 Android Navigation: Closing current tab and opening ${input.url}`);
           
-          // If Android mode or navigation failed, provide helpful response
-          if (result.androidMode || !result.success) {
-            return {
-              success: true, // Mark as success but with guidance
-              extractedContent: `🤖 I need to navigate to ${input.url} to complete this task. Since automatic navigation isn't supported on this platform, please manually navigate to the correct page and I'll continue from there.`,
-              includeInMemory: true,
-              needsManualNavigation: true
-            };
+          // Get current tab
+          const currentTab = await this.browserContext.getCurrentActiveTab();
+          
+          // Close current tab for Android compatibility
+          if (currentTab) {
+            try {
+              await chrome.tabs.remove(currentTab.id);
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (e) {
+              console.log('Could not close current tab:', e);
+            }
           }
           
-          return result;
-        } catch (error) {
+          // Create new tab
+          const newTab = await chrome.tabs.create({ url: input.url, active: true });
+          this.browserContext.activeTabId = newTab.id;
+          
+          // Wait for load
+          await this.browserContext.waitForReady(newTab.id);
+          
           return {
-            success: true, // Don't fail the task, just provide guidance
-            extractedContent: `🤖 I need to navigate to ${input.url} but automatic navigation isn't available. Please manually navigate to that page and I'll help you complete the task from there.`,
+            success: true,
+            extractedContent: `✅ Navigated to ${input.url}`,
             includeInMemory: true,
-            needsManualNavigation: true
+            navigationCompleted: true
+          };
+          
+        } catch (error) {
+          console.error('Navigation error:', error);
+          return {
+            success: false,
+            error: error.message,
+            extractedContent: `❌ Navigation failed: ${error.message}`,
+            includeInMemory: true
           };
         }
       }
@@ -446,42 +463,45 @@ class PlannerAgent {
   async plan(userTask, currentState, executionHistory) {
     const context = this.memoryManager.getContext();
     
-    const plannerPrompt = `You are a strategic web automation planner for social media platforms.
+    const plannerPrompt = `You are a strategic web automation planner. Your job is to analyze the current state and break down the user's task into logical steps.
 
-Task: "${userTask}"
-
-Current Context:
-- URL: ${currentState.pageInfo?.url || 'unknown'}
+# ANALYSIS
+- Current URL: ${currentState.pageInfo?.url || 'unknown'}
 - Platform: ${this.detectPlatform(currentState.pageInfo?.url)}
-- Step: ${context.currentStep}
+- Interactive Elements: ${currentState.interactiveElements?.length || 0}
 - Login Status: ${currentState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
-- Page Type: ${currentState.pageContext?.pageType || 'unknown'}
 
-Recent Actions:
-${context.recentMessages.map(m => `${m.action || 'action'}: ${this.ensureString(m.content).substring(0, 50)}...`).join('\n') || 'No recent actions'}
+# TASK
+"${userTask}"
 
-Interactive Elements Available:
-${this.formatElements(currentState.interactiveElements || [])}
+# CURRENT STATE
+${this.formatElements(currentState.interactiveElements?.slice(0, 8) || [])}
 
-Platform Capabilities:
-${this.getPlatformCapabilities(currentState.pageContext?.platform)}
+# EXECUTION HISTORY
+${executionHistory.slice(-2).map(h => `Step ${h.step}: ${h.success ? '✅' : '❌'} ${Array.isArray(h.plan) ? h.plan.join(' ') : (h.plan?.substring(0, 50) || 'action')}...`).join('\n') || 'No previous steps'}
 
-RESPONSE FORMAT (JSON only):
+# RESPONSE FORMAT
+Respond with JSON only:
 {
-  "observation": "current state analysis and what needs to be done",
+  "observation": "Brief analysis of current situation",
   "done": false,
-  "next_steps": "specific actionable steps for this platform",
-  "reasoning": "explanation of approach for this social media platform",
+  "next_steps": "Specific actionable steps",
+  "reasoning": "Why this approach",
   "web_task": true,
-  "platform": "twitter|linkedin|facebook|instagram|youtube|tiktok|unknown",
-  "required_navigation": "url_if_navigation_needed_or_null",
-  "completion_criteria": "how to determine when task is complete"
-}`;
+  "platform": "detected platform",
+  "requires_navigation": false
+}
+
+# RULES
+- Set "done": true only when task is completely finished
+- For Android: prefer working with current page over navigation
+- Break complex tasks into simple steps
+- Focus on visible interactive elements`;
 
     try {
       const response = await this.llmService.call([
         { role: 'user', content: plannerPrompt }
-      ], { maxTokens: 800 });
+      ], { maxTokens: 600 });
       
       const plan = JSON.parse(this.cleanJSONResponse(response));
       
@@ -539,8 +559,8 @@ RESPONSE FORMAT (JSON only):
   formatElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
-    return elements.slice(0, 10).map(el => 
-      `[${el.index}]<${el.tagName}>${(el.text || '').substring(0, 30)}${(el.text || '').length > 30 ? '...' : ''}</${el.tagName}>${el.ariaLabel ? ` (${el.ariaLabel})` : ''}`
+    return elements.slice(0, 12).map(el => 
+      `[${el.index}] ${el.tagName}: "${(el.text || el.ariaLabel || '').substring(0, 40)}"${el.text?.length > 40 ? '...' : ''}`
     ).join('\n');
   }
 
@@ -583,6 +603,41 @@ RESPONSE FORMAT (JSON only):
       completion_criteria: "Task objectives achieved"
     };
   }
+
+  getDefaultState() {
+    return {
+      pageInfo: { 
+        url: 'unknown', 
+        title: 'Unknown Page' 
+      },
+      pageContext: { 
+        platform: 'unknown', 
+        pageType: 'unknown' 
+      },
+      loginStatus: { 
+        isLoggedIn: false 
+      },
+      interactiveElements: [],
+      viewportInfo: {},
+      extractedContent: 'No content available'
+    };
+  }
+
+  checkBasicLoginStatus(url) {
+    return !url.includes('/login') && !url.includes('/signin');
+  }
+
+  determinePageType(url) {
+    if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
+    if (url.includes('/home') || url.includes('/timeline')) return 'home';
+    if (url.includes('/login') || url.includes('/signin')) return 'login';
+    if (url.includes('/profile') || url.includes('/user/')) return 'profile';
+    return 'general';
+  }
+
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 }
 
 // Navigator Agent (same structure, just enhanced)
@@ -596,54 +651,56 @@ class NavigatorAgent {
   async navigate(plan, currentState) {
     const context = this.memoryManager.getContext();
     
-    const navigatorPrompt = `You are a social media automation navigator.
+    const navigatorPrompt = `You are a web navigator that executes specific actions. Your job is to take the next action to progress toward the goal.
 
-Plan: ${JSON.stringify(plan.next_steps)}
-Platform: ${plan.platform}
-Current Step: ${context.currentStep}
+# GOAL
+${plan.next_steps}
 
-Current State:
-- URL: ${currentState.pageInfo?.url}
-- Platform: ${currentState.pageContext?.platform || 'unknown'}
-- Page Type: ${currentState.pageContext?.pageType || 'unknown'}
-- Login Status: ${currentState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
-- Elements: ${currentState.interactiveElements?.length || 0} interactive elements
+# CURRENT PAGE STATE
+URL: ${currentState.pageInfo?.url}
+Platform: ${currentState.pageContext?.platform}
+Elements: ${currentState.interactiveElements?.length || 0}
 
-Interactive Elements:
+# INTERACTIVE ELEMENTS
 ${this.formatElements(currentState.interactiveElements || [])}
 
-Available Actions: ${this.actionRegistry.getAvailableActions().join(', ')}
+# AVAILABLE ACTIONS
+- click_element: Click buttons, links (requires "index")
+- input_text: Fill text fields (requires "index" and "text") 
+- scroll_down: Scroll page (optional "amount")
+- go_to_url: Navigate to URL (requires "url")
+- wait: Wait for loading (optional "duration")
+- done: Complete task (requires "text" summary)
 
-CRITICAL RULES:
-1. Use element indices from the Interactive Elements list above
-2. For social media posting, find compose/post/write buttons and text areas
-3. Only mark done when task is actually completed
-4. Consider platform-specific UI patterns
-
-RESPONSE FORMAT (JSON only):
+# RESPONSE FORMAT
+JSON only:
 {
   "current_state": {
-    "evaluation_previous_goal": "Success|Failed|Unknown - analysis of previous action",
-    "memory": "what has been accomplished so far", 
-    "next_goal": "immediate next objective to achieve"
+    "evaluation_previous_goal": "Success|Failed|Unknown",
+    "memory": "What has been done",
+    "next_goal": "Immediate objective"
   },
   "action": [
     {
       "action_name": {
-        "intent": "description of what this achieves",
-        "index": number_if_interacting_with_element,
-        "text": "text_if_filling_form",
-        "url": "url_if_navigating",
-        "duration": number_if_waiting
+        "intent": "Why this action",
+        "index": 123,
+        "text": "content if needed"
       }
     }
   ]
-}`;
+}
+
+# ANDROID RULES
+- Use only element indexes from the list above
+- For navigation: use go_to_url and close current tab
+- Prefer single actions over sequences
+- Use wait after navigation or major actions`;
 
     try {
       const response = await this.llmService.call([
         { role: 'user', content: navigatorPrompt }
-      ], { maxTokens: 600 });
+      ], { maxTokens: 500 });
       
       const navResult = JSON.parse(this.cleanJSONResponse(response));
       
@@ -663,8 +720,8 @@ RESPONSE FORMAT (JSON only):
   formatElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
-    return elements.slice(0, 10).map(el => 
-      `[${el.index}]<${el.tagName}>${(el.text || '').substring(0, 30)}${(el.text || '').length > 30 ? '...' : ''}</${el.tagName}>${el.ariaLabel ? ` (${el.ariaLabel})` : ''}`
+    return elements.slice(0, 12).map(el => 
+      `[${el.index}] ${el.tagName}: "${(el.text || el.ariaLabel || '').substring(0, 40)}"${el.text?.length > 40 ? '...' : ''}`
     ).join('\n');
   }
 
@@ -735,7 +792,7 @@ RESPONSE FORMAT (JSON only):
   }
 }
 
-// Validator Agent (same structure)
+// Validator Agent
 class ValidatorAgent {
   constructor(llmService, memoryManager) {
     this.llmService = llmService;
@@ -743,7 +800,7 @@ class ValidatorAgent {
   }
 
   async validate(originalTask, executionHistory, finalState) {
-    const validatorPrompt = `You are a social media task completion validator.
+    const validatorPrompt = `You are a task completion validator.
 
 Original Task: "${originalTask}"
 
@@ -758,7 +815,7 @@ Final State:
 
 RESPONSE FORMAT (JSON only):
 {
-  "is_valid": boolean,
+  "is_valid": true,
   "reason": "detailed explanation of completion status",
   "answer": "comprehensive summary of what was accomplished",
   "success_confidence": 0.8,
@@ -785,7 +842,7 @@ RESPONSE FORMAT (JSON only):
       return {
         is_valid: executionHistory.some(h => h.success),
         reason: "Validation failed, assuming partial success based on execution history",
-        answer: "Social media task execution completed with mixed results",
+        answer: "Task execution completed with mixed results",
         success_confidence: 0.6,
         completion_evidence: "Validation service unavailable",
         platform_specific_notes: "Manual verification recommended"
@@ -1251,7 +1308,6 @@ class MultiAgentExecutor {
           message: `🎯 ${actionInput.intent || `Executing ${actionName}`}...`
         });
         
-        // Check if cancelled before executing action
         if (this.cancelled) {
           console.log('🛑 Action sequence cancelled');
           break;
@@ -1266,21 +1322,25 @@ class MultiAgentExecutor {
           success: result.success !== false
         });
         
-        if (actionName === 'go_to_url') {
-          await this.delay(4000);
-          break;
+        console.log(`${result.success ? '✅' : '❌'} ${actionName}: ${result.extractedContent?.substring(0, 50)}...`);
+        
+        // Android: Handle navigation specially
+        if (actionName === 'go_to_url' && result.success) {
+          await this.delay(4000); // Wait for page load
+          break; // Stop sequence after navigation
         }
         
-        if (!result.success) {
-          console.log(`❌ Action failed: ${actionName}`);
-          break;
+        if (!result.success && actionName !== 'wait') {
+          console.log(`⚠️ Action failed but continuing: ${actionName}`);
         }
         
         if (result.isDone) {
+          console.log('✅ Task marked complete');
           break;
         }
         
-        await this.delay(1500);
+        // Add delay between actions for Android stability
+        await this.delay(1000);
         
       } catch (error) {
         console.error(`❌ Action error: ${actionName}`, error);
@@ -1290,7 +1350,11 @@ class MultiAgentExecutor {
           result: { success: false, error: error.message },
           success: false
         });
-        break;
+        
+        // Continue with next action unless critical failure
+        if (actionName === 'go_to_url') {
+          break; // Stop on navigation failure
+        }
       }
     }
     
@@ -1602,7 +1666,7 @@ class PersistentConnectionManager {
   }
 }
 
-// 🔧 FIXED: Main Background Script Agent with BackgroundTaskManager Integration
+// 🔧 Main Background Script Agent with BackgroundTaskManager Integration
 class BackgroundScriptAgent {
   constructor() {
     this.backgroundTaskManager = new BackgroundTaskManager();
@@ -1610,7 +1674,7 @@ class BackgroundScriptAgent {
     this.activeTasks = new Map();
     this.llmService = null;
     this.multiAgentExecutor = null;
-    this.taskRouter = null; // ✅ ADD THIS LINE
+    this.taskRouter = null;
     
     this.setupMessageHandlers();
     console.log('✅ BackgroundScriptAgent initialized with BackgroundTaskManager');
@@ -1639,7 +1703,6 @@ class BackgroundScriptAgent {
         port.onDisconnect.addListener(() => {
           console.log('Background script disconnected:', connectionId);
           this.connectionManager.removeConnection(connectionId);
-          // ✅ Tasks continue running in BackgroundTaskManager even after disconnect!
         });
 
         setTimeout(() => {
@@ -1679,10 +1742,7 @@ class BackgroundScriptAgent {
         console.log('🛑 Received cancel_task request');
         const activeTaskId = this.connectionManager.getActiveTask();
         if (activeTaskId) {
-          // Cancel in background task manager
           const cancelled = this.backgroundTaskManager.cancelTask(activeTaskId);
-          
-          // Also cancel in active tasks
           this.activeTasks.delete(activeTaskId);
           this.connectionManager.setActiveTask(null);
           
@@ -1714,12 +1774,10 @@ class BackgroundScriptAgent {
     }
   }
 
-  // ✅ FIXED: New method that actually uses BackgroundTaskManager
   async executeTaskWithBackgroundManager(task, taskId) {
     try {
       console.log('🚀 Executing task with BackgroundTaskManager:', task, 'ID:', taskId);
       
-      // Initialize services if needed
       if (!this.llmService) {
         const config = await this.getConfig();
         this.llmService = new RobustMultiLLM(config);
@@ -1727,7 +1785,6 @@ class BackgroundScriptAgent {
         this.taskRouter = new AITaskRouter(this.llmService);
       }
 
-      // AI-powered task classification
       const classification = await this.taskRouter.analyzeAndRoute(task);
       
       if (classification.intent === 'CHAT') {
@@ -1741,7 +1798,6 @@ class BackgroundScriptAgent {
         return;
       }
 
-      // Use BackgroundTaskManager for automation tasks
       await this.backgroundTaskManager.startTask(
         taskId, 
         { task }, 
@@ -1927,3 +1983,28 @@ Rules:
 // Initialize
 const backgroundScriptAgent = new BackgroundScriptAgent();
 console.log('AI Web Agent Background Script Initialized 🚀');
+
+// Chrome Alarms for Android background persistence
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'keep-alive') {
+    console.log('🔄 Android background keep-alive');
+    if (backgroundScriptAgent?.backgroundTaskManager) {
+      const runningTasks = backgroundScriptAgent.backgroundTaskManager.getAllRunningTasks();
+      console.log(`📊 Background status: ${runningTasks.length} tasks running`);
+    }
+  }
+});
+
+// Set up keep-alive alarm for Android
+chrome.alarms.create('keep-alive', { 
+  delayInMinutes: 0.5, 
+  periodInMinutes: 1 
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  console.log('🚀 Android extension startup');
+});
+
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('⚡ Android extension installed/updated');
+});
