@@ -1024,6 +1024,23 @@ class AndroidContentScript {
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  // Add this method to handle restricted page detection
+  async highlightInteractiveElements() {
+    if (window.location.href.includes('chrome-native://') || 
+        window.location.href.includes('chrome://') ||
+        window.location.href.includes('about:')) {
+      console.log('⚠️ Cannot highlight elements on restricted page');
+      return;
+    }
+    
+    try {
+      const enhancedState = await this.getEnhancedPageState({ debugMode: true });
+      this.highlightElements(enhancedState.interactiveElements || []);
+    } catch (error) {
+      console.error('Failed to highlight elements:', error);
+    }
+  }
 }
 
 // Initialize the enhanced Android content script

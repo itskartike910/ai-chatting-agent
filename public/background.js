@@ -182,7 +182,7 @@ class BackgroundTaskManager {
   }
 }
 
-// Action Registry with universal platform support
+// Enhanced Action Registry with better URL validation
 class ActionRegistry {
   constructor(browserContext) {
     this.browserContext = browserContext;
@@ -194,7 +194,13 @@ class ActionRegistry {
     this.actions.set('go_to_url', {
       handler: async (input) => {
         try {
-          console.log(`🌐 Android Navigation: Closing current tab and opening ${input.url}`);
+          const url = this.validateAndFixUrl(input.url);
+          
+          if (!url) {
+            throw new Error('Invalid or missing URL');
+          }
+          
+          console.log(`🌐 Android Navigation: Closing current tab and opening ${url}`);
           
           // Get current tab
           const currentTab = await this.browserContext.getCurrentActiveTab();
@@ -209,8 +215,8 @@ class ActionRegistry {
             }
           }
           
-          // Create new tab
-          const newTab = await chrome.tabs.create({ url: input.url, active: true });
+          // Create new tab with validated URL
+          const newTab = await chrome.tabs.create({ url: url, active: true });
           this.browserContext.activeTabId = newTab.id;
           
           // Wait for load
@@ -218,7 +224,7 @@ class ActionRegistry {
           
           return {
             success: true,
-            extractedContent: `✅ Navigated to ${input.url}`,
+            extractedContent: `✅ Navigated to ${url}`,
             includeInMemory: true,
             navigationCompleted: true
           };
@@ -451,6 +457,41 @@ class ActionRegistry {
   getAvailableActions() {
     return Array.from(this.actions.keys());
   }
+
+  validateAndFixUrl(url) {
+    if (!url || typeof url !== 'string') {
+      console.error('Invalid URL provided:', url);
+      return null;
+    }
+    
+    // Remove any extra quotes or whitespace
+    url = url.trim().replace(/['"]/g, '');
+    
+    // If URL already has protocol, validate it
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        new URL(url);
+        return url;
+      } catch (e) {
+        console.error('Invalid URL format:', url);
+        return null;
+      }
+    }
+    
+    // Add https:// if missing
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
+    
+    // Validate the final URL
+    try {
+      new URL(url);
+      return url;
+    } catch (e) {
+      console.error('Could not create valid URL:', url);
+      return null;
+    }
+  }
 }
 
 // Enhanced Planner Agent
@@ -640,7 +681,7 @@ Respond with JSON only:
   }
 }
 
-// Navigator Agent (same structure, just enhanced)
+// Enhanced Navigator Agent with proper URL extraction
 class NavigatorAgent {
   constructor(llmService, memoryManager, actionRegistry) {
     this.llmService = llmService;
@@ -665,14 +706,14 @@ Elements: ${currentState.interactiveElements?.length || 0}
 ${this.formatElements(currentState.interactiveElements || [])}
 
 # AVAILABLE ACTIONS
+- go_to_url: Navigate to URL (requires "url" field with full URL like "https://youtube.com")
 - click_element: Click buttons, links (requires "index")
 - input_text: Fill text fields (requires "index" and "text") 
 - scroll_down: Scroll page (optional "amount")
-- go_to_url: Navigate to URL (requires "url")
 - wait: Wait for loading (optional "duration")
 - done: Complete task (requires "text" summary)
 
-# RESPONSE FORMAT
+# RESPONSE FORMAT - CRITICAL: Include full URLs
 JSON only:
 {
   "current_state": {
@@ -682,27 +723,71 @@ JSON only:
   },
   "action": [
     {
-      "action_name": {
-        "intent": "Why this action",
-        "index": 123,
-        "text": "content if needed"
+      "go_to_url": {
+        "intent": "Navigate to YouTube",
+        "url": "https://youtube.com"
       }
     }
   ]
 }
 
+# NAVIGATION RULES
+- ALWAYS provide FULL URLs starting with https://
+- For YouTube: use "https://youtube.com" or "https://www.youtube.com"
+- For Twitter: use "https://x.com" or "https://twitter.com"
+- For LinkedIn: use "https://www.linkedin.com"
+- For Facebook: use "https://www.facebook.com"
+- For Instagram: use "https://www.instagram.com"
+- For TikTok: use "https://www.tiktok.com"
+- For Reddit: use "https://www.reddit.com"
+
 # ANDROID RULES
 - Use only element indexes from the list above
-- For navigation: use go_to_url and close current tab
+- For navigation: MUST include complete URL with protocol
 - Prefer single actions over sequences
 - Use wait after navigation or major actions`;
 
     try {
       const response = await this.llmService.call([
         { role: 'user', content: navigatorPrompt }
-      ], { maxTokens: 500 });
+      ], { maxTokens: 600 });
       
       const navResult = JSON.parse(this.cleanJSONResponse(response));
+      
+      // Validate and fix URLs in the action
+      if (navResult.action && Array.isArray(navResult.action)) {
+        navResult.action = navResult.action.map(actionObj => {
+          const actionName = Object.keys(actionObj)[0];
+          const actionData = actionObj[actionName];
+          
+          if (actionName === 'go_to_url' && actionData.url) {
+            // Ensure URL has protocol
+            if (!actionData.url.startsWith('http')) {
+              if (actionData.url.includes('youtube')) {
+                actionData.url = 'https://www.youtube.com';
+              } else if (actionData.url.includes('twitter') || actionData.url.includes('x.com')) {
+                actionData.url = 'https://x.com';
+              } else if (actionData.url.includes('linkedin')) {
+                actionData.url = 'https://www.linkedin.com';
+              } else if (actionData.url.includes('facebook')) {
+                actionData.url = 'https://www.facebook.com';
+              } else if (actionData.url.includes('instagram')) {
+                actionData.url = 'https://www.instagram.com';
+              } else if (actionData.url.includes('tiktok')) {
+                actionData.url = 'https://www.tiktok.com';
+              } else if (actionData.url.includes('reddit')) {
+                actionData.url = 'https://www.reddit.com';
+              } else {
+                // Default fallback
+                actionData.url = 'https://' + actionData.url;
+              }
+            }
+            console.log(`🔗 Fixed URL: ${actionData.url}`);
+          }
+          
+          return { [actionName]: actionData };
+        });
+      }
       
       this.memoryManager.addMessage({
         role: 'navigator',
@@ -732,48 +817,41 @@ JSON only:
   }
 
   getFallbackNavigation(plan, currentState) {
-    // Check if we need navigation but can't do it automatically
-    if (plan.required_navigation && plan.required_navigation !== currentState.pageInfo?.url) {
+    const userTask = plan.next_steps || '';
+    const lowerTask = userTask.toLowerCase();
+    
+    // Determine target URL based on task
+    let targetUrl = null;
+    if (lowerTask.includes('youtube')) {
+      targetUrl = 'https://www.youtube.com';
+    } else if (lowerTask.includes('twitter') || lowerTask.includes('tweet')) {
+      targetUrl = 'https://x.com';
+    } else if (lowerTask.includes('linkedin')) {
+      targetUrl = 'https://www.linkedin.com';
+    } else if (lowerTask.includes('facebook')) {
+      targetUrl = 'https://www.facebook.com';
+    } else if (lowerTask.includes('instagram')) {
+      targetUrl = 'https://www.instagram.com';
+    } else if (lowerTask.includes('tiktok')) {
+      targetUrl = 'https://www.tiktok.com';
+    } else if (lowerTask.includes('reddit')) {
+      targetUrl = 'https://www.reddit.com';
+    }
+    
+    if (targetUrl) {
       return {
         current_state: {
           evaluation_previous_goal: "Navigation needed",
-          memory: "Need to navigate to target platform but automatic navigation not supported",
-          next_goal: "Guide user to navigate manually"
+          memory: "Determined target platform from task",
+          next_goal: `Navigate to ${targetUrl}`
         },
         action: [{
-          "cache_content": {
-            "intent": "Inform user about manual navigation",
-            "content": `🤖 I need to access ${plan.required_navigation} to complete this task. Please navigate to that page manually, and I'll continue helping you from there. On mobile browsers, automatic navigation may not be supported.`
+          "go_to_url": {
+            "intent": `Navigate to target platform`,
+            "url": targetUrl
           }
         }]
       };
-    }
-    
-    // If we're on the right platform, try to find elements to interact with
-    const currentUrl = currentState.pageInfo?.url || '';
-    if (currentUrl.includes('x.com') || currentUrl.includes('twitter.com')) {
-      // Look for compose elements
-      const hasComposeElements = currentState.interactiveElements?.some(el => 
-        el.isTextArea || el.isTweetButton || 
-        el.text?.toLowerCase().includes('tweet') ||
-        el.ariaLabel?.toLowerCase().includes('tweet')
-      );
-      
-      if (hasComposeElements) {
-        return {
-          current_state: {
-            evaluation_previous_goal: "Found elements",
-            memory: "Located interactive elements on current page",
-            next_goal: "Interact with available elements"
-          },
-          action: [{
-            "wait": {
-              "intent": "Analyze available elements",
-              "duration": 1000
-            }
-          }]
-        };
-      }
     }
     
     return {
