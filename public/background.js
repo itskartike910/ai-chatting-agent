@@ -681,7 +681,7 @@ Respond with JSON only:
   }
 }
 
-// Enhanced Navigator Agent with proper URL extraction
+// Enhanced Navigator Agent with better element understanding
 class NavigatorAgent {
   constructor(llmService, memoryManager, actionRegistry) {
     this.llmService = llmService;
@@ -700,20 +700,20 @@ ${plan.next_steps}
 # CURRENT PAGE STATE
 URL: ${currentState.pageInfo?.url}
 Platform: ${currentState.pageContext?.platform}
-Elements: ${currentState.interactiveElements?.length || 0}
+Login Status: ${currentState.loginStatus?.isLoggedIn ? 'LOGGED IN' : 'NOT LOGGED IN'}
 
-# INTERACTIVE ELEMENTS
-${this.formatElements(currentState.interactiveElements || [])}
+# INTERACTIVE ELEMENTS (Each has a unique index)
+${this.formatElementsWithDetails(currentState.interactiveElements || [])}
 
 # AVAILABLE ACTIONS
 - go_to_url: Navigate to URL (requires "url" field with full URL like "https://youtube.com")
-- click_element: Click buttons, links (requires "index")
+- click_element: Click buttons, links (requires "index" - use EXACT index from list above)
 - input_text: Fill text fields (requires "index" and "text") 
 - scroll_down: Scroll page (optional "amount")
 - wait: Wait for loading (optional "duration")
 - done: Complete task (requires "text" summary)
 
-# RESPONSE FORMAT - CRITICAL: Include full URLs
+# RESPONSE FORMAT - CRITICAL: Use EXACT element indexes
 JSON only:
 {
   "current_state": {
@@ -723,23 +723,21 @@ JSON only:
   },
   "action": [
     {
-      "go_to_url": {
-        "intent": "Navigate to YouTube",
-        "url": "https://youtube.com"
+      "click_element": {
+        "intent": "Click login button",
+        "index": 5
       }
     }
   ]
 }
 
-# NAVIGATION RULES
-- ALWAYS provide FULL URLs starting with https://
-- For YouTube: use "https://youtube.com" or "https://www.youtube.com"
-- For Twitter: use "https://x.com" or "https://twitter.com"
-- For LinkedIn: use "https://www.linkedin.com"
-- For Facebook: use "https://www.facebook.com"
-- For Instagram: use "https://www.instagram.com"
-- For TikTok: use "https://www.tiktok.com"
-- For Reddit: use "https://www.reddit.com"
+# CRITICAL RULES
+- ALWAYS use EXACT index numbers from the element list above
+- For login: Look for email/username inputs, password inputs, and login buttons
+- For posting: Look for text areas and post/tweet buttons
+- Use the credentials provided: username "mr_kartik_910", password "itskartike", email "kartikek.910@gmail.com"
+- If you see login fields, fill them with the exact credentials provided
+- Do NOT use placeholder text like "YOUR_USERNAME_HERE"
 
 # ANDROID RULES
 - Use only element indexes from the list above
@@ -754,31 +752,39 @@ JSON only:
       
       const navResult = JSON.parse(this.cleanJSONResponse(response));
       
-      // Validate and fix URLs in the action
+      // 🔧 CRITICAL FIX: Validate element indexes in actions
       if (navResult.action && Array.isArray(navResult.action)) {
         navResult.action = navResult.action.map(actionObj => {
           const actionName = Object.keys(actionObj)[0];
           const actionData = actionObj[actionName];
           
+          // Validate element indexes
+          if ((actionName === 'click_element' || actionName === 'input_text') && 
+              typeof actionData.index === 'number') {
+            const availableIndexes = (currentState.interactiveElements || []).map(el => el.index);
+            if (!availableIndexes.includes(actionData.index)) {
+              console.warn(`⚠️ Invalid element index ${actionData.index}. Available: ${availableIndexes.join(', ')}`);
+              // Try to find a similar element
+              if (actionName === 'input_text') {
+                const textElements = currentState.interactiveElements?.filter(el => 
+                  el.isLoginElement || el.elementType === 'input' || el.elementType === 'textarea'
+                );
+                if (textElements && textElements.length > 0) {
+                  actionData.index = textElements[0].index;
+                  console.log(`🔧 Fixed to use text element index: ${actionData.index}`);
+                }
+              }
+            }
+          }
+          
+          // Fix URL validation
           if (actionName === 'go_to_url' && actionData.url) {
-            // Ensure URL has protocol
             if (!actionData.url.startsWith('http')) {
               if (actionData.url.includes('youtube')) {
                 actionData.url = 'https://www.youtube.com';
               } else if (actionData.url.includes('twitter') || actionData.url.includes('x.com')) {
                 actionData.url = 'https://x.com';
-              } else if (actionData.url.includes('linkedin')) {
-                actionData.url = 'https://www.linkedin.com';
-              } else if (actionData.url.includes('facebook')) {
-                actionData.url = 'https://www.facebook.com';
-              } else if (actionData.url.includes('instagram')) {
-                actionData.url = 'https://www.instagram.com';
-              } else if (actionData.url.includes('tiktok')) {
-                actionData.url = 'https://www.tiktok.com';
-              } else if (actionData.url.includes('reddit')) {
-                actionData.url = 'https://www.reddit.com';
               } else {
-                // Default fallback
                 actionData.url = 'https://' + actionData.url;
               }
             }
@@ -802,12 +808,29 @@ JSON only:
     }
   }
 
-  formatElements(elements) {
+  formatElementsWithDetails(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
-    return elements.slice(0, 12).map(el => 
-      `[${el.index}] ${el.tagName}: "${(el.text || el.ariaLabel || '').substring(0, 40)}"${el.text?.length > 40 ? '...' : ''}`
-    ).join('\n');
+    return elements.slice(0, 15).map(el => {
+      let description = `[${el.index}] ${el.tagName}`;
+      
+      // Add element type info
+      if (el.elementType) description += ` (${el.elementType})`;
+      if (el.type) description += ` type="${el.type}"`;
+      
+      // Add text content
+      const text = el.text || el.ariaLabel || '';
+      if (text) description += `: "${text.substring(0, 40)}"${text.length > 40 ? '...' : ''}`;
+      
+      // Add special flags
+      const flags = [];
+      if (el.isLoginElement) flags.push('LOGIN');
+      if (el.isPostElement) flags.push('POST');
+      if (el.isEngagementElement) flags.push('ENGAGE');
+      if (flags.length > 0) description += ` [${flags.join(',')}]`;
+      
+      return description;
+    }).join('\n');
   }
 
   cleanJSONResponse(response) {
@@ -1529,7 +1552,7 @@ class RobustMultiLLM {
         (agentType === 'navigator' ? this.config.navigatorModel : 
          agentType === 'planner' ? this.config.plannerModel :
          agentType === 'validator' ? this.config.validatorModel : null) ||
-        this.config.anthropicModel || 'claude-3-5-sonnet-20241022',
+        this.config.anthropicModel || 'claude-3-sonnet-20240229',
       'openai': 
         (agentType === 'navigator' ? this.config.navigatorModel : 
          agentType === 'planner' ? this.config.plannerModel :

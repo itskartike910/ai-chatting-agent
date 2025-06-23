@@ -131,15 +131,28 @@ class AndroidContentScript {
       ...options
     };
 
+    // 🔧 CRITICAL FIX: Reset element index for each DOM build
+    this.elementIndex = 0;
+
     // Try buildDomTree first, fallback to enhanced extraction
     if (typeof buildDomTree === 'function') {
     try {
+        // 🔧 CRITICAL FIX: Force fresh build by clearing any global state
+        console.log('🔄 Building fresh DOM tree with reset state');
+        
       const result = buildDomTree(defaultOptions);
       this.domCache = result;
       this.lastDomUpdate = Date.now();
         
         // Process and enhance the result
         const enhancedResult = this.enhanceInteractiveElements(result);
+        
+        // 🔧 CRITICAL FIX: Validate and log element indexing
+        if (defaultOptions.debugMode) {
+          const elementCounts = this.validateElementIndexing(enhancedResult);
+          console.log('🔍 Element validation:', elementCounts);
+        }
+        
         return enhancedResult;
     } catch (error) {
         console.warn('buildDomTree failed, using enhanced fallback:', error);
@@ -154,6 +167,9 @@ class AndroidContentScript {
     const elements = [];
     const platform = this.detectPlatform(window.location.href);
     
+    // 🔧 CRITICAL FIX: Reset element index counter
+    this.elementIndex = 0;
+    
     // Platform-specific element discovery
     const selectors = this.getPlatformSelectors(platform);
     
@@ -163,6 +179,8 @@ class AndroidContentScript {
         if (this.isElementUsable(el) && !this.isElementAlreadyIndexed(el, elements)) {
           const elementData = this.analyzeElement(el, selectorGroup);
           if (elementData.relevanceScore > 0) {
+            // 🔧 CRITICAL FIX: Assign unique index
+            elementData.index = this.elementIndex++;
             elements.push(elementData);
           }
         }
@@ -173,7 +191,22 @@ class AndroidContentScript {
     const rankedElements = elements
       .sort((a, b) => b.relevanceScore - a.relevanceScore)
       .slice(0, options.maxElements || 50)
-      .map((el, index) => ({ ...el, index }));
+      .map((el, displayIndex) => ({ 
+        ...el, 
+        displayIndex, // For UI display
+        originalIndex: el.index // Keep original unique index
+      }));
+
+    // 🔧 CRITICAL FIX: Validate no duplicate indexes
+    const indexes = rankedElements.map(el => el.index);
+    const uniqueIndexes = new Set(indexes);
+    if (indexes.length !== uniqueIndexes.size) {
+      console.error('🚨 DUPLICATE INDEXES in createEnhancedDomTree:', indexes);
+      // Fix duplicates by reassigning
+      rankedElements.forEach((el, i) => {
+        el.index = i;
+      });
+    }
 
     // Apply debug highlighting if enabled
     if (options.debugMode) {
@@ -189,6 +222,35 @@ class AndroidContentScript {
       postElements: elements.filter(el => el.isPostElement).length,
       map: {}
     };
+  }
+
+  // 🔧 NEW METHOD: Validate element indexing
+  validateElementIndexing(domResult) {
+    const elements = domResult.rankedElements || [];
+    const indexes = elements.map(el => el.index);
+    const uniqueIndexes = new Set(indexes);
+    
+    const counts = {
+      totalElements: elements.length,
+      uniqueIndexes: uniqueIndexes.size,
+      hasDuplicates: indexes.length !== uniqueIndexes.size,
+      duplicates: []
+    };
+
+    if (counts.hasDuplicates) {
+      const indexCounts = {};
+      indexes.forEach(index => {
+        indexCounts[index] = (indexCounts[index] || 0) + 1;
+      });
+      
+      counts.duplicates = Object.entries(indexCounts)
+        .filter(([index, count]) => count > 1)
+        .map(([index, count]) => ({ index: parseInt(index), count }));
+        
+      console.error('🚨 DUPLICATE ELEMENT INDEXES FOUND:', counts.duplicates);
+    }
+
+    return counts;
   }
 
   getPlatformSelectors(platform) {
@@ -537,7 +599,7 @@ class AndroidContentScript {
             const analysis = this.getElementAnalysis(element, text);
             
             elements.push({
-              index: node.highlightIndex,
+              index: node.highlightIndex, // Use the unique highlightIndex from buildDomTree
               element,
               tagName: node.tagName,
               attributes: node.attributes || {},
@@ -563,8 +625,19 @@ class AndroidContentScript {
         processNode(domResult.rootId);
       }
     }
+
+    // 🔧 CRITICAL FIX: Validate and fix any duplicate indexes
+    const indexes = elements.map(el => el.index);
+    const uniqueIndexes = new Set(indexes);
+    
+    if (indexes.length !== uniqueIndexes.size) {
+      console.error('🚨 DUPLICATE INDEXES in enhanceInteractiveElements, fixing...');
+      elements.forEach((el, i) => {
+        el.index = i; // Reassign sequential indexes
+      });
+    }
       
-      return {
+    return {
       ...domResult,
       rankedElements: elements.sort((a, b) => b.relevanceScore - a.relevanceScore),
       totalElements: elements.length,
@@ -778,10 +851,26 @@ class AndroidContentScript {
 
   async findElementBySelector(selector) {
     // If selector is a number, find by index from enhanced state
-    if (typeof selector === 'number') {
+      if (typeof selector === 'number') {
+      console.log(`🔍 Finding element by index: ${selector}`);
+      
       const enhancedState = await this.getEnhancedPageState();
       const targetElement = enhancedState.interactiveElements?.find(el => el.index === selector);
-      return targetElement?.element || null;
+          
+          if (targetElement) {
+        console.log(`✅ Found element at index ${selector}:`, {
+          tagName: targetElement.tagName,
+          text: targetElement.text?.substring(0, 30),
+          type: targetElement.type,
+          isLoginElement: targetElement.isLoginElement,
+          isPostElement: targetElement.isPostElement
+        });
+        return targetElement.element;
+      } else {
+        console.error(`❌ No element found at index ${selector}. Available indexes:`, 
+          enhancedState.interactiveElements?.map(el => el.index) || []);
+        return null;
+      }
     }
     
     // If selector is string, try direct query

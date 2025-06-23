@@ -8,10 +8,14 @@ window.buildDomTree = (
   },
 ) => {
   const { showHighlightElements, focusHighlightIndex, viewportExpansion, debugMode } = args;
+  
+  // 🔧 CRITICAL FIX: Reset all global state variables at the start of each call
+  let highlightIndex = 0; // Reset highlight index for each call
+  const DOM_HASH_MAP = {}; // Fresh hash map for each call
+  const ID = { current: 0 }; // Reset ID counter for each call
+  
   // Make sure to do highlight elements always, but we can hide the highlights if needed
   const doHighlightElements = true;
-
-  let highlightIndex = 0; // Reset highlight index
 
   // Add timing stack to handle recursion
   const TIMING_STACK = {
@@ -107,7 +111,7 @@ window.buildDomTree = (
     return result;
   }
 
-  // Add caching mechanisms at the top level
+  // Add caching mechanisms at the top level - Fresh cache for each call
   const DOM_CACHE = {
     boundingRects: new WeakMap(),
     clientRects: new WeakMap(),
@@ -202,21 +206,9 @@ window.buildDomTree = (
     }
 
     const rects = element.getClientRects();
-
-    if (rects) {
-      DOM_CACHE.clientRects.set(element, rects);
-    }
+    DOM_CACHE.clientRects.set(element, rects);
     return rects;
   }
-
-  /**
-   * Hash map of DOM nodes indexed by their highlight index.
-   *
-   * @type {Object<string, any>}
-   */
-  const DOM_HASH_MAP = {};
-
-  const ID = { current: 0 };
 
   const HIGHLIGHT_CONTAINER_ID = 'playwright-highlight-container';
 
@@ -232,6 +224,17 @@ window.buildDomTree = (
     },
     { rootMargin: `${viewportExpansion}px` },
   );
+
+  // 🔧 CRITICAL FIX: Clean up previous highlights before starting
+  function cleanupPreviousHighlights() {
+    const existingContainer = document.getElementById(HIGHLIGHT_CONTAINER_ID);
+    if (existingContainer) {
+      existingContainer.remove();
+    }
+  }
+
+  // Clean up at the start
+  cleanupPreviousHighlights();
 
   /**
    * Highlights an element in the DOM and returns the index of the next element.
@@ -1238,7 +1241,9 @@ window.buildDomTree = (
       // When viewportExpansion is -1, all interactive elements should get a highlight index
       // regardless of viewport status
       if (nodeData.isInViewport || viewportExpansion === -1) {
-        nodeData.highlightIndex = highlightIndex++;
+        // 🔧 CRITICAL FIX: Ensure unique index assignment
+        nodeData.highlightIndex = highlightIndex;
+        highlightIndex++; // Increment after assignment
 
         if (doHighlightElements) {
           if (focusHighlightIndex >= 0) {
@@ -1527,6 +1532,27 @@ window.buildDomTree = (
       PERF_METRICS.cacheMetrics.overallHitRate =
         (PERF_METRICS.cacheMetrics.boundingRectCacheHits + PERF_METRICS.cacheMetrics.computedStyleCacheHits) /
         (boundingRectTotal + computedStyleTotal);
+    }
+  }
+
+  // Add debug information about indexing
+  if (debugMode) {
+    console.log(`🔍 DOM Tree Build Complete:
+      - Total highlight indexes assigned: ${highlightIndex}
+      - Total DOM nodes created: ${ID.current}
+      - Interactive elements found: ${Object.values(DOM_HASH_MAP).filter(node => node.highlightIndex !== undefined).length}
+    `);
+
+    // Validate no duplicate indexes
+    const indexes = Object.values(DOM_HASH_MAP)
+      .filter(node => node.highlightIndex !== undefined)
+      .map(node => node.highlightIndex);
+    
+    const uniqueIndexes = new Set(indexes);
+    if (indexes.length !== uniqueIndexes.size) {
+      console.error('🚨 DUPLICATE INDEXES DETECTED:', indexes);
+    } else {
+      console.log('✅ All indexes are unique');
     }
   }
 
