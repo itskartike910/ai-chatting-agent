@@ -89,21 +89,25 @@ export const CONTENT_LIMITS = {
   MAX_MENTIONS: 10
 };
 
-// AI Model configurations
+// AI Model configurations - Updated with latest models
 export const AI_MODELS = {
   ANTHROPIC: {
-    CLAUDE_SONNET: 'claude-3-sonnet-20240229',
-    CLAUDE_HAIKU: 'claude-3-haiku-20240307',
-    CLAUDE_OPUS: 'claude-3-opus-20240229'
+    CLAUDE_35_SONNET: 'claude-3-5-sonnet-20241022',
+    CLAUDE_3_SONNET: 'claude-3-sonnet-20240229',
+    CLAUDE_3_HAIKU: 'claude-3-haiku-20240307',
+    CLAUDE_3_OPUS: 'claude-3-opus-20240229'
   },
   OPENAI: {
+    GPT4O: 'gpt-4o',
+    GPT4O_MINI: 'gpt-4o-mini',
+    GPT4_TURBO: 'gpt-4-turbo',
     GPT4: 'gpt-4',
-    GPT4_TURBO: 'gpt-4-turbo-preview',
     GPT35_TURBO: 'gpt-3.5-turbo'
   },
-  GOOGLE: {
-    GEMINI_PRO: 'gemini-pro',
-    GEMINI_PRO_VISION: 'gemini-pro-vision'
+  GEMINI: {
+    GEMINI_15_PRO: 'gemini-1.5-pro',
+    GEMINI_15_FLASH: 'gemini-1.5-flash',
+    GEMINI_PRO: 'gemini-pro'
   }
 };
 
@@ -137,11 +141,11 @@ export const BROWSER_INFO = {
   isFirefox: () => /Firefox/.test(navigator.userAgent)
 };
 
-// Configuration defaults
+// Configuration defaults - Updated with latest models
 export const DEFAULT_CONFIG = {
   aiProvider: 'anthropic',
-  navigatorModel: 'claude-3-sonnet-20240229',
-  plannerModel: 'claude-3-sonnet-20240229',
+  navigatorModel: 'claude-3-5-sonnet-20241022',
+  plannerModel: 'claude-3-5-sonnet-20241022', 
   validatorModel: 'claude-3-haiku-20240307',
   autoLogin: false,
   safeMode: true,

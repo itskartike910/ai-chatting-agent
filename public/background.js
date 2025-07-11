@@ -1,13 +1,13 @@
 /* global chrome */
 
-console.log('AI Twitter Agent Background Script Loading...');
+console.log('AI Universal Agent Background Script Loading...');
 
-// Enhanced Memory Manager with proper content handling
+// Enhanced Memory Manager
 class ProceduralMemoryManager {
   constructor() {
     this.messages = [];
     this.proceduralSummaries = [];
-    this.maxMessages = 8;
+    this.maxMessages = 10;
     this.maxSummaries = 3;
     this.stepCounter = 0;
   }
@@ -24,7 +24,7 @@ class ProceduralMemoryManager {
 
     if (this.messages.length > this.maxMessages) {
       this.createProceduralSummary();
-      this.messages = this.messages.slice(-4);
+      this.messages = this.messages.slice(-6);
     }
   }
 
@@ -52,14 +52,11 @@ class ProceduralMemoryManager {
 
   getContext() {
     return {
-      recentMessages: this.messages.slice(-2).map(m => ({
+      recentMessages: this.messages.slice(-3).map(m => ({
         ...m,
         content: this.ensureString(m.content)
       })),
-      proceduralSummaries: this.proceduralSummaries.map(s => ({
-        ...s,
-        findings: this.ensureString(s.findings)
-      })),
+      proceduralSummaries: this.proceduralSummaries,
       currentStep: this.stepCounter
     };
   }
@@ -71,7 +68,7 @@ class ProceduralMemoryManager {
   }
 }
 
-// 🔧 FIXED: Background Task Manager - Now Actually Used!
+// Background Task Manager
 class BackgroundTaskManager {
   constructor() {
     this.runningTasks = new Map();
@@ -89,7 +86,7 @@ class BackgroundTaskManager {
       status: 'running',
       startTime: Date.now(),
       messages: [],
-      executor: executor  // Store executor reference for cancellation
+      executor: executor
     });
 
     setTimeout(() => {
@@ -101,7 +98,6 @@ class BackgroundTaskManager {
     try {
       console.log(`⚙️ BackgroundTaskManager executing independently: ${taskId}`);
       
-      // Create background-specific connection manager that persists
       const backgroundConnectionManager = {
         broadcast: (message) => {
           const task = this.runningTasks.get(taskId);
@@ -111,7 +107,6 @@ class BackgroundTaskManager {
               timestamp: Date.now()
             });
             
-            // Update task status
             if (message.type === 'task_complete' || message.type === 'task_error') {
               task.status = message.type === 'task_complete' ? 'completed' : 'error';
               task.result = message.result || message;
@@ -123,7 +118,6 @@ class BackgroundTaskManager {
               console.log(`✅ BackgroundTaskManager completed: ${taskId}`);
             }
             
-            // Forward to active connections if any
             if (connectionManager) {
               connectionManager.broadcast(message);
             }
@@ -131,7 +125,6 @@ class BackgroundTaskManager {
         }
       };
 
-      // Execute the task (continues in background)
       await executor.execute(taskData.task, backgroundConnectionManager);
 
     } catch (error) {
@@ -182,8 +175,8 @@ class BackgroundTaskManager {
   }
 }
 
-// Enhanced Action Registry with better URL validation
-class ActionRegistry {
+// Universal Action Registry - Platform Agnostic
+class UniversalActionRegistry {
   constructor(browserContext) {
     this.browserContext = browserContext;
     this.actions = new Map();
@@ -191,21 +184,23 @@ class ActionRegistry {
   }
 
   initializeActions() {
-    this.actions.set('go_to_url', {
+    // Navigation Action
+    this.actions.set('navigate', {
+      description: 'Navigate to a specific URL',
+      schema: {
+        url: 'string - The complete URL to navigate to',
+        intent: 'string - Description of why navigating to this URL'
+      },
       handler: async (input) => {
         try {
           const url = this.validateAndFixUrl(input.url);
-          
           if (!url) {
             throw new Error('Invalid or missing URL');
           }
           
-          console.log(`🌐 Android Navigation: Closing current tab and opening ${url}`);
+          console.log(`🌐 Universal Navigation: ${url}`);
           
-          // Get current tab
           const currentTab = await this.browserContext.getCurrentActiveTab();
-          
-          // Close current tab for Android compatibility
           if (currentTab) {
             try {
               await chrome.tabs.remove(currentTab.id);
@@ -215,16 +210,13 @@ class ActionRegistry {
             }
           }
           
-          // Create new tab with validated URL
           const newTab = await chrome.tabs.create({ url: url, active: true });
           this.browserContext.activeTabId = newTab.id;
-          
-          // Wait for load
           await this.browserContext.waitForReady(newTab.id);
           
           return {
             success: true,
-            extractedContent: `✅ Navigated to ${url}`,
+            extractedContent: `Successfully navigated to ${url}`,
             includeInMemory: true,
             navigationCompleted: true
           };
@@ -234,49 +226,53 @@ class ActionRegistry {
           return {
             success: false,
             error: error.message,
-            extractedContent: `❌ Navigation failed: ${error.message}`,
+            extractedContent: `Navigation failed: ${error.message}`,
             includeInMemory: true
           };
         }
       }
     });
 
-    this.actions.set('click_element', {
+    // Click Action - Universal
+    this.actions.set('click', {
+      description: 'Click on any interactive element on the page',
+      schema: {
+        index: 'number - The element index from the page state',
+        selector: 'string - CSS selector (alternative to index)',
+        intent: 'string - Description of what you are clicking and why'
+      },
       handler: async (input) => {
         try {
-          // Ensure we have an active tab
-          if (!this.browserContext.activeTabId) {
-            const currentTab = await this.browserContext.getCurrentActiveTab();
-            this.browserContext.activeTabId = currentTab?.id;
-          }
-
-          if (!this.browserContext.activeTabId) {
-            throw new Error('No active tab available');
-          }
-
-          let result;
+          console.log(`🖱️ Universal Click: ${input.intent || 'Click action'}`);
           
-          // Try with index first
-          if (input.index !== undefined) {
-            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
-              action: 'CLICK_ELEMENT',
-              index: input.index
+          return new Promise((resolve) => {
+            const actionParams = {};
+            
+            if (input.index !== undefined) {
+              actionParams.index = input.index;
+            } else if (input.selector) {
+              actionParams.selector = input.selector;
+            } else {
+              resolve({
+                success: false,
+                error: 'No index or selector provided',
+                extractedContent: 'Click failed: No target specified',
+                includeInMemory: true
+              });
+              return;
+            }
+            
+            chrome.wootz.performAction('click', actionParams, (result) => {
+              resolve({
+                success: result.success,
+                extractedContent: result.success ? 
+                  `Successfully clicked: ${input.intent}` : 
+                  `Click failed: ${result.error}`,
+                includeInMemory: true,
+                error: result.error
+              });
             });
-          }
-          
-          // If that fails, try with selector
-          if (!result || !result.success) {
-            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
-              action: 'CLICK_ELEMENT',
-              selector: input.selector
-            });
-          }
-          
-          return {
-            success: result?.success !== false,
-            extractedContent: `Clicked element ${input.index || input.selector || 'target'}`,
-            includeInMemory: true
-          };
+          });
         } catch (error) {
           console.error('Click action error:', error);
           return {
@@ -289,106 +285,91 @@ class ActionRegistry {
       }
     });
 
-    this.actions.set('input_text', {
+    // Type Action - Universal
+    this.actions.set('type', {
+      description: 'Type text into any input field, textarea, or contenteditable element',
+      schema: {
+        index: 'number - The element index from the page state',
+        selector: 'string - CSS selector (alternative to index)',
+        text: 'string - The text to type into the element',
+        intent: 'string - Description of what you are typing and why'
+      },
       handler: async (input) => {
         try {
-          // Ensure we have an active tab
-          if (!this.browserContext.activeTabId) {
-            const currentTab = await this.browserContext.getCurrentActiveTab();
-            this.browserContext.activeTabId = currentTab?.id;
-          }
-
-          if (!this.browserContext.activeTabId) {
-            throw new Error('No active tab available');
-          }
-
-          // Try multiple approaches for text input
-          let result;
+          console.log(`⌨️ Universal Type: "${input.text}" - ${input.intent}`);
           
-          // First try with index
-          if (input.index !== undefined) {
-            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
-              action: 'FILL_ELEMENT',
-              index: input.index,
+          return new Promise((resolve) => {
+            const actionParams = {
               text: input.text
-            });
-          }
-          
-          // If that fails, try with selector (for better compatibility)
-          if (!result || !result.success) {
-            result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
-              action: 'FILL_ELEMENT',
-              selector: input.selector || `[data-testid="tweetTextarea_0"]`,
-              text: input.text
-            });
-          }
-          
-          // If still failing, try generic text area selectors
-          if (!result || !result.success) {
-            const selectors = [
-              '[role="textbox"][contenteditable="true"]',
-              'textarea',
-              '[contenteditable="true"]',
-              'input[type="text"]'
-            ];
+            };
             
-            for (const selector of selectors) {
-              try {
-                result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
-                  action: 'FILL_ELEMENT',
-                  selector: selector,
-                  text: input.text
-                });
-                
-                if (result && result.success) {
-                  break;
-                }
-              } catch (e) {
-                // Try next selector
-              }
+            if (input.index !== undefined) {
+              actionParams.index = input.index;
+            } else if (input.selector) {
+              actionParams.selector = input.selector;
+            } else {
+              resolve({
+                success: false,
+                error: 'No index or selector provided for text input',
+                extractedContent: `Type failed: No target specified for "${input.text}"`,
+                includeInMemory: true
+              });
+              return;
             }
-          }
-          
-          return {
-            success: result?.success !== false,
-            extractedContent: `Input "${input.text}" into element ${input.index || 'auto-detected'}`,
-            includeInMemory: true
-          };
+            
+            chrome.wootz.performAction('fill', actionParams, (result) => {
+              resolve({
+                success: result.success,
+                extractedContent: result.success ? 
+                  `Successfully typed: "${input.text}"` : 
+                  `Type failed: ${result.error}`,
+                includeInMemory: true,
+                error: result.error
+              });
+            });
+          });
         } catch (error) {
-          console.error('Input action error:', error);
+          console.error('Type action error:', error);
           return {
             success: false,
             error: error.message,
-            extractedContent: `Input failed: ${error.message}`,
+            extractedContent: `Type failed: ${error.message}`,
             includeInMemory: true
           };
         }
       }
     });
 
-    this.actions.set('scroll_down', {
+    // Scroll Action - Universal
+    this.actions.set('scroll', {
+      description: 'Scroll the page in any direction',
+      schema: {
+        direction: 'string - Direction to scroll (up, down, left, right)',
+        amount: 'number - Amount to scroll in pixels (optional, default: 300)',
+        intent: 'string - Description of why you are scrolling'
+      },
       handler: async (input) => {
         try {
-          // Ensure we have an active tab
-          if (!this.browserContext.activeTabId) {
-            const currentTab = await this.browserContext.getCurrentActiveTab();
-            this.browserContext.activeTabId = currentTab?.id;
-          }
-
-          if (!this.browserContext.activeTabId) {
-            throw new Error('No active tab available');
-          }
-
-          const result = await chrome.tabs.sendMessage(this.browserContext.activeTabId, {
-            action: 'SCROLL_DOWN',
-            amount: input.amount || 300
-          });
+          const amount = String(input.amount || 300);
+          const direction = input.direction || 'down';
           
-          return {
-            success: result?.success !== false,
-            extractedContent: `Scrolled down by ${input.amount || 300}px`,
-            includeInMemory: true
-          };
+          console.log(`📜 Universal Scroll: ${direction} by ${amount}px - ${input.intent}`);
+          
+          return new Promise((resolve) => {
+            chrome.wootz.performAction('scroll', {
+              direction: direction,
+              amount: amount
+            }, (result) => {
+              resolve({
+                success: result.success,
+                extractedContent: result.success ? 
+                  `Scrolled ${direction} by ${amount}px` : 
+                  `Scroll failed: ${result.error}`,
+                includeInMemory: true,
+                error: result.error
+              });
+            });
+          });
         } catch (error) {
           console.error('Scroll action error:', error);
           return {
@@ -401,9 +382,16 @@ class ActionRegistry {
       }
     });
 
+    // Wait Action - Universal
     this.actions.set('wait', {
+      description: 'Wait for a specified amount of time',
+      schema: {
+        duration: 'number - Time to wait in milliseconds (default: 2000)',
+        intent: 'string - Reason for waiting'
+      },
       handler: async (input) => {
-        const duration = input.duration || 3000;
+        const duration = input.duration || 2000;
+        console.log(`⏳ Universal Wait: ${duration}ms - ${input.intent}`);
         await new Promise(resolve => setTimeout(resolve, duration));
         return {
           success: true,
@@ -413,24 +401,22 @@ class ActionRegistry {
       }
     });
 
-    this.actions.set('cache_content', {
+    // Complete Action - Universal
+    this.actions.set('complete', {
+      description: 'Mark the task as completed with a summary',
+      schema: {
+        success: 'boolean - Whether the task was successful',
+        summary: 'string - Summary of what was accomplished',
+        details: 'string - Additional details about the completion'
+      },
       handler: async (input) => {
-        return {
-          success: true,
-          extractedContent: `Cached: ${input.content}`,
-          includeInMemory: true,
-          cached: true
-        };
-      }
-    });
-
-    this.actions.set('done', {
-      handler: async (input) => {
+        console.log(`✅ Task Complete: ${input.summary}`);
         return {
           success: input.success !== false,
-          extractedContent: input.text || 'Task completed',
+          extractedContent: input.summary || 'Task completed',
           isDone: true,
-          includeInMemory: true
+          includeInMemory: true,
+          completionDetails: input.details
         };
       }
     });
@@ -455,7 +441,14 @@ class ActionRegistry {
   }
 
   getAvailableActions() {
-    return Array.from(this.actions.keys());
+    const actionsInfo = {};
+    this.actions.forEach((action, name) => {
+      actionsInfo[name] = {
+        description: action.description,
+        schema: action.schema
+      };
+    });
+    return actionsInfo;
   }
 
   validateAndFixUrl(url) {
@@ -464,10 +457,8 @@ class ActionRegistry {
       return null;
     }
     
-    // Remove any extra quotes or whitespace
     url = url.trim().replace(/['"]/g, '');
     
-    // If URL already has protocol, validate it
     if (url.startsWith('http://') || url.startsWith('https://')) {
       try {
         new URL(url);
@@ -478,12 +469,10 @@ class ActionRegistry {
       }
     }
     
-    // Add https:// if missing
     if (!url.startsWith('http')) {
       url = 'https://' + url;
     }
     
-    // Validate the final URL
     try {
       new URL(url);
       return url;
@@ -494,8 +483,8 @@ class ActionRegistry {
   }
 }
 
-// Enhanced Planner Agent
-class PlannerAgent {
+// Universal Planner Agent - Platform Agnostic
+class UniversalPlannerAgent {
   constructor(llmService, memoryManager) {
     this.llmService = llmService;
     this.memoryManager = memoryManager;
@@ -504,52 +493,56 @@ class PlannerAgent {
   async plan(userTask, currentState, executionHistory) {
     const context = this.memoryManager.getContext();
     
-    const plannerPrompt = `You are a strategic web automation planner. Your job is to analyze the current state and break down the user's task into logical steps.
+    const plannerPrompt = `You are an intelligent web automation planner. Analyze the current page state and create a strategic plan to accomplish the user's task.
 
-# ANALYSIS
-- Current URL: ${currentState.pageInfo?.url || 'unknown'}
-- Platform: ${this.detectPlatform(currentState.pageInfo?.url)}
-- Interactive Elements: ${currentState.interactiveElements?.length || 0}
-- Login Status: ${currentState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
-
-# TASK
+# USER TASK
 "${userTask}"
 
-# CURRENT STATE
-${this.formatElements(currentState.interactiveElements?.slice(0, 8) || [])}
+# CURRENT PAGE STATE
+- URL: ${currentState.pageInfo?.url || 'unknown'}
+- Title: ${currentState.pageInfo?.title || 'unknown'}  
+- Domain: ${this.extractDomain(currentState.pageInfo?.url)}
+- Interactive Elements: ${currentState.interactiveElements?.length || 0} available
+
+# AVAILABLE ELEMENTS (Top 15)
+${this.formatElements(currentState.interactiveElements?.slice(0, 15) || [])}
 
 # EXECUTION HISTORY
-${executionHistory.slice(-2).map(h => `Step ${h.step}: ${h.success ? '✅' : '❌'} ${Array.isArray(h.plan) ? h.plan.join(' ') : (h.plan?.substring(0, 50) || 'action')}...`).join('\n') || 'No previous steps'}
+${executionHistory.slice(-3).map((h, i) => `Step ${h.step}: ${h.success ? '✅' : '❌'} ${h.navigation || 'Unknown action'}`).join('\n') || 'No previous steps'}
+
+# CONTEXT MEMORY
+${context.proceduralSummaries.map(s => `Steps ${s.steps}: ${s.findings.substring(0, 100)}...`).join('\n') || 'No previous context'}
 
 # RESPONSE FORMAT
 Respond with JSON only:
 {
-  "observation": "Brief analysis of current situation",
+  "observation": "Current situation analysis",
   "done": false,
-  "next_steps": "Specific actionable steps",
-  "reasoning": "Why this approach",
-  "web_task": true,
-  "platform": "detected platform",
-  "requires_navigation": false
+  "strategy": "High-level approach to accomplish the task",
+  "next_action": "Specific next action to take",
+  "reasoning": "Why this approach will work",
+  "completion_criteria": "How to know when task is complete"
 }
 
 # RULES
-- Set "done": true only when task is completely finished
-- For Android: prefer working with current page over navigation
-- Break complex tasks into simple steps
-- Focus on visible interactive elements`;
+- Set "done": true ONLY when the task is completely finished
+- Be specific about what action to take next
+- Consider the domain context but don't make assumptions about specific platforms
+- Focus on visible, interactive elements
+- Plan one logical step at a time
+- If navigation is needed, be specific about the URL`;
 
     try {
       const response = await this.llmService.call([
         { role: 'user', content: plannerPrompt }
-      ], { maxTokens: 600 });
+      ], { maxTokens: 800 }, 'planner');
       
       const plan = JSON.parse(this.cleanJSONResponse(response));
       
       this.memoryManager.addMessage({
         role: 'planner',
         action: 'plan',
-        content: plan.next_steps || 'Plan created'
+        content: plan.next_action || 'Plan created'
       });
       
       return plan;
@@ -559,277 +552,22 @@ Respond with JSON only:
     }
   }
 
-  ensureString(content) {
-    if (typeof content === 'string') return content;
-    if (content === null || content === undefined) return '';
-    if (typeof content === 'object') return JSON.stringify(content);
-    return String(content);
-  }
-
-  detectPlatform(url) {
+  extractDomain(url) {
     if (!url) return 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
-    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
-    if (lowerUrl.includes('facebook.com')) return 'facebook';
-    if (lowerUrl.includes('instagram.com')) return 'instagram';
-    if (lowerUrl.includes('youtube.com')) return 'youtube';
-    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
-    if (lowerUrl.includes('reddit.com')) return 'reddit';
-    
-    return 'unknown';
-  }
-
-  getPlatformCapabilities(platform) {
-    const capabilities = {
-      'twitter': 'Post tweets, like, retweet, follow, reply, search',
-      'linkedin': 'Post updates, like, comment, connect, share',
-      'facebook': 'Post status, like, comment, share, react',
-      'instagram': 'Post photos, like, comment, follow, story',
-      'youtube': 'Like videos, comment, subscribe, create playlists',
-      'tiktok': 'Like videos, comment, follow, share',
-      'reddit': 'Post, comment, upvote, downvote, join communities',
-      'discord': 'Send messages, react, join servers',
-      'unknown': 'General web interactions available'
-    };
-    
-    return capabilities[platform] || capabilities['unknown'];
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return 'unknown';
+    }
   }
 
   formatElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
-    return elements.slice(0, 12).map(el => 
-      `[${el.index}] ${el.tagName}: "${(el.text || el.ariaLabel || '').substring(0, 40)}"${el.text?.length > 40 ? '...' : ''}`
-    ).join('\n');
-  }
-
-  cleanJSONResponse(response) {
-    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    return jsonMatch ? jsonMatch[0] : cleaned;
-  }
-
-  getFallbackPlan(userTask, currentState) {
-    const lowerTask = userTask.toLowerCase();
-    const platform = this.detectPlatform(currentState.pageInfo?.url);
-    
-    if (lowerTask.includes('post') || lowerTask.includes('tweet') || lowerTask.includes('share')) {
-      const platformUrls = {
-        'twitter': 'https://x.com/compose/post',
-        'linkedin': 'https://www.linkedin.com',
-        'facebook': 'https://www.facebook.com',
-        'instagram': 'https://www.instagram.com',
-        'youtube': 'https://www.youtube.com'
-      };
-      
-      return {
-        observation: `Need to post content on ${platform}`,
-        done: false,
-        next_steps: `Navigate to ${platform} posting interface and create content`,
-        web_task: true,
-        platform: platform,
-        required_navigation: platformUrls[platform] || null,
-        completion_criteria: "Content successfully posted"
-      };
-    }
-    
-    return {
-      observation: "General social media automation task",
-      done: false,
-      next_steps: "Analyze page and execute appropriate social media actions",
-      web_task: true,
-      platform: platform,
-      completion_criteria: "Task objectives achieved"
-    };
-  }
-
-  getDefaultState() {
-    return {
-      pageInfo: { 
-        url: 'unknown', 
-        title: 'Unknown Page' 
-      },
-      pageContext: { 
-        platform: 'unknown', 
-        pageType: 'unknown' 
-      },
-      loginStatus: { 
-        isLoggedIn: false 
-      },
-      interactiveElements: [],
-      viewportInfo: {},
-      extractedContent: 'No content available'
-    };
-  }
-
-  checkBasicLoginStatus(url) {
-    return !url.includes('/login') && !url.includes('/signin');
-  }
-
-  determinePageType(url) {
-    if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
-    if (url.includes('/home') || url.includes('/timeline')) return 'home';
-    if (url.includes('/login') || url.includes('/signin')) return 'login';
-    if (url.includes('/profile') || url.includes('/user/')) return 'profile';
-    return 'general';
-  }
-
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}
-
-// Enhanced Navigator Agent with better element understanding
-class NavigatorAgent {
-  constructor(llmService, memoryManager, actionRegistry) {
-    this.llmService = llmService;
-    this.memoryManager = memoryManager;
-    this.actionRegistry = actionRegistry;
-  }
-
-  async navigate(plan, currentState) {
-    const context = this.memoryManager.getContext();
-    
-    const navigatorPrompt = `You are a web navigator that executes specific actions. Your job is to take the next action to progress toward the goal.
-
-# GOAL
-${plan.next_steps}
-
-# CURRENT PAGE STATE
-URL: ${currentState.pageInfo?.url}
-Platform: ${currentState.pageContext?.platform}
-Login Status: ${currentState.loginStatus?.isLoggedIn ? 'LOGGED IN' : 'NOT LOGGED IN'}
-
-# INTERACTIVE ELEMENTS (Each has a unique index)
-${this.formatElementsWithDetails(currentState.interactiveElements || [])}
-
-# AVAILABLE ACTIONS
-- go_to_url: Navigate to URL (requires "url" field with full URL like "https://youtube.com")
-- click_element: Click buttons, links (requires "index" - use EXACT index from list above)
-- input_text: Fill text fields (requires "index" and "text") 
-- scroll_down: Scroll page (optional "amount")
-- wait: Wait for loading (optional "duration")
-- done: Complete task (requires "text" summary)
-
-# RESPONSE FORMAT - CRITICAL: Use EXACT element indexes
-JSON only:
-{
-  "current_state": {
-    "evaluation_previous_goal": "Success|Failed|Unknown",
-    "memory": "What has been done",
-    "next_goal": "Immediate objective"
-  },
-  "action": [
-    {
-      "click_element": {
-        "intent": "Click login button",
-        "index": 5
-      }
-    }
-  ]
-}
-
-# CRITICAL RULES
-- ALWAYS use EXACT index numbers from the element list above
-- For login: Look for email/username inputs, password inputs, and login buttons
-- For posting: Look for text areas and post/tweet buttons
-- Use the credentials provided: username "mr_kartik_910", password "itskartike", email "kartikek.910@gmail.com"
-- If you see login fields, fill them with the exact credentials provided
-- Do NOT use placeholder text like "YOUR_USERNAME_HERE"
-
-# ANDROID RULES
-- Use only element indexes from the list above
-- For navigation: MUST include complete URL with protocol
-- Prefer single actions over sequences
-- Use wait after navigation or major actions`;
-
-    try {
-      const response = await this.llmService.call([
-        { role: 'user', content: navigatorPrompt }
-      ], { maxTokens: 600 });
-      
-      const navResult = JSON.parse(this.cleanJSONResponse(response));
-      
-      // 🔧 CRITICAL FIX: Validate element indexes in actions
-      if (navResult.action && Array.isArray(navResult.action)) {
-        navResult.action = navResult.action.map(actionObj => {
-          const actionName = Object.keys(actionObj)[0];
-          const actionData = actionObj[actionName];
-          
-          // Validate element indexes
-          if ((actionName === 'click_element' || actionName === 'input_text') && 
-              typeof actionData.index === 'number') {
-            const availableIndexes = (currentState.interactiveElements || []).map(el => el.index);
-            if (!availableIndexes.includes(actionData.index)) {
-              console.warn(`⚠️ Invalid element index ${actionData.index}. Available: ${availableIndexes.join(', ')}`);
-              // Try to find a similar element
-              if (actionName === 'input_text') {
-                const textElements = currentState.interactiveElements?.filter(el => 
-                  el.isLoginElement || el.elementType === 'input' || el.elementType === 'textarea'
-                );
-                if (textElements && textElements.length > 0) {
-                  actionData.index = textElements[0].index;
-                  console.log(`🔧 Fixed to use text element index: ${actionData.index}`);
-                }
-              }
-            }
-          }
-          
-          // Fix URL validation
-          if (actionName === 'go_to_url' && actionData.url) {
-            if (!actionData.url.startsWith('http')) {
-              if (actionData.url.includes('youtube')) {
-                actionData.url = 'https://www.youtube.com';
-              } else if (actionData.url.includes('twitter') || actionData.url.includes('x.com')) {
-                actionData.url = 'https://x.com';
-              } else {
-                actionData.url = 'https://' + actionData.url;
-              }
-            }
-            console.log(`🔗 Fixed URL: ${actionData.url}`);
-          }
-          
-          return { [actionName]: actionData };
-        });
-      }
-      
-      this.memoryManager.addMessage({
-        role: 'navigator',
-        action: 'navigate',
-        content: navResult.current_state?.next_goal || 'Navigation planned'
-      });
-      
-      return navResult;
-    } catch (error) {
-      console.error('Navigator failed:', error);
-      return this.getFallbackNavigation(plan, currentState);
-    }
-  }
-
-  formatElementsWithDetails(elements) {
-    if (!elements || elements.length === 0) return "No interactive elements found.";
-    
-    return elements.slice(0, 15).map(el => {
-      let description = `[${el.index}] ${el.tagName}`;
-      
-      // Add element type info
-      if (el.elementType) description += ` (${el.elementType})`;
-      if (el.type) description += ` type="${el.type}"`;
-      
-      // Add text content
-      const text = el.text || el.ariaLabel || '';
-      if (text) description += `: "${text.substring(0, 40)}"${text.length > 40 ? '...' : ''}`;
-      
-      // Add special flags
-      const flags = [];
-      if (el.isLoginElement) flags.push('LOGIN');
-      if (el.isPostElement) flags.push('POST');
-      if (el.isEngagementElement) flags.push('ENGAGE');
-      if (flags.length > 0) description += ` [${flags.join(',')}]`;
-      
-      return description;
+    return elements.map(el => {
+      const text = (el.text || el.ariaLabel || '').substring(0, 50);
+      const type = el.tagName?.toLowerCase() || 'element';
+      return `[${el.index}] ${type}: "${text}"${text.length > 50 ? '...' : ''}`;
     }).join('\n');
   }
 
@@ -839,102 +577,217 @@ JSON only:
     return jsonMatch ? jsonMatch[0] : cleaned;
   }
 
-  getFallbackNavigation(plan, currentState) {
-    const userTask = plan.next_steps || '';
-    const lowerTask = userTask.toLowerCase();
-    
-    // Determine target URL based on task
-    let targetUrl = null;
-    if (lowerTask.includes('youtube')) {
-      targetUrl = 'https://www.youtube.com';
-    } else if (lowerTask.includes('twitter') || lowerTask.includes('tweet')) {
-      targetUrl = 'https://x.com';
-    } else if (lowerTask.includes('linkedin')) {
-      targetUrl = 'https://www.linkedin.com';
-    } else if (lowerTask.includes('facebook')) {
-      targetUrl = 'https://www.facebook.com';
-    } else if (lowerTask.includes('instagram')) {
-      targetUrl = 'https://www.instagram.com';
-    } else if (lowerTask.includes('tiktok')) {
-      targetUrl = 'https://www.tiktok.com';
-    } else if (lowerTask.includes('reddit')) {
-      targetUrl = 'https://www.reddit.com';
-    }
-    
-    if (targetUrl) {
-      return {
-        current_state: {
-          evaluation_previous_goal: "Navigation needed",
-          memory: "Determined target platform from task",
-          next_goal: `Navigate to ${targetUrl}`
-        },
-        action: [{
-          "go_to_url": {
-            "intent": `Navigate to target platform`,
-            "url": targetUrl
-          }
-        }]
-      };
-    }
+  getFallbackPlan(userTask, currentState) {
+    const domain = this.extractDomain(currentState.pageInfo?.url);
     
     return {
-      current_state: {
-        evaluation_previous_goal: "Unknown",
-        memory: "Using fallback navigation approach",
-        next_goal: "Wait and analyze page"
-      },
-      action: [{
-        "wait": {
-          "intent": "Wait for page analysis", 
-          "duration": 3000
-        }
-      }]
+      observation: `Currently on ${domain}. Need to analyze page for task: ${userTask}`,
+      done: false,
+      strategy: "Analyze current page elements and determine appropriate actions",
+      next_action: "Examine available interactive elements and take appropriate action",
+      reasoning: "Need to understand the current page before proceeding",
+      completion_criteria: "Task objectives met based on user requirements"
     };
   }
 }
 
-// Validator Agent
-class ValidatorAgent {
+// Universal Navigator Agent - Platform Agnostic
+class UniversalNavigatorAgent {
+  constructor(llmService, memoryManager, actionRegistry) {
+    this.llmService = llmService;
+    this.memoryManager = memoryManager;
+    this.actionRegistry = actionRegistry;
+  }
+
+  async navigate(plan, currentState) {
+    const context = this.memoryManager.getContext();
+    
+    const navigatorPrompt = `You are a web navigation specialist. Execute the planned action using available page elements and actions.
+
+# PLAN TO EXECUTE
+Strategy: ${plan.strategy}
+Next Action: ${plan.next_action}
+Reasoning: ${plan.reasoning}
+
+# CURRENT PAGE STATE
+URL: ${currentState.pageInfo?.url}
+Title: ${currentState.pageInfo?.title}
+Domain: ${this.extractDomain(currentState.pageInfo?.url)}
+
+# AVAILABLE ELEMENTS
+${this.formatElementsWithDetails(currentState.interactiveElements || [])}
+
+# AVAILABLE ACTIONS
+${this.formatAvailableActions()}
+
+# RESPONSE FORMAT - JSON ONLY
+{
+  "thinking": "Analysis of current situation and plan",
+  "action": {
+    "name": "action_name",
+    "parameters": {
+      "index": 5,
+      "text": "example text",
+      "intent": "Clear description of what this action accomplishes"
+    }
+  }
+}
+
+# CRITICAL RULES
+- Use EXACT index numbers from the element list above
+- Always include descriptive "intent" explaining what the action accomplishes
+- Choose the most appropriate action from the available actions list
+- For navigation, provide complete URLs with protocol (https://)
+- Be specific and precise with all parameters
+- Only use elements that are actually present in the list above`;
+
+    try {
+      const response = await this.llmService.call([
+        { role: 'user', content: navigatorPrompt }
+      ], { maxTokens: 800 }, 'navigator');
+      
+      const navResult = JSON.parse(this.cleanJSONResponse(response));
+      
+      // Validate the action
+      if (navResult.action && navResult.action.name) {
+        const availableActions = this.actionRegistry.getAvailableActions();
+        if (!availableActions[navResult.action.name]) {
+          console.warn(`⚠️ Unknown action: ${navResult.action.name}`);
+          return this.getFallbackNavigation(plan, currentState);
+        }
+        
+        // Validate element index if provided
+        if (navResult.action.parameters?.index !== undefined) {
+          const availableIndexes = (currentState.interactiveElements || []).map(el => el.index);
+          if (!availableIndexes.includes(navResult.action.parameters.index)) {
+            console.warn(`⚠️ Invalid element index ${navResult.action.parameters.index}. Available: ${availableIndexes.join(', ')}`);
+          }
+        }
+      }
+      
+      this.memoryManager.addMessage({
+        role: 'navigator',
+        action: 'navigate',
+        content: navResult.action?.parameters?.intent || 'Navigation executed'
+      });
+      
+      return navResult;
+    } catch (error) {
+      console.error('Navigator failed:', error);
+      return this.getFallbackNavigation(plan, currentState);
+    }
+  }
+
+  extractDomain(url) {
+    if (!url) return 'unknown';
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  formatElementsWithDetails(elements) {
+    if (!elements || elements.length === 0) return "No interactive elements found.";
+    
+    return elements.slice(0, 20).map(el => {
+      let description = `[${el.index}] ${el.tagName?.toLowerCase() || 'element'}`;
+      
+      if (el.elementType) description += ` (${el.elementType})`;
+      
+      const text = el.text || el.ariaLabel || '';
+      if (text) description += `: "${text.substring(0, 60)}"${text.length > 60 ? '...' : ''}`;
+      
+      const attributes = [];
+      if (el.isLoginElement) attributes.push('LOGIN');
+      if (el.isPostElement) attributes.push('POST');
+      if (attributes.length > 0) description += ` [${attributes.join(',')}]`;
+      
+      return description;
+    }).join('\n');
+  }
+
+  formatAvailableActions() {
+    const actions = this.actionRegistry.getAvailableActions();
+    return Object.entries(actions).map(([name, info]) => {
+      return `${name}: ${info.description}\n  Parameters: ${Object.entries(info.schema).map(([param, desc]) => `${param} - ${desc}`).join(', ')}`;
+    }).join('\n\n');
+  }
+
+  cleanJSONResponse(response) {
+    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    return jsonMatch ? jsonMatch[0] : cleaned;
+  }
+
+  getFallbackNavigation(plan, currentState) {
+    const domain = this.extractDomain(currentState.pageInfo?.url);
+    
+    return {
+      thinking: `Fallback navigation for ${domain}. Need to wait and observe page state.`,
+      action: {
+        name: 'wait',
+        parameters: {
+          duration: 2000,
+          intent: 'Wait to allow page to load and observe current state'
+        }
+      }
+    };
+  }
+}
+
+// Universal Validator Agent
+class UniversalValidatorAgent {
   constructor(llmService, memoryManager) {
     this.llmService = llmService;
     this.memoryManager = memoryManager;
   }
 
   async validate(originalTask, executionHistory, finalState) {
-    const validatorPrompt = `You are a task completion validator.
+    const validatorPrompt = `You are a task completion validator. Determine if the original task has been successfully completed.
 
-Original Task: "${originalTask}"
+# ORIGINAL TASK
+"${originalTask}"
 
-Execution History:
+# EXECUTION HISTORY
 ${executionHistory.map((h, i) => `Step ${i + 1}: ${h.navigation || 'action'} - ${h.success ? 'SUCCESS' : 'FAILED'}`).join('\n')}
 
-Final State:
+# FINAL PAGE STATE
 - URL: ${finalState.pageInfo?.url}
-- Platform: ${this.detectPlatform(finalState.pageInfo?.url)}
-- Page Type: ${finalState.pageContext?.pageType || 'unknown'}
-- Login Status: ${finalState.loginStatus?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
+- Title: ${finalState.pageInfo?.title}
+- Domain: ${this.extractDomain(finalState.pageInfo?.url)}
+- Available Elements: ${finalState.interactiveElements?.length || 0}
 
-RESPONSE FORMAT (JSON only):
+# VISIBLE PAGE ELEMENTS (for context)
+${this.formatElements(finalState.interactiveElements?.slice(0, 10) || [])}
+
+# RESPONSE FORMAT (JSON only)
 {
   "is_valid": true,
-  "reason": "detailed explanation of completion status",
-  "answer": "comprehensive summary of what was accomplished",
-  "success_confidence": 0.8,
-  "completion_evidence": "specific evidence of task completion",
-  "platform_specific_notes": "notes about platform-specific completion"
-}`;
+  "confidence": 0.8,
+  "reason": "Detailed explanation of completion status",
+  "evidence": "Specific evidence from page state or execution history",
+  "recommendation": "Next steps if task incomplete, or confirmation if complete"
+}
+
+# EVALUATION CRITERIA
+- Task completion should be based on objective evidence
+- Consider both successful actions and current page state
+- High confidence (0.8+) only for clear success indicators
+- Medium confidence (0.5-0.7) for partial completion
+- Low confidence (0.3-0.4) for unclear results`;
 
     try {
       const response = await this.llmService.call([
         { role: 'user', content: validatorPrompt }
-      ], { maxTokens: 400 });
+      ], { maxTokens: 600 }, 'validator');
       
       const validation = JSON.parse(this.cleanJSONResponse(response));
       
       this.memoryManager.addMessage({
         role: 'validator',
         action: 'validate',
-        content: validation.answer || 'Validation completed'
+        content: validation.reason || 'Validation completed'
       });
       
       return validation;
@@ -942,35 +795,30 @@ RESPONSE FORMAT (JSON only):
       console.error('Validator failed:', error);
       return {
         is_valid: executionHistory.some(h => h.success),
-        reason: "Validation failed, assuming partial success based on execution history",
-        answer: "Task execution completed with mixed results",
-        success_confidence: 0.6,
-        completion_evidence: "Validation service unavailable",
-        platform_specific_notes: "Manual verification recommended"
+        confidence: 0.5,
+        reason: "Validation failed, partial success based on execution history",
+        evidence: "Validation service unavailable",
+        recommendation: "Manual verification recommended"
       };
     }
   }
 
-  detectPlatform(url) {
+  extractDomain(url) {
     if (!url) return 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    const platforms = {
-      'twitter': ['x.com', 'twitter.com'],
-      'linkedin': ['linkedin.com'],
-      'facebook': ['facebook.com'],
-      'instagram': ['instagram.com'],
-      'youtube': ['youtube.com'],
-      'tiktok': ['tiktok.com']
-    };
-    
-    for (const [platform, domains] of Object.entries(platforms)) {
-      if (domains.some(domain => lowerUrl.includes(domain))) {
-        return platform;
-      }
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return 'unknown';
     }
+  }
+
+  formatElements(elements) {
+    if (!elements || elements.length === 0) return "No elements found.";
     
-    return 'unknown';
+    return elements.map(el => {
+      const text = (el.text || el.ariaLabel || '').substring(0, 40);
+      return `[${el.index}] ${el.tagName}: "${text}"`;
+    }).join('\n');
   }
 
   cleanJSONResponse(response) {
@@ -980,7 +828,7 @@ RESPONSE FORMAT (JSON only):
   }
 }
 
-// Browser Context Manager (same as before)
+// Browser Context Manager (keeping existing functionality)
 class BrowserContextManager {
   constructor() {
     this.activeTabId = null;
@@ -990,7 +838,6 @@ class BrowserContextManager {
     try {
       const currentTab = await this.getCurrentActiveTab();
       
-      // For Android/WootzApp - chrome.tabs.update not supported
       if (!currentTab || this.isRestrictedPage(currentTab.url)) {
         console.log('Creating new tab for restricted page');
         const newTab = await chrome.tabs.create({ url: url, active: true });
@@ -1003,15 +850,13 @@ class BrowserContextManager {
         };
       }
 
-      // Android compatibility - work with current tab instead of updating
-      console.log('Android mode: Working with current tab instead of navigating to:', url);
+      console.log('Working with current tab:', currentTab.url);
       this.activeTabId = currentTab.id;
       
       return {
         success: true,
-        extractedContent: `Working with current page: ${currentTab.url}. For navigation to ${url}, please navigate manually.`,
-        includeInMemory: true,
-        androidMode: true
+        extractedContent: `Working with current page: ${currentTab.url}`,
+        includeInMemory: true
       };
       
     } catch (error) {
@@ -1019,7 +864,7 @@ class BrowserContextManager {
       return {
         success: false,
         error: error.message,
-        extractedContent: `Navigation not supported on this platform: ${error.message}. Please navigate manually to the desired page.`,
+        extractedContent: `Navigation error: ${error.message}`,
         includeInMemory: true
       };
     }
@@ -1073,61 +918,13 @@ class BrowserContextManager {
     return restrictedPages.some(prefix => url.startsWith(prefix));
   }
 
-  async ensureContentScript(tabId) {
-    try {
-      // Test if content script is already injected
-      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
-      console.log('Content script already available');
-      return true;
-    } catch (error) {
-      // Content script not available, inject it
-      try {
-        console.log('Injecting content script');
-        
-        // First inject buildDomTree.js (dependency)
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['buildDomTree.js']
-        });
-        
-        // Then inject content.js
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['content.js']
-        });
-        
-        // Wait longer for Android initialization
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Test if injection worked
-        try {
-          await chrome.tabs.sendMessage(tabId, { action: 'PING' });
-          console.log('Content scripts injected and working');
-          return true;
-        } catch (testError) {
-          console.error('Content script injection verification failed:', testError);
-          return false;
-        }
-      } catch (injectError) {
-        console.error('Failed to inject content script:', injectError);
-        return false;
-      }
-    }
-  }
-
   async closeExcessTabs() {
     try {
       const tabs = await chrome.tabs.query({});
-      const twitterTabs = tabs.filter(tab => 
-        tab.url.includes('twitter.com') || tab.url.includes('x.com')
-      );
-      
-      // Keep only the active Twitter tab, close others
-      if (twitterTabs.length > 1) {
-        for (let i = 1; i < twitterTabs.length; i++) {
+      if (tabs.length > 5) {
+        for (let i = 5; i < tabs.length; i++) {
           try {
-            await chrome.tabs.remove(twitterTabs[i].id);
-            console.log(`Closed excess Twitter tab: ${twitterTabs[i].id}`);
+            await chrome.tabs.remove(tabs[i].id);
           } catch (e) {
             // Ignore errors
           }
@@ -1139,17 +936,59 @@ class BrowserContextManager {
   }
 }
 
-// Multi-Agent Executor with BackgroundTaskManager Integration
-class MultiAgentExecutor {
+// Fix for the URL validation issues
+function fixUrlValidation() {
+  // Add null checks to prevent the TypeError
+  const originalMethods = {
+    checkBasicLoginStatus: function(url) {
+      if (!url || typeof url !== 'string') return false;
+      return !url.includes('/login') && !url.includes('/signin');
+    },
+    
+    determinePageType: function(url) {
+      if (!url || typeof url !== 'string') return 'general';
+      if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
+      if (url.includes('/home') || url.includes('/timeline')) return 'home';
+      if (url.includes('/login') || url.includes('/signin')) return 'login';
+      if (url.includes('/profile') || url.includes('/user/')) return 'profile';
+      return 'general';
+    },
+    
+    detectPlatform: function(url) {
+      if (!url || typeof url !== 'string') return 'unknown';
+      const lowerUrl = url.toLowerCase();
+      
+      if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
+      if (lowerUrl.includes('linkedin.com')) return 'linkedin';
+      if (lowerUrl.includes('facebook.com')) return 'facebook';
+      if (lowerUrl.includes('instagram.com')) return 'instagram';
+      if (lowerUrl.includes('youtube.com')) return 'youtube';
+      if (lowerUrl.includes('tiktok.com')) return 'tiktok';
+      
+      return 'unknown';
+    }
+  };
+  
+  return originalMethods;
+}
+
+// Universal Multi-Agent Executor - Using Wootz APIs
+class UniversalMultiAgentExecutor {
   constructor(llmService) {
     this.llmService = llmService;
     this.memoryManager = new ProceduralMemoryManager();
     this.browserContext = new BrowserContextManager();
-    this.actionRegistry = new ActionRegistry(this.browserContext);
+    this.actionRegistry = new UniversalActionRegistry(this.browserContext);
     
-    this.planner = new PlannerAgent(this.llmService, this.memoryManager);
-    this.navigator = new NavigatorAgent(this.llmService, this.memoryManager, this.actionRegistry);
-    this.validator = new ValidatorAgent(this.llmService, this.memoryManager);
+    this.planner = new UniversalPlannerAgent(this.llmService, this.memoryManager);
+    this.navigator = new UniversalNavigatorAgent(this.llmService, this.memoryManager, this.actionRegistry);
+    this.validator = new UniversalValidatorAgent(this.llmService, this.memoryManager);
+    
+    // Fixed helper methods
+    const helpers = fixUrlValidation();
+    this.checkBasicLoginStatus = helpers.checkBasicLoginStatus;
+    this.determinePageType = helpers.determinePageType;
+    this.detectPlatform = helpers.detectPlatform;
     
     this.maxSteps = 15;
     this.executionHistory = [];
@@ -1158,7 +997,6 @@ class MultiAgentExecutor {
   }
 
   async execute(userTask, connectionManager) {
-    // Reset step counter at start of each execution
     this.currentStep = 0;
     this.executionHistory = [];
     this.cancelled = false;
@@ -1167,10 +1005,10 @@ class MultiAgentExecutor {
       let taskCompleted = false;
       let finalResult = null;
 
-      console.log(`🚀 Multi-agent execution: ${userTask}`);
+      console.log(`🚀 Universal Multi-agent execution: ${userTask}`);
       connectionManager.broadcast({
         type: 'task_start',
-        message: `🚀 Starting: ${userTask}`
+        message: `🚀 Starting universal task: ${userTask}`
       });
 
       while (!taskCompleted && this.currentStep < this.maxSteps && !this.cancelled) {
@@ -1179,10 +1017,9 @@ class MultiAgentExecutor {
         console.log(`🔄 Step ${this.currentStep}/${this.maxSteps}`);
         connectionManager.broadcast({
           type: 'status_update',
-          message: `🔄 Step ${this.currentStep}/${this.maxSteps}: Multi-agent processing...`
+          message: `🔄 Step ${this.currentStep}/${this.maxSteps}: Analyzing page...`
         });
 
-        // Check for cancellation
         if (this.cancelled) {
           finalResult = {
             success: false,
@@ -1193,13 +1030,13 @@ class MultiAgentExecutor {
           break;
         }
 
-        // 1. Get current state
+        // 1. Get current state using Wootz API
         const currentState = await this.getCurrentState();
         
         // 2. Planner Agent
         connectionManager.broadcast({
           type: 'status_update',
-          message: `🧠 Planner Agent: Analyzing ${currentState.pageContext?.platform || 'platform'}...`
+          message: `🧠 Planning: Analyzing ${currentState.pageInfo?.domain || 'page'}...`
         });
 
         const plan = await this.planner.plan(userTask, currentState, this.executionHistory);
@@ -1219,50 +1056,50 @@ class MultiAgentExecutor {
         // 3. Navigator Agent
         connectionManager.broadcast({
           type: 'status_update',
-          message: `🧭 Navigator Agent: Executing for ${plan.platform}...`
+          message: `🧭 Executing: ${plan.next_action}...`
         });
 
         const navigation = await this.navigator.navigate(plan, currentState);
         console.log(`Step ${this.currentStep} Navigation:`, navigation);
 
         // 4. Action Execution
-        connectionManager.broadcast({
-          type: 'status_update',
-          message: `⚡ Performing ${navigation.action?.length || 0} actions...`
-        });
-
-        const actionResults = await this.executeActionSequence(navigation.action || [], connectionManager);
-        
-        this.executionHistory.push({
-          step: this.currentStep,
-          plan: plan.next_steps,
-          navigation: navigation.current_state?.next_goal,
-          results: actionResults,
-          success: actionResults.some(r => r.success)
-        });
-
-        // Check if done
-        const doneAction = actionResults.find(a => a.result?.isDone);
-        if (doneAction) {
-          taskCompleted = true;
-          
+        if (navigation.action) {
           connectionManager.broadcast({
             type: 'status_update',
-            message: `✅ Validator Agent: Checking completion...`
+            message: `⚡ ${navigation.action.parameters?.intent || 'Performing action'}...`
           });
 
-          const finalState = await this.getCurrentState();
-          const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
+          const actionResult = await this.executeAction(navigation.action, connectionManager);
+          
+          this.executionHistory.push({
+            step: this.currentStep,
+            plan: plan.next_action,
+            navigation: navigation.action.parameters?.intent,
+            results: [actionResult],
+            success: actionResult.success
+          });
 
-          finalResult = {
-            success: validation.is_valid,
-            response: validation.answer,
-            message: validation.answer,
-            steps: this.currentStep,
-            confidence: validation.success_confidence,
-            platform: plan.platform
-          };
-          break;
+          // Check if done
+          if (actionResult.result?.isDone) {
+            taskCompleted = true;
+            
+            connectionManager.broadcast({
+              type: 'status_update',
+              message: `✅ Validating completion...`
+            });
+
+            const finalState = await this.getCurrentState();
+            const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
+
+            finalResult = {
+              success: validation.is_valid,
+              response: validation.reason,
+              message: validation.reason,
+              steps: this.currentStep,
+              confidence: validation.confidence
+            };
+            break;
+          }
         }
 
         await this.delay(2000);
@@ -1285,12 +1122,17 @@ class MultiAgentExecutor {
           type: 'task_complete',
           result: finalResult
         });
+      } else {
+        connectionManager.broadcast({
+          type: 'task_complete',
+          result: finalResult
+        });
       }
 
       return finalResult;
 
     } catch (error) {
-      console.error('❌ Multi-agent execution error:', error);
+      console.error('❌ Universal multi-agent execution error:', error);
       const errorResult = {
         success: false,
         response: `❌ Execution error: ${error.message}`,
@@ -1309,90 +1151,142 @@ class MultiAgentExecutor {
 
   async getCurrentState() {
     try {
-      const tab = await this.browserContext.getCurrentActiveTab();
-      if (!tab) {
-        return this.getDefaultState();
-      }
-
-      // Ensure content script is available
-      await this.browserContext.ensureContentScript(tab.id);
-      this.browserContext.activeTabId = tab.id;
-
-      try {
-        console.log('Getting enhanced page state from content script');
-        
-        // Use enhanced DOM service
-        if (!this.domService) {
-          this.domService = new EnhancedDOMService();
-        }
-        
-        const pageState = await this.domService.getPageState(tab.id, {
-          debugMode: false, // Set to true for debugging
-          showHighlightElements: false,
-          maxElements: 30
+      console.log('📊 Getting page state via Wootz API');
+      
+      return new Promise((resolve) => {
+        chrome.wootz.getPageState({
+          debugMode: true,
+          includeHidden: true
+        }, (result) => {
+          if (result.success && result.pageState) {
+            const pageState = result.pageState;
+            
+            // Add debugging to see the actual structure
+            console.log('🔍 Raw Wootz pageState:', pageState);
+            console.log('🔍 Raw elements array:', pageState.elements);
+            
+            const processedState = {
+              pageInfo: {
+                url: pageState.url || 'unknown',
+                title: pageState.title || 'Unknown Page',
+                domain: this.extractDomain(pageState.url)
+              },
+              pageContext: { 
+                platform: this.detectPlatform(pageState.url),
+                pageType: this.determinePageType(pageState.url)
+              },
+              loginStatus: { 
+                isLoggedIn: this.checkBasicLoginStatus(pageState.url)
+              },
+              interactiveElements: this.processElementsFromWootz(pageState.elements || []),
+              viewportInfo: {},
+              extractedContent: `Wootz page state: ${pageState.elements?.length || 0} elements`
+            };
+            
+            console.log(`📊 Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
+            resolve(processedState);
+          } else {
+            console.log('📊 Wootz State: Failed, using fallback');
+            console.log('🔍 Failed result:', result);
+            resolve(this.getDefaultState());
+          }
         });
-
-        console.log(`📊 Enhanced DOM: Found ${pageState.interactiveElements.length} ranked elements`);
-        console.log('🔍 Top elements:', pageState.interactiveElements.slice(0, 5).map(el => ({
-          index: el.originalIndex,
-          type: el.elementType,
-          text: el.contextText?.substring(0, 30),
-          relevance: el.relevanceScore,
-          isLogin: el.isLoginElement
-        })));
-
-        return pageState;
-
-      } catch (contentError) {
-        console.log('Enhanced DOM failed, using fallback:', contentError);
-        return this.getCurrentStateWithFallback();
-      }
+      });
+      
     } catch (error) {
-      console.log('Could not get current state:', error);
+      console.log('Could not get Wootz page state:', error);
       return this.getDefaultState();
     }
   }
 
-  async getCurrentStateWithFallback() {
+  extractDomain(url) {
+    if (!url || typeof url !== 'string') return 'unknown';
     try {
-      const tab = await this.browserContext.getCurrentActiveTab();
-      if (!tab) return this.getDefaultState();
+      return new URL(url).hostname;
+    } catch {
+      return 'unknown';
+    }
+  }
 
-      const pageState = await chrome.tabs.sendMessage(tab.id, {
-        action: 'GET_PAGE_STATE'
-      });
-
-      if (pageState && pageState.success) {
-        return {
-          pageInfo: {
-            url: tab.url,
-            title: tab.title,
-            status: tab.status
-          },
-          pageContext: {
-            platform: this.detectPlatform(tab.url),
-            pageType: this.determinePageType(tab.url)
-          },
-          loginStatus: {
-            isLoggedIn: this.checkBasicLoginStatus(tab.url)
-          },
-          interactiveElements: pageState.pageState?.interactiveElements || [],
-          viewportInfo: pageState.pageState?.pageInfo?.viewport || {},
-          extractedContent: 'Fallback page state extraction'
-        };
-      }
-    } catch (error) {
-      console.log('Fallback state extraction failed:', error);
+  // Fixed element processing for Wootz API
+  processElementsFromWootz(elements) {
+    if (!elements || !Array.isArray(elements)) {
+      console.log('🔍 Elements not array or null:', elements);
+      return [];
     }
     
-    return this.getDefaultState();
+    console.log(`🔍 Processing ${elements.length} raw elements from Wootz`);
+    
+    // Remove the isInteractive filter since Wootz API only returns interactive elements
+    const processed = elements
+      .filter(el => el && el.index !== undefined) // Only filter out null/undefined elements
+      .map((el, arrayIndex) => {
+        const processed = {
+          index: el.index !== undefined ? el.index : arrayIndex,
+          arrayIndex: arrayIndex,
+          tagName: el.tagName || 'UNKNOWN',
+          text: el.textContent || el.text || el.innerText || '',
+          ariaLabel: el.ariaLabel || el.label || '',
+          elementType: this.categorizeElementType(el),
+          isLoginElement: this.isLoginRelatedElement(el),
+          isPostElement: this.isPostRelatedElement(el),
+          isVisible: el.isVisible !== false,
+          bounds: el.bounds || el.rect || {},
+          selector: el.selector || this.generateSimpleSelector(el),
+          originalElement: el
+        };
+        
+        // Debug log first few elements
+        if (arrayIndex < 3) {
+          console.log(`🔍 Processed element ${arrayIndex}:`, processed);
+        }
+        
+        return processed;
+      })
+      .slice(0, 30);
+    
+    console.log(`📊 Processed ${processed.length} elements successfully`);
+    return processed;
+  }
+
+  categorizeElementType(element) {
+    const tagName = (element.tagName || '').toLowerCase();
+    const type = (element.type || '').toLowerCase();
+    
+    if (tagName === 'button') return 'button';
+    if (tagName === 'input') return type || 'input';
+    if (tagName === 'textarea') return 'textarea';
+    if (tagName === 'a') return 'link';
+    if (element.contentEditable === 'true') return 'contenteditable';
+    return 'other';
+  }
+
+  isLoginRelatedElement(element) {
+    const text = ((element.textContent || element.text || '') + ' ' + (element.ariaLabel || '')).toLowerCase();
+    const loginKeywords = ['login', 'sign in', 'email', 'password', 'username'];
+    return loginKeywords.some(keyword => text.includes(keyword));
+  }
+
+  isPostRelatedElement(element) {
+    const text = ((element.textContent || element.text || '') + ' ' + (element.ariaLabel || '')).toLowerCase();
+    const postKeywords = ['tweet', 'post', 'share', 'publish', 'compose'];
+    return postKeywords.some(keyword => text.includes(keyword));
+  }
+
+  generateSimpleSelector(element) {
+    if (element.attributes) {
+      if (element.attributes.id) return `#${element.attributes.id}`;
+      if (element.attributes['data-testid']) return `[data-testid="${element.attributes['data-testid']}"]`;
+    }
+    return (element.tagName || 'div').toLowerCase();
   }
 
   getDefaultState() {
     return {
       pageInfo: { 
         url: 'unknown', 
-        title: 'Unknown Page' 
+        title: 'Unknown Page',
+        domain: 'unknown'
       },
       pageContext: { 
         platform: 'unknown', 
@@ -1407,196 +1301,157 @@ class MultiAgentExecutor {
     };
   }
 
-  checkBasicLoginStatus(url) {
-    return !url.includes('/login') && !url.includes('/signin');
-  }
-
-  determinePageType(url) {
-    if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
-    if (url.includes('/home') || url.includes('/timeline')) return 'home';
-    if (url.includes('/login') || url.includes('/signin')) return 'login';
-    if (url.includes('/profile') || url.includes('/user/')) return 'profile';
-    return 'general';
-  }
-
-  // Add delay method if missing
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  async executeActionSequence(actions, connectionManager) {
-    const results = [];
-    
-    for (let i = 0; i < actions.length; i++) {
-      const actionObj = actions[i];
-      const actionName = Object.keys(actionObj)[0];
-      const actionInput = actionObj[actionName];
+  async executeAction(action, connectionManager) {
+    try {
+      connectionManager.broadcast({
+        type: 'status_update',
+        message: `🎯 ${action.parameters?.intent || `Executing ${action.name}`}...`
+      });
       
-      try {
-        connectionManager.broadcast({
-          type: 'status_update',
-          message: `🎯 ${actionInput.intent || `Executing ${actionName}`}...`
-        });
-        
-        if (this.cancelled) {
-          console.log('🛑 Action sequence cancelled');
-          break;
-        }
-        
-        const result = await this.actionRegistry.executeAction(actionName, actionInput);
-        
-        results.push({
-          action: actionName,
-          input: actionInput,
-          result: result,
-          success: result.success !== false
-        });
-        
-        console.log(`${result.success ? '✅' : '❌'} ${actionName}: ${result.extractedContent?.substring(0, 50)}...`);
-        
-        // Android: Handle navigation specially
-        if (actionName === 'go_to_url' && result.success) {
-          await this.delay(4000); // Wait for page load
-          break; // Stop sequence after navigation
-        }
-        
-        if (!result.success && actionName !== 'wait') {
-          console.log(`⚠️ Action failed but continuing: ${actionName}`);
-        }
-        
-        if (result.isDone) {
-          console.log('✅ Task marked complete');
-          break;
-        }
-        
-        // Add delay between actions for Android stability
-        await this.delay(1000);
-        
-      } catch (error) {
-        console.error(`❌ Action error: ${actionName}`, error);
-        results.push({
-          action: actionName,
-          input: actionInput,
-          result: { success: false, error: error.message },
-          success: false
-        });
-        
-        // Continue with next action unless critical failure
-        if (actionName === 'go_to_url') {
-          break; // Stop on navigation failure
-        }
+      if (this.cancelled) {
+        console.log('🛑 Action cancelled');
+        return { success: false, error: 'Action cancelled' };
       }
+      
+      const result = await this.actionRegistry.executeAction(action.name, action.parameters);
+      
+      console.log(`${result.success ? '✅' : '❌'} ${action.name}: ${result.extractedContent?.substring(0, 50)}...`);
+      
+      if (action.name === 'navigate' && result.success) {
+        await this.delay(4000); // Wait for page load
+      } else {
+        await this.delay(1000); // Standard delay between actions
+      }
+      
+      return {
+        action: action.name,
+        input: action.parameters,
+        result: result,
+        success: result.success !== false
+      };
+      
+    } catch (error) {
+      console.error(`❌ Action error: ${action.name}`, error);
+      return {
+        action: action.name,
+        input: action.parameters,
+        result: { success: false, error: error.message },
+        success: false
+      };
     }
-    
-    return results;
-  }
-
-  detectPlatform(url) {
-    if (!url) return 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
-    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
-    if (lowerUrl.includes('facebook.com')) return 'facebook';
-    if (lowerUrl.includes('instagram.com')) return 'instagram';
-    if (lowerUrl.includes('youtube.com')) return 'youtube';
-    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
-    
-    return 'unknown';
   }
 
   cancel() {
-    console.log('🛑 Cancelling multi-agent execution');
+    console.log('🛑 Cancelling universal multi-agent execution');
     this.cancelled = true;
-  }
-
-  async ensureContentScriptInjected(tabId) {
-    try {
-      await chrome.tabs.sendMessage(tabId, { action: 'PING' });
-    } catch (error) {
-      console.log('Injecting content script into tab:', tabId);
-      
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['buildDomTree.js']
-        });
-        
-        await chrome.scripting.executeScript({
-          target: { tabId: tabId },
-          files: ['content.js']
-        });
-        
-        await this.delay(1500);
-      } catch (injectionError) {
-        console.error('Content script injection failed:', injectionError);
-        throw injectionError;
-      }
-    }
   }
 }
 
-// Enhanced LLM Service (same as before)
+// Enhanced LLM Service (keeping existing implementation)
 class RobustMultiLLM {
   constructor(config = {}) {
     this.config = config;
-    this.providers = ['anthropic', 'openai', 'gemini'];
-    this.currentProviderIndex = 0;
-    console.log('🤖 LLM Service initialized with model:', this.getModelName(config.aiProvider || 'anthropic'));
+    console.log('🤖 Universal LLM Service initialized with provider:', this.config.aiProvider || 'anthropic');
   }
 
   getModelName(provider, agentType = 'navigator') {
-    // Use agent-specific models from settings, fallback to general models, then defaults
-    const modelMap = {
-      'anthropic': 
-        (agentType === 'navigator' ? this.config.navigatorModel : 
-         agentType === 'planner' ? this.config.plannerModel :
-         agentType === 'validator' ? this.config.validatorModel : null) ||
-        this.config.anthropicModel || 'claude-3-sonnet-20240229',
-      'openai': 
-        (agentType === 'navigator' ? this.config.navigatorModel : 
-         agentType === 'planner' ? this.config.plannerModel :
-         agentType === 'validator' ? this.config.validatorModel : null) ||
-        this.config.openaiModel || 'gpt-4o',
-      'gemini': 
-        (agentType === 'navigator' ? this.config.navigatorModel : 
-         agentType === 'planner' ? this.config.plannerModel :
-         agentType === 'validator' ? this.config.validatorModel : null) ||
-        this.config.geminiModel || 'gemini-1.5-pro'
+    const configuredModel = agentType === 'navigator' ? this.config.navigatorModel : 
+                           agentType === 'planner' ? this.config.plannerModel :
+                           agentType === 'validator' ? this.config.validatorModel : null;
+
+    if (configuredModel && this.isModelValidForProvider(configuredModel, provider)) {
+      return configuredModel;
+    }
+
+    const defaultModels = {
+      'anthropic': {
+        'navigator': 'claude-3-5-sonnet-20241022',
+        'planner': 'claude-3-5-sonnet-20241022',
+        'validator': 'claude-3-haiku-20240307'
+      },
+      'openai': {
+        'navigator': 'gpt-4o',
+        'planner': 'gpt-4o',
+        'validator': 'gpt-4o-mini'
+      },
+      'gemini': {
+        'navigator': 'gemini-1.5-pro',
+        'planner': 'gemini-1.5-pro',
+        'validator': 'gemini-1.5-flash'
+      }
     };
     
-    return modelMap[provider] || modelMap['anthropic'];
+    return defaultModels[provider]?.[agentType] || defaultModels[provider]?.['navigator'] || 'gemini-1.5-pro';
+  }
+
+  isModelValidForProvider(model, provider) {
+    const modelProviderMap = {
+      'claude-3-5-sonnet-20241022': 'anthropic',
+      'claude-3-sonnet-20240229': 'anthropic', 
+      'claude-3-haiku-20240307': 'anthropic',
+      'claude-3-opus-20240229': 'anthropic',
+      'gpt-4o': 'openai',
+      'gpt-4o-mini': 'openai',
+      'gpt-4-turbo': 'openai',
+      'gpt-4': 'openai',
+      'gpt-3.5-turbo': 'openai',
+      'gemini-1.5-pro': 'gemini',
+      'gemini-1.5-flash': 'gemini',
+      'gemini-pro': 'gemini'
+    };
+    
+    return modelProviderMap[model] === provider;
   }
 
   async call(messages, options = {}, agentType = 'navigator') {
     const provider = this.config.aiProvider || 'anthropic';
     const modelName = this.getModelName(provider, agentType);
     
+    console.log(`🎯 DEBUG: Provider=${provider}, AgentType=${agentType}, ModelName=${modelName}`);
+    
     console.log(`🤖 ${agentType} using ${provider} model: ${modelName}`);
     
-    let lastError = null;
+    const hasApiKey = this.checkApiKey(provider);
+    if (!hasApiKey) {
+      throw new Error(`${provider} API key not configured. Please add your API key in settings.`);
+    }
     
-    // Try primary provider first
     try {
-      return await this.callProvider(provider, messages, options);
+      return await this.callProvider(provider, messages, { ...options, model: modelName });
     } catch (error) {
       console.error(`❌ ${provider} failed:`, error);
-      lastError = error;
+      throw error;
     }
-    
-    // Try fallback providers
-    for (const fallbackProvider of this.providers.filter(p => p !== provider)) {
-      try {
-        const fallbackModel = this.getModelName(fallbackProvider, agentType);
-        console.log(`🔄 Trying fallback: ${fallbackProvider} with ${fallbackModel}`);
-        return await this.callProvider(fallbackProvider, messages, options);
-      } catch (error) {
-        console.error(`❌ Fallback ${fallbackProvider} failed:`, error);
-        lastError = error;
-      }
+  }
+
+  checkApiKey(provider) {
+    switch (provider) {
+      case 'anthropic':
+        return !!this.config.anthropicApiKey;
+      case 'openai':
+        return !!this.config.openaiApiKey;
+      case 'gemini':
+        return !!this.config.geminiApiKey;
+      default:
+        return false;
     }
-    
-    throw lastError || new Error('All LLM providers failed');
+  }
+
+  async callProvider(provider, messages, options) {
+    switch (provider) {
+      case 'anthropic':
+        return await this.callAnthropic(messages, options);
+      case 'openai':
+        return await this.callOpenAI(messages, options);
+      case 'gemini':
+        return await this.callGemini(messages, options);
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
+    }
   }
 
   async callAnthropic(messages, options = {}) {
@@ -1604,7 +1459,7 @@ class RobustMultiLLM {
       throw new Error('Anthropic API key not configured');
     }
 
-    const model = options.model || this.getModelName('anthropic');
+    const model = options.model || 'claude-3-5-sonnet-20241022';
     console.log(`🔥 Calling Anthropic with model: ${model}`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1613,7 +1468,7 @@ class RobustMultiLLM {
         'x-api-key': this.config.anthropicApiKey,
         'Content-Type': 'application/json',
         'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true' // ✅ ADD THIS LINE
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: model,
@@ -1637,7 +1492,7 @@ class RobustMultiLLM {
       throw new Error('OpenAI API key not configured');
     }
 
-    const model = options.model || this.getModelName('openai');
+    const model = options.model || 'gpt-4o';
     console.log(`🔥 Calling OpenAI with model: ${model}`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -1663,27 +1518,12 @@ class RobustMultiLLM {
     return data.choices[0].message.content;
   }
 
-  // Add missing callProvider method
-  async callProvider(provider, messages, options) {
-    switch (provider) {
-      case 'anthropic':
-        return await this.callAnthropic(messages, options);
-      case 'openai':
-        return await this.callOpenAI(messages, options);
-      case 'gemini':
-        return await this.callGemini(messages, options);
-      default:
-        throw new Error(`Unsupported provider: ${provider}`);
-    }
-  }
-
-  // Add missing Gemini support
   async callGemini(messages, options = {}) {
     if (!this.config.geminiApiKey) {
       throw new Error('Gemini API key not configured');
     }
 
-    const model = options.model || this.getModelName('gemini');
+    const model = options.model || 'gemini-1.5-pro';
     console.log(`🔥 Calling Gemini with model: ${model}`);
 
     const geminiMessages = messages.map(msg => ({
@@ -1691,17 +1531,22 @@ class RobustMultiLLM {
       parts: [{ text: msg.content }]
     }));
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.geminiApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: geminiMessages,
-        generationConfig: {
-          maxOutputTokens: options.maxTokens || 4096,
-          temperature: options.temperature || 0.3
-        }
-      })
-    });
+    const requestBody = {
+      contents: geminiMessages,
+      generationConfig: {
+        maxOutputTokens: options.maxTokens || 4096,
+        temperature: options.temperature || 0.3
+      }
+    };
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.geminiApiKey}`, 
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -1709,11 +1554,16 @@ class RobustMultiLLM {
     }
 
     const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      throw new Error('Invalid response from Gemini API');
+    }
+
     return data.candidates[0].content.parts[0].text;
   }
 }
 
-// Persistent Connection Manager with BackgroundTaskManager Integration
+// Persistent Connection Manager (keeping existing)
 class PersistentConnectionManager {
   constructor(backgroundTaskManager) {
     this.connections = new Map();
@@ -1731,7 +1581,6 @@ class PersistentConnectionManager {
       lastActivity: Date.now()
     });
 
-    // Send queued messages
     if (this.messageQueue.length > 0) {
       console.log(`📤 Sending ${this.messageQueue.length} queued messages`);
       this.messageQueue.forEach(message => {
@@ -1740,7 +1589,6 @@ class PersistentConnectionManager {
       this.messageQueue = [];
     }
 
-    // Send recent messages from active background task
     if (this.activeTask) {
       const recentMessages = this.backgroundTaskManager.getRecentMessages(this.activeTask, 3);
       recentMessages.forEach(message => {
@@ -1763,7 +1611,6 @@ class PersistentConnectionManager {
       }
     });
 
-    // Queue for background persistence
     this.messageQueue.unshift(message);
     if (this.messageQueue.length > 20) {
       this.messageQueue.pop();
@@ -1796,7 +1643,7 @@ class PersistentConnectionManager {
   }
 }
 
-// 🔧 Main Background Script Agent with BackgroundTaskManager Integration
+// Main Background Script Agent (keeping most existing functionality)
 class BackgroundScriptAgent {
   constructor() {
     this.backgroundTaskManager = new BackgroundTaskManager();
@@ -1807,7 +1654,7 @@ class BackgroundScriptAgent {
     this.taskRouter = null;
     
     this.setupMessageHandlers();
-    console.log('✅ BackgroundScriptAgent initialized with BackgroundTaskManager');
+    console.log('✅ Universal BackgroundScriptAgent initialized with Wootz API integration');
   }
 
   setupMessageHandlers() {
@@ -1906,12 +1753,12 @@ class BackgroundScriptAgent {
 
   async executeTaskWithBackgroundManager(task, taskId) {
     try {
-      console.log('🚀 Executing task with BackgroundTaskManager:', task, 'ID:', taskId);
+      console.log('🚀 Executing universal task with BackgroundTaskManager:', task, 'ID:', taskId);
       
       if (!this.llmService) {
         const config = await this.getConfig();
         this.llmService = new RobustMultiLLM(config);
-        this.multiAgentExecutor = new MultiAgentExecutor(this.llmService);
+        this.multiAgentExecutor = new UniversalMultiAgentExecutor(this.llmService);
         this.taskRouter = new AITaskRouter(this.llmService);
       }
 
@@ -1954,7 +1801,7 @@ class BackgroundScriptAgent {
       const response = await this.llmService.call([
         { 
           role: 'user', 
-          content: `You are a helpful AI assistant specializing in social media automation. Respond to: "${task}"` 
+          content: `You are a helpful AI assistant specializing in universal web automation. Respond to: "${task}"` 
         }
       ], { maxTokens: 300 });
 
@@ -1966,7 +1813,7 @@ class BackgroundScriptAgent {
     } catch (error) {
       return {
         success: true,
-        response: `I understand you said: "${task}"\n\nI'm your AI social media automation assistant! I can help with posting on Twitter, LinkedIn, Facebook, Instagram, YouTube, TikTok, and more. What would you like me to help you with?`,
+        response: `I understand you said: "${task}"\n\nI'm your universal AI web automation assistant! I can help with any website - YouTube, social media, shopping, research, and more. What would you like me to help you with?`,
         message: 'Fallback chat response'
       };
     }
@@ -2010,10 +1857,13 @@ class BackgroundScriptAgent {
       connections: this.connectionManager.connections.size,
       backgroundPersistence: true,
       multiAgentSystem: true,
-      universalPlatforms: ['twitter', 'linkedin', 'facebook', 'instagram', 'youtube', 'tiktok', 'reddit'],
+      universalAutomation: true,
+      wootzApiIntegration: true,
+      supportedSites: 'Universal - any website',
       config: {
         hasAnthropicKey: !!config.anthropicApiKey,
         hasOpenAIKey: !!config.openaiApiKey,
+        hasGeminiKey: !!config.geminiApiKey,
         aiProvider: config.aiProvider || 'anthropic'
       }
     };
@@ -2023,7 +1873,7 @@ class BackgroundScriptAgent {
     try {
       await chrome.storage.sync.set({ agentConfig: config });
       this.llmService = new RobustMultiLLM(config);
-      this.multiAgentExecutor = new MultiAgentExecutor(this.llmService);
+      this.multiAgentExecutor = new UniversalMultiAgentExecutor(this.llmService);
       return { success: true, message: 'Configuration updated' };
     } catch (error) {
       return { success: false, error: error.message };
@@ -2031,8 +1881,7 @@ class BackgroundScriptAgent {
   }
 }
 
-// Add this class before BackgroundScriptAgent
-
+// AI Task Router (keeping existing implementation)
 class AITaskRouter {
   constructor(llmService) {
     this.llmService = llmService;
@@ -2046,15 +1895,14 @@ Analyze: "${userMessage}"
 
 Respond with JSON only:
 {
-  "intent": "CHAT|SOCIAL_ACTION|AUTOMATION",
+  "intent": "CHAT|WEB_AUTOMATION",
   "confidence": 0.0-1.0,
   "reasoning": "brief explanation"
 }
 
 Rules:
 - CHAT: Greetings, questions, explanations ("hello", "what is", "how are you")
-- SOCIAL_ACTION: Social media tasks ("post", "tweet", "share", "like", "follow")
-- AUTOMATION: Other browser tasks ("navigate", "click", "fill form")`;
+- WEB_AUTOMATION: Any task involving websites ("open", "search", "click", "navigate", "post", "buy", etc.)`;
 
       const response = await this.llmService.call([
         { role: 'user', content: classificationPrompt }
@@ -2082,17 +1930,17 @@ Rules:
   fallbackRouting(userMessage) {
     const lowerMessage = userMessage.toLowerCase();
     
-    const socialKeywords = ['post', 'tweet', 'share', 'like', 'follow', 'comment'];
+    const webKeywords = ['open', 'go to', 'navigate', 'search', 'click', 'type', 'post', 'buy', 'find', 'visit'];
     const chatKeywords = ['hello', 'hi', 'what', 'how', 'why', 'explain'];
     
-    const hasSocialKeywords = socialKeywords.some(keyword => lowerMessage.includes(keyword));
+    const hasWebKeywords = webKeywords.some(keyword => lowerMessage.includes(keyword));
     const hasChatKeywords = chatKeywords.some(keyword => lowerMessage.includes(keyword));
     
-    if (hasSocialKeywords) {
+    if (hasWebKeywords) {
       return {
-        intent: 'SOCIAL_ACTION',
+        intent: 'WEB_AUTOMATION',
         confidence: 0.7,
-        reasoning: 'Contains social media keywords'
+        reasoning: 'Contains web automation keywords'
       };
     } else if (hasChatKeywords) {
       return {
@@ -2110,311 +1958,9 @@ Rules:
   }
 }
 
-// Add this comprehensive DOM service class before other classes
-class EnhancedDOMService {
-  constructor() {
-    this.debugMode = false;
-    this.highlightElements = true;
-  }
-
-  async getPageState(tabId, options = {}) {
-    try {
-      const result = await chrome.tabs.sendMessage(tabId, {
-        action: 'GET_ENHANCED_PAGE_STATE',
-        options: {
-          debugMode: options.debugMode || this.debugMode,
-          showHighlightElements: options.showHighlightElements || this.highlightElements,
-          viewportExpansion: options.viewportExpansion || 200,
-          maxElements: options.maxElements || 50
-        }
-      });
-
-      if (result && result.success) {
-        return this.processPageState(result.pageState);
-      } else {
-        throw new Error('Failed to get page state from content script');
-      }
-    } catch (error) {
-      console.error('Enhanced DOM service error:', error);
-      throw error;
-    }
-  }
-
-  processPageState(rawPageState) {
-    const processedElements = this.filterAndRankElements(rawPageState.interactiveElements || []);
-    
-    return {
-      pageInfo: {
-        url: rawPageState.url,
-        title: rawPageState.title,
-        platform: this.detectPlatform(rawPageState.url),
-        pageType: this.determinePageType(rawPageState.url),
-        viewport: rawPageState.viewport || {}
-      },
-      pageContext: {
-        platform: this.detectPlatform(rawPageState.url),
-        pageType: this.determinePageType(rawPageState.url),
-        hasLoginForm: this.hasLoginElements(processedElements),
-        hasPostForm: this.hasPostElements(processedElements),
-        canPost: this.canUserPost(processedElements)
-      },
-      loginStatus: {
-        isLoggedIn: this.checkLoginStatus(rawPageState.url, processedElements),
-        hasLoginForm: this.hasLoginElements(processedElements)
-      },
-      interactiveElements: processedElements,
-      elementStats: {
-        total: rawPageState.interactiveElements?.length || 0,
-        filtered: processedElements.length,
-        buttons: processedElements.filter(el => el.elementType === 'button').length,
-        inputs: processedElements.filter(el => el.elementType === 'input').length,
-        links: processedElements.filter(el => el.elementType === 'link').length
-      },
-      extractedContent: this.generateContentSummary(processedElements, rawPageState)
-    };
-  }
-
-  filterAndRankElements(elements) {
-    if (!elements || elements.length === 0) return [];
-
-    // Filter out invalid elements
-    const validElements = elements.filter(el => 
-      el && 
-      typeof el.index === 'number' && 
-      el.isVisible !== false &&
-      el.text !== undefined
-    );
-
-    // Rank elements by relevance
-    const rankedElements = validElements.map(el => ({
-      ...el,
-      relevanceScore: this.calculateRelevanceScore(el),
-      elementType: this.categorizeElement(el),
-      contextText: this.extractContextText(el),
-      isLoginElement: this.isLoginRelated(el),
-      isPostElement: this.isPostRelated(el)
-    }));
-
-    // Sort by relevance and limit
-    return rankedElements
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 30)
-      .map((el, index) => ({
-        ...el,
-        displayIndex: index,
-        originalIndex: el.index
-      }));
-  }
-
-  calculateRelevanceScore(element) {
-    let score = 0;
-    const text = (element.text || '').toLowerCase();
-    const ariaLabel = (element.ariaLabel || '').toLowerCase();
-    const tagName = element.tagName?.toLowerCase() || '';
-
-    // Base scores by element type
-    if (tagName === 'button') score += 20;
-    else if (tagName === 'input') score += 18;
-    else if (tagName === 'textarea') score += 16;
-    else if (element.role === 'button') score += 15;
-    else if (element.role === 'textbox') score += 15;
-    else if (tagName === 'a') score += 10;
-
-    // Boost for login-related terms
-    const loginKeywords = ['login', 'sign in', 'email', 'password', 'username', 'continue'];
-    if (loginKeywords.some(keyword => text.includes(keyword) || ariaLabel.includes(keyword))) {
-      score += 25;
-    }
-
-    // Boost for post-related elements
-    const postKeywords = ['tweet', 'post', 'share', 'publish', 'compose'];
-    if (postKeywords.some(keyword => text.includes(keyword) || ariaLabel.includes(keyword))) {
-      score += 20;
-    }
-
-    // Boost for interactive elements
-    if (element.isClickable) score += 10;
-    if (element.isFocusable) score += 8;
-
-    // Penalty for hidden or tiny elements
-    if (element.isVisible === false) score -= 50;
-    if (element.boundingRect && (element.boundingRect.width < 10 || element.boundingRect.height < 10)) {
-      score -= 20;
-    }
-
-    // Boost for elements in viewport
-    if (element.isInViewport) score += 15;
-
-    // Boost for elements with clear text
-    if (text.length > 3 && text.length < 50) score += 5;
-
-    return Math.max(0, score);
-  }
-
-  categorizeElement(element) {
-    const tagName = element.tagName?.toLowerCase() || '';
-    const type = element.type?.toLowerCase() || '';
-    const role = element.role?.toLowerCase() || '';
-
-    if (tagName === 'button' || role === 'button') return 'button';
-    if (tagName === 'input') {
-      if (type === 'text' || type === 'email') return 'input';
-      if (type === 'password') return 'password';
-      if (type === 'submit') return 'submit';
-      return 'input';
-    }
-    if (tagName === 'textarea' || role === 'textbox') return 'textarea';
-    if (tagName === 'a') return 'link';
-    if (element.contentEditable === 'true') return 'contenteditable';
-    return 'other';
-  }
-
-  extractContextText(element) {
-    const parts = [];
-    
-    if (element.text) parts.push(element.text.trim());
-    if (element.ariaLabel && element.ariaLabel !== element.text) {
-      parts.push(`[${element.ariaLabel.trim()}]`);
-    }
-    if (element.placeholder) parts.push(`(${element.placeholder.trim()})`);
-    
-    return parts.join(' ').substring(0, 100);
-  }
-
-  isLoginRelated(element) {
-    const text = (element.text || '').toLowerCase();
-    const ariaLabel = (element.ariaLabel || '').toLowerCase();
-    const placeholder = (element.placeholder || '').toLowerCase();
-    
-    const loginKeywords = [
-      'login', 'sign in', 'log in', 'sign-in', 'signin',
-      'email', 'username', 'password', 'continue',
-      'next', 'submit', 'enter'
-    ];
-    
-    return loginKeywords.some(keyword => 
-      text.includes(keyword) || 
-      ariaLabel.includes(keyword) || 
-      placeholder.includes(keyword)
-    );
-  }
-
-  isPostRelated(element) {
-    const text = (element.text || '').toLowerCase();
-    const ariaLabel = (element.ariaLabel || '').toLowerCase();
-    
-    const postKeywords = [
-      'tweet', 'post', 'share', 'publish', 'compose',
-      'write', 'create', 'send', 'submit'
-    ];
-    
-    return postKeywords.some(keyword => 
-      text.includes(keyword) || 
-      ariaLabel.includes(keyword)
-    );
-  }
-
-  hasLoginElements(elements) {
-    return elements.some(el => el.isLoginElement);
-  }
-
-  hasPostElements(elements) {
-    return elements.some(el => el.isPostElement);
-  }
-
-  canUserPost(elements) {
-    const hasTextArea = elements.some(el => 
-      el.elementType === 'textarea' || 
-      el.elementType === 'contenteditable'
-    );
-    const hasPostButton = elements.some(el => 
-      el.elementType === 'button' && el.isPostElement
-    );
-    return hasTextArea && hasPostButton;
-  }
-
-  checkLoginStatus(url, elements) {
-    // If URL contains login/signin, probably not logged in
-    if (url && (url.includes('/login') || url.includes('/signin'))) {
-      return false;
-    }
-    
-    // If we have login elements, probably not logged in
-    if (this.hasLoginElements(elements)) {
-      return false;
-    }
-    
-    // Look for logout or profile elements (signs of being logged in)
-    const hasProfileElements = elements.some(el => {
-      const text = (el.text || '').toLowerCase();
-      const ariaLabel = (el.ariaLabel || '').toLowerCase();
-      return text.includes('profile') || 
-             text.includes('logout') || 
-             text.includes('sign out') ||
-             ariaLabel.includes('profile') ||
-             ariaLabel.includes('account menu');
-    });
-    
-    return hasProfileElements;
-  }
-
-  detectPlatform(url) {
-    if (!url) return 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
-    if (lowerUrl.includes('linkedin.com')) return 'linkedin';
-    if (lowerUrl.includes('facebook.com')) return 'facebook';
-    if (lowerUrl.includes('instagram.com')) return 'instagram';
-    if (lowerUrl.includes('youtube.com')) return 'youtube';
-    if (lowerUrl.includes('tiktok.com')) return 'tiktok';
-    
-    return 'unknown';
-  }
-
-  determinePageType(url) {
-    if (!url) return 'unknown';
-    const lowerUrl = url.toLowerCase();
-    
-    if (lowerUrl.includes('/login') || lowerUrl.includes('/signin')) return 'login';
-    if (lowerUrl.includes('/compose') || lowerUrl.includes('/intent/tweet')) return 'compose';
-    if (lowerUrl.includes('/home') || lowerUrl.includes('/timeline')) return 'home';
-    if (lowerUrl.includes('/profile') || lowerUrl.includes('/user/')) return 'profile';
-    return 'general';
-  }
-
-  generateContentSummary(elements, rawPageState) {
-    const platform = this.detectPlatform(rawPageState.url);
-    const elementCount = elements.length;
-    const loginElements = elements.filter(el => el.isLoginElement).length;
-    const postElements = elements.filter(el => el.isPostElement).length;
-    
-    let summary = `${platform} page with ${elementCount} interactive elements`;
-    
-    if (loginElements > 0) {
-      summary += `, ${loginElements} login-related elements`;
-    }
-    if (postElements > 0) {
-      summary += `, ${postElements} post-related elements`;
-    }
-    
-    return summary;
-  }
-
-  enableDebugMode() {
-    this.debugMode = true;
-    this.highlightElements = true;
-  }
-
-  disableDebugMode() {
-    this.debugMode = false;
-    this.highlightElements = false;
-  }
-}
-
 // Initialize
 const backgroundScriptAgent = new BackgroundScriptAgent();
-console.log('AI Web Agent Background Script Initialized 🚀');
+console.log('🚀 Universal AI Web Agent Background Script Initialized with Wootz APIs');
 
 // Chrome Alarms for Android background persistence
 chrome.alarms.onAlarm.addListener((alarm) => {
@@ -2427,16 +1973,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-// Set up keep-alive alarm for Android
 chrome.alarms.create('keep-alive', { 
   delayInMinutes: 0.5, 
   periodInMinutes: 1 
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  console.log('🚀 Android extension startup');
+  console.log('🚀 Universal extension startup');
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('⚡ Android extension installed/updated');
+  console.log('⚡ Universal extension installed/updated');
 });
