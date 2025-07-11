@@ -1965,7 +1965,7 @@ console.log('🚀 Universal AI Web Agent Background Script Initialized with Woot
 // Chrome Alarms for Android background persistence
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'keep-alive') {
-    console.log('🔄 Android background keep-alive');
+    console.log("🟢 Background Service Worker Active:", new Date().toISOString());
     if (backgroundScriptAgent?.backgroundTaskManager) {
       const runningTasks = backgroundScriptAgent.backgroundTaskManager.getAllRunningTasks();
       console.log(`📊 Background status: ${runningTasks.length} tasks running`);
@@ -1974,8 +1974,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 chrome.alarms.create('keep-alive', { 
-  delayInMinutes: 0.5, 
-  periodInMinutes: 1 
+  periodInMinutes: 0.1 
 });
 
 chrome.runtime.onStartup.addListener(() => {

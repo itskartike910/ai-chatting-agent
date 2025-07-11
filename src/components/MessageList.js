@@ -13,13 +13,13 @@ const MessageList = ({ messages }) => {
 
   const getMessageStyle = (type) => {
     const baseStyle = {
-      margin: '8px 12px',
-      padding: '12px 16px',
-      borderRadius: '18px',
-      maxWidth: '85%',
+      margin: '4px 8px',
+      padding: '8px 12px',
+      borderRadius: '14px',
+      maxWidth: '82%',
       wordWrap: 'break-word',
-      fontSize: '14px',
-      lineHeight: '1.4'
+      fontSize: '13px',
+      lineHeight: '1.3'
     };
 
     switch (type) {
@@ -47,11 +47,12 @@ const MessageList = ({ messages }) => {
           backgroundColor: '#fff3cd',
           color: '#856404',
           alignSelf: 'center',
-          fontSize: '13px',
+          fontSize: '11px',
           fontStyle: 'italic',
           border: '1px solid #ffeaa7',
           textAlign: 'center',
-          maxWidth: '90%'
+          maxWidth: '88%',
+          margin: '2px 8px'
         };
       case 'error':
         return {
@@ -61,7 +62,9 @@ const MessageList = ({ messages }) => {
           alignSelf: 'center',
           border: '1px solid #f5c6cb',
           textAlign: 'center',
-          maxWidth: '90%'
+          maxWidth: '88%',
+          fontSize: '11px',
+          margin: '2px 8px'
         };
       default:
         return baseStyle;
@@ -72,38 +75,38 @@ const MessageList = ({ messages }) => {
     <div style={{ 
       textAlign: 'center', 
       color: '#657786', 
-      marginTop: '40px',
-      padding: '0 20px'
+      marginTop: '20px',
+      padding: '0 16px'
     }}>
-      <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
-      <h4 style={{ color: '#1da1f2', marginBottom: '12px' }}>Welcome to AI Social Agent!</h4>
-      <p style={{ marginBottom: '16px', fontSize: '14px' }}>Ask me to help you with social media tasks:</p>
+      <div style={{ fontSize: '36px', marginBottom: '12px' }}>🤖</div>
+      <h4 style={{ color: '#1da1f2', marginBottom: '8px', fontSize: '15px' }}>Welcome to AI Social Agent!</h4>
+      <p style={{ marginBottom: '12px', fontSize: '12px' }}>Ask me to help you with tasks:</p>
       <div style={{ 
         textAlign: 'left', 
-        maxWidth: '300px', 
+        maxWidth: '280px', 
         margin: '0 auto',
         backgroundColor: '#f7f9fa',
-        padding: '16px',
-        borderRadius: '12px',
+        padding: '12px',
+        borderRadius: '10px',
         border: '1px solid #e1e8ed'
       }}>
-        <div style={{ marginBottom: '8px', fontSize: '13px' }}>
-          <strong>• Post content:</strong> "Post a tweet about AI technology"
+        <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+          <strong>• YouTube:</strong> "Search for videos and play"
         </div>
-        <div style={{ marginBottom: '8px', fontSize: '13px' }}>
-          <strong>• Login help:</strong> "Help me login to X"
+        <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+          <strong>• Social:</strong> "Post content on Twitter"
         </div>
-        <div style={{ marginBottom: '8px', fontSize: '13px' }}>
-          <strong>• Engagement:</strong> "Like posts about machine learning"
+        <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+          <strong>• Shopping:</strong> "Find products online"
         </div>
-        <div style={{ fontSize: '13px' }}>
-          <strong>• Content ideas:</strong> "Generate tweet ideas about startups"
+        <div style={{ fontSize: '11px' }}>
+          <strong>• Any site:</strong> "Help me navigate this page"
         </div>
       </div>
       <p style={{ 
-        fontSize: '12px', 
+        fontSize: '10px', 
         color: '#657786', 
-        marginTop: '16px',
+        marginTop: '12px',
         fontStyle: 'italic'
       }}>
         Configure your API keys in Settings ⚙️ to get started
@@ -117,7 +120,9 @@ const MessageList = ({ messages }) => {
       overflowY: 'auto', 
       display: 'flex', 
       flexDirection: 'column',
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      WebkitOverflowScrolling: 'touch',
+      scrollBehavior: 'smooth'
     }}>
       {messages.length === 0 && <WelcomeMessage />}
       
@@ -126,21 +131,21 @@ const MessageList = ({ messages }) => {
           <div>{message.content}</div>
           {message.actions && message.actions.length > 0 && (
             <div style={{ 
-              marginTop: '12px', 
-              fontSize: '12px', 
+              marginTop: '6px', 
+              fontSize: '10px', 
               opacity: 0.9,
               borderTop: '1px solid rgba(0,0,0,0.1)',
-              paddingTop: '8px'
+              paddingTop: '4px'
             }}>
-              <strong>Actions performed:</strong>
-              <div style={{ marginTop: '4px' }}>
+              <strong>Actions:</strong>
+              <div style={{ marginTop: '2px' }}>
                 {message.actions.map((action, i) => (
                   <div key={i} style={{ 
-                    margin: '2px 0',
-                    padding: '4px 8px',
+                    margin: '1px 0',
+                    padding: '2px 6px',
                     backgroundColor: action.success ? '#d4edda' : '#f8d7da',
-                    borderRadius: '8px',
-                    fontSize: '11px'
+                    borderRadius: '6px',
+                    fontSize: '9px'
                   }}>
                     {action.success ? '✅' : '❌'} {action.message || action.description}
                   </div>
@@ -149,9 +154,9 @@ const MessageList = ({ messages }) => {
             </div>
           )}
           <div style={{ 
-            fontSize: '11px', 
+            fontSize: '9px', 
             opacity: 0.6, 
-            marginTop: '4px',
+            marginTop: '2px',
             textAlign: message.type === 'user' ? 'right' : 'left'
           }}>
             {new Date(message.timestamp).toLocaleTimeString()}

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-const ChatInput = ({ onSendMessage, disabled, placeholder = "Ask me anything or request social media tasks..." }) => {
+const ChatInput = ({ onSendMessage, disabled, placeholder = "Ask me anything..." }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef(null);
 
@@ -21,12 +21,13 @@ const ChatInput = ({ onSendMessage, disabled, placeholder = "Ask me anything or 
 
   return (
     <div style={{ 
-      padding: '12px 16px', 
+      padding: '8px 10px', 
       borderTop: '1px solid #e1e8ed',
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      flexShrink: 0
     }}>
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
           <textarea
             ref={textareaRef}
             value={message}
@@ -34,32 +35,39 @@ const ChatInput = ({ onSendMessage, disabled, placeholder = "Ask me anything or 
             onKeyPress={handleKeyPress}
             placeholder={placeholder}
             disabled={disabled}
-            rows="2"
+            rows="1"
             style={{
               flex: 1,
-              padding: '12px 16px',
+              padding: '8px 12px',
               border: '1px solid #e1e8ed',
-              borderRadius: '20px',
+              borderRadius: '16px',
               resize: 'none',
-              fontSize: '14px',
+              fontSize: '13px',
               outline: 'none',
               fontFamily: 'inherit',
-              backgroundColor: disabled ? '#f7f9fa' : '#ffffff'
+              backgroundColor: disabled ? '#f7f9fa' : '#ffffff',
+              minHeight: '32px',
+              maxHeight: '80px',
+              lineHeight: '16px',
+              userSelect: 'text',
+              WebkitUserSelect: 'text'
             }}
           />
           <button 
             type="submit" 
             disabled={disabled || !message.trim()}
             style={{
-              padding: '12px 20px',
+              padding: '8px 14px',
               backgroundColor: disabled || !message.trim() ? '#e1e8ed' : '#1da1f2',
               color: disabled || !message.trim() ? '#657786' : 'white',
               border: 'none',
-              borderRadius: '20px',
+              borderRadius: '16px',
               cursor: disabled || !message.trim() ? 'not-allowed' : 'pointer',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              minWidth: '80px'
+              fontSize: '12px',
+              fontWeight: '600',
+              minWidth: '60px',
+              height: '32px',
+              lineHeight: '16px'
             }}
           >
             Send

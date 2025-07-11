@@ -269,6 +269,11 @@ const ChatInterface = () => {
     }
   };
 
+  // If settings is open, show full-page settings
+  if (showSettings) {
+    return <SettingsModal onClose={() => setShowSettings(false)} />;
+  }
+
   return (
     <div className="chat-interface" style={{ 
       width: '100vw',
@@ -277,65 +282,83 @@ const ChatInterface = () => {
       maxHeight: '600px',
       display: 'flex', 
       flexDirection: 'column',
-      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       backgroundColor: '#ffffff',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      WebkitTouchCallout: 'none',
+      touchAction: 'manipulation'
     }}>
-      {/* Header */}
+      {/* Fixed Header - Reduced height */}
       <div className="header" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: '12px 16px',
+        padding: '8px 12px',
         borderBottom: '1px solid #e1e8ed',
         backgroundColor: '#ffffff',
-        flexShrink: 0
+        flexShrink: 0,
+        height: '48px',
+        boxSizing: 'border-box'
       }}>
-        <div>
-          <h3 style={{ margin: 0, color: '#1da1f2', fontSize: '18px', fontWeight: 'bold' }}>
-            AI Social Agent
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h3 style={{ 
+            margin: 0, 
+            color: '#1da1f2', 
+            fontSize: '16px', 
+            fontWeight: '600',
+            lineHeight: '20px'
+          }}>
+            AI Chat Agent
           </h3>
           <div style={{ 
-            fontSize: '12px', 
+            fontSize: '10px', 
             color: getConnectionStatusColor(),
-            marginTop: '2px',
+            marginTop: '1px',
             display: 'flex',
             alignItems: 'center',
-            gap: '4px'
+            gap: '3px',
+            lineHeight: '12px'
           }}>
-            <span>●</span>
+            <span style={{ fontSize: '8px' }}>●</span>
             <span>{getConnectionStatusText()}</span>
             {isExecuting && <span>• Working...</span>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
           {isExecuting && (
             <button 
               onClick={handleStopExecution}
               style={{ 
-                padding: '6px 12px', 
+                padding: '4px 8px', 
                 backgroundColor: '#e0245e',
                 color: 'white',
                 border: 'none',
-                borderRadius: '16px',
+                borderRadius: '12px',
                 cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: 'bold'
+                fontSize: '10px',
+                fontWeight: '600',
+                lineHeight: '12px'
               }}
               title="Stop Execution"
             >
-              🛑 Stop
+              🛑
             </button>
           )}
           <button 
             onClick={handleNewChat}
             style={{ 
-              padding: '6px 12px', 
+              padding: '4px 8px', 
               backgroundColor: '#f7f9fa',
               border: '1px solid #e1e8ed',
-              borderRadius: '16px',
+              borderRadius: '12px',
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '12px',
+              lineHeight: '12px'
             }}
             title="New Chat"
           >
@@ -344,12 +367,13 @@ const ChatInterface = () => {
           <button 
             onClick={() => setShowSettings(true)}
             style={{ 
-              padding: '6px 12px',
+              padding: '4px 8px',
               backgroundColor: '#f7f9fa',
               border: '1px solid #e1e8ed',
-              borderRadius: '16px',
+              borderRadius: '12px',
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '12px',
+              lineHeight: '12px'
             }}
             title="Settings"
           >
@@ -358,27 +382,29 @@ const ChatInterface = () => {
         </div>
       </div>
 
-      {/* Task Status */}
+      {/* Task Status - Only if executing */}
       {isExecuting && taskStatus && <TaskStatus status={taskStatus} />}
 
-      {/* Messages */}
-      <MessageList messages={messages} />
+      {/* Scrollable Messages Area */}
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        minHeight: 0 
+      }}>
+        <MessageList messages={messages} />
+      </div>
 
-      {/* Input */}
+      {/* Fixed Input at Bottom */}
       <ChatInput 
         onSendMessage={handleSendMessage}
         disabled={connectionStatus !== 'connected'}
         placeholder={
           connectionStatus === 'connected' 
-            ? (isExecuting ? "Processing your request..." : "Ask me anything or request social media tasks...")
-            : "Connecting to AI service..."
+            ? (isExecuting ? "Processing..." : "Ask me anything...")
+            : "Connecting..."
         }
       />
-
-      {/* Settings Modal */}
-      {showSettings && (
-        <SettingsModal onClose={() => setShowSettings(false)} />
-      )}
     </div>
   );
 };

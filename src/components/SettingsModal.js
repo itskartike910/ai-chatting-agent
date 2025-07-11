@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig';
-import { AI_MODELS } from '../utils/constants';
 
 const SettingsModal = ({ onClose }) => {
   const { config, updateConfig } = useConfig();
@@ -44,7 +43,7 @@ const SettingsModal = ({ onClose }) => {
     }
   };
 
-  // Full page mobile-optimized styles
+  // Full page styles - exactly matching ChatInterface
   const containerStyle = {
     width: '100vw',
     height: '100vh',
@@ -52,49 +51,60 @@ const SettingsModal = ({ onClose }) => {
     maxHeight: '600px',
     display: 'flex', 
     flexDirection: 'column',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     backgroundColor: '#ffffff',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    touchAction: 'manipulation'
   };
 
   const headerStyle = {
     display: 'flex', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    padding: '12px 16px',
+    padding: '8px 12px',
     borderBottom: '1px solid #e1e8ed',
     backgroundColor: '#ffffff',
-    flexShrink: 0
+    flexShrink: 0,
+    height: '48px',
+    boxSizing: 'border-box'
   };
 
   const contentStyle = {
     flex: 1,
     overflowY: 'auto',
-    padding: '0'
+    padding: '0',
+    WebkitOverflowScrolling: 'touch'
   };
 
   const sectionStyle = {
-    padding: '16px',
+    padding: '12px',
     borderBottom: '1px solid #f7f9fa'
   };
 
   const labelStyle = {
     display: 'block',
-    marginBottom: '6px',
+    marginBottom: '4px',
     fontWeight: '600',
     color: '#14171a',
-    fontSize: '13px'
+    fontSize: '12px'
   };
 
   const inputStyle = {
     width: '100%',
-    padding: '10px 12px',
-    borderRadius: '8px',
+    padding: '8px 10px',
+    borderRadius: '6px',
     border: '1px solid #e1e8ed',
-    fontSize: '14px',
+    fontSize: '13px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    backgroundColor: '#ffffff'
+    backgroundColor: '#ffffff',
+    userSelect: 'text',
+    WebkitUserSelect: 'text'
   };
 
   const selectStyle = {
@@ -102,26 +112,26 @@ const SettingsModal = ({ onClose }) => {
     cursor: 'pointer',
     appearance: 'none',
     backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")',
-    backgroundPosition: 'right 8px center',
+    backgroundPosition: 'right 6px center',
     backgroundRepeat: 'no-repeat',
-    backgroundSize: '16px',
-    paddingRight: '32px'
+    backgroundSize: '14px',
+    paddingRight: '28px'
   };
 
   const checkboxContainerStyle = {
     display: 'flex', 
     alignItems: 'flex-start', 
-    gap: '10px',
-    padding: '10px',
+    gap: '8px',
+    padding: '8px',
     backgroundColor: '#f7f9fa',
     borderRadius: '6px',
-    marginBottom: '8px'
+    marginBottom: '6px'
   };
 
   const footerStyle = {
-    padding: '12px 16px',
+    padding: '8px 12px',
     display: 'flex', 
-    gap: '8px', 
+    gap: '6px', 
     borderTop: '1px solid #e1e8ed',
     backgroundColor: '#f7f9fa',
     flexShrink: 0
@@ -129,24 +139,36 @@ const SettingsModal = ({ onClose }) => {
 
   const buttonStyle = {
     flex: 1,
-    padding: '10px 16px', 
-    borderRadius: '8px', 
+    padding: '8px 14px', 
+    borderRadius: '6px', 
     cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
+    fontSize: '13px',
+    fontWeight: '600',
     border: 'none',
     textAlign: 'center'
   };
 
   return (
     <div style={containerStyle}>
-      {/* Header */}
+      {/* Header - matching ChatInterface */}
       <div style={headerStyle}>
-        <div>
-          <h3 style={{ margin: 0, color: '#14171a', fontSize: '18px', fontWeight: '700' }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h3 style={{ 
+            margin: 0, 
+            color: '#14171a', 
+            fontSize: '16px', 
+            fontWeight: '600',
+            lineHeight: '20px'
+          }}>
             ⚙️ Settings
           </h3>
-          <p style={{ margin: 0, color: '#657786', fontSize: '12px' }}>
+          <p style={{ 
+            margin: 0, 
+            color: '#657786', 
+            fontSize: '10px',
+            lineHeight: '12px',
+            marginTop: '1px'
+          }}>
             Configure AI models
           </p>
         </div>
@@ -156,29 +178,35 @@ const SettingsModal = ({ onClose }) => {
             background: '#f7f9fa', 
             border: '1px solid #e1e8ed',
             borderRadius: '6px',
-            width: '32px',
-            height: '32px',
+            width: '28px',
+            height: '28px',
             cursor: 'pointer',
             color: '#657786',
-            fontSize: '16px',
+            fontSize: '14px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            flexShrink: 0
           }}
         >
           ✕
         </button>
       </div>
 
-      {/* Content */}
+      {/* Scrollable Content */}
       <div style={contentStyle}>
         {/* AI Provider Section */}
         <div style={sectionStyle}>
-          <h4 style={{ color: '#14171a', marginBottom: '12px', fontSize: '15px', fontWeight: '600', margin: '0 0 12px 0' }}>
+          <h4 style={{ 
+            color: '#14171a', 
+            fontSize: '14px', 
+            fontWeight: '600', 
+            margin: '0 0 8px 0' 
+          }}>
             🤖 AI Provider
           </h4>
           
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '10px' }}>
             <label style={labelStyle}>
               Choose Provider:
             </label>
@@ -190,7 +218,6 @@ const SettingsModal = ({ onClose }) => {
                 const newConfig = {
                   ...localConfig, 
                   aiProvider: newProvider,
-                  // Reset to default models for the new provider
                   navigatorModel: availableModels[0]?.value,
                   plannerModel: availableModels[0]?.value,
                   validatorModel: availableModels[2]?.value || availableModels[1]?.value || availableModels[0]?.value
@@ -207,7 +234,7 @@ const SettingsModal = ({ onClose }) => {
 
           {/* API Key Input */}
           {localConfig.aiProvider === 'anthropic' && (
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <label style={labelStyle}>
                 Anthropic API Key:
               </label>
@@ -222,7 +249,7 @@ const SettingsModal = ({ onClose }) => {
           )}
 
           {localConfig.aiProvider === 'openai' && (
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <label style={labelStyle}>
                 OpenAI API Key:
               </label>
@@ -237,7 +264,7 @@ const SettingsModal = ({ onClose }) => {
           )}
 
           {localConfig.aiProvider === 'gemini' && (
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '10px' }}>
               <label style={labelStyle}>
                 Gemini API Key:
               </label>
@@ -248,7 +275,7 @@ const SettingsModal = ({ onClose }) => {
                 placeholder="AIza..."
                 style={inputStyle}
               />
-              <p style={{ fontSize: '11px', color: '#657786', margin: '4px 0 0 0' }}>
+              <p style={{ fontSize: '10px', color: '#657786', margin: '3px 0 0 0' }}>
                 Get from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#1da1f2' }}>Google AI Studio</a>
               </p>
             </div>
@@ -257,11 +284,16 @@ const SettingsModal = ({ onClose }) => {
 
         {/* Agent Models Section */}
         <div style={sectionStyle}>
-          <h4 style={{ color: '#14171a', marginBottom: '12px', fontSize: '15px', fontWeight: '600', margin: '0 0 12px 0' }}>
+          <h4 style={{ 
+            color: '#14171a', 
+            fontSize: '14px', 
+            fontWeight: '600', 
+            margin: '0 0 8px 0' 
+          }}>
             🧠 Agent Models
           </h4>
           
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '10px' }}>
             <label style={labelStyle}>
               🧭 Navigator (actions):
             </label>
@@ -284,7 +316,7 @@ const SettingsModal = ({ onClose }) => {
             </select>
           </div>
 
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '10px' }}>
             <label style={labelStyle}>
               📋 Planner (strategy):
             </label>
@@ -301,7 +333,7 @@ const SettingsModal = ({ onClose }) => {
             </select>
           </div>
 
-          <div style={{ marginBottom: '12px' }}>
+          <div style={{ marginBottom: '10px' }}>
             <label style={labelStyle}>
               ✅ Validator (check):
             </label>
@@ -321,19 +353,24 @@ const SettingsModal = ({ onClose }) => {
           <div style={{ 
             backgroundColor: '#e6f3ff', 
             border: '1px solid #b3d9ff',
-            borderRadius: '6px', 
-            padding: '8px', 
-            marginTop: '12px'
+            borderRadius: '4px', 
+            padding: '6px', 
+            marginTop: '8px'
           }}>
-            <p style={{ margin: 0, fontSize: '11px', color: '#0066cc' }}>
+            <p style={{ margin: 0, fontSize: '10px', color: '#0066cc' }}>
               💡 Use faster models (Haiku, Mini, Flash) for validation to save costs
             </p>
           </div>
         </div>
 
-        {/* Social Media Settings */}
+        {/* Preferences */}
         <div style={sectionStyle}>
-          <h4 style={{ color: '#14171a', marginBottom: '12px', fontSize: '15px', fontWeight: '600', margin: '0 0 12px 0' }}>
+          <h4 style={{ 
+            color: '#14171a', 
+            fontSize: '14px', 
+            fontWeight: '600', 
+            margin: '0 0 8px 0' 
+          }}>
             📱 Preferences
           </h4>
           
@@ -342,13 +379,13 @@ const SettingsModal = ({ onClose }) => {
               type="checkbox"
               checked={localConfig.autoLogin || false}
               onChange={(e) => setLocalConfig({...localConfig, autoLogin: e.target.checked})}
-              style={{ width: '16px', height: '16px', margin: '2px 0 0 0' }}
+              style={{ width: '14px', height: '14px', margin: '1px 0 0 0' }}
             />
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '500', color: '#14171a' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: '#14171a' }}>
                 🔐 Auto-login assistance
               </div>
-              <div style={{ fontSize: '11px', color: '#657786' }}>
+              <div style={{ fontSize: '10px', color: '#657786' }}>
                 Help fill login forms
               </div>
             </div>
@@ -359,13 +396,13 @@ const SettingsModal = ({ onClose }) => {
               type="checkbox"
               checked={localConfig.safeMode !== false}
               onChange={(e) => setLocalConfig({...localConfig, safeMode: e.target.checked})}
-              style={{ width: '16px', height: '16px', margin: '2px 0 0 0' }}
+              style={{ width: '14px', height: '14px', margin: '1px 0 0 0' }}
             />
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '500', color: '#14171a' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: '#14171a' }}>
                 🛡️ Safe mode
               </div>
-              <div style={{ fontSize: '11px', color: '#657786' }}>
+              <div style={{ fontSize: '10px', color: '#657786' }}>
                 Human-like delays
               </div>
             </div>
@@ -376,13 +413,13 @@ const SettingsModal = ({ onClose }) => {
               type="checkbox"
               checked={localConfig.debugMode || false}
               onChange={(e) => setLocalConfig({...localConfig, debugMode: e.target.checked})}
-              style={{ width: '16px', height: '16px', margin: '2px 0 0 0' }}
+              style={{ width: '14px', height: '14px', margin: '1px 0 0 0' }}
             />
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '500', color: '#14171a' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: '#14171a' }}>
                 🔍 Debug mode
               </div>
-              <div style={{ fontSize: '11px', color: '#657786' }}>
+              <div style={{ fontSize: '10px', color: '#657786' }}>
                 Show detailed logs
               </div>
             </div>
@@ -390,7 +427,7 @@ const SettingsModal = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Fixed Footer */}
       <div style={footerStyle}>
         <button 
           onClick={onClose}
