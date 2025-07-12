@@ -125,7 +125,8 @@ class BackgroundTaskManager {
         }
       };
 
-      await executor.execute(taskData.task, backgroundConnectionManager);
+      // Pass the initial plan if available
+      await executor.execute(taskData.task, backgroundConnectionManager, taskData.initialPlan);
 
     } catch (error) {
       console.error(`❌ BackgroundTaskManager error: ${taskId}`, error);
@@ -996,7 +997,7 @@ class UniversalMultiAgentExecutor {
     this.cancelled = false;
   }
 
-  async execute(userTask, connectionManager) {
+  async execute(userTask, connectionManager, initialPlan = null) {
     this.currentStep = 0;
     this.executionHistory = [];
     this.cancelled = false;
@@ -1033,13 +1034,20 @@ class UniversalMultiAgentExecutor {
         // 1. Get current state using Wootz API
         const currentState = await this.getCurrentState();
         
-        // 2. Planner Agent
-        connectionManager.broadcast({
-          type: 'status_update',
-          message: `🧠 Planning: Analyzing ${currentState.pageInfo?.domain || 'page'}...`
-        });
+        // 2. Planner Agent - use initial plan if provided and it's the first step
+        let plan;
+        if (initialPlan && this.currentStep === 1) {
+          console.log('🎯 Using intelligent initial plan from single API call');
+          plan = initialPlan;
+        } else {
+          connectionManager.broadcast({
+            type: 'status_update',
+            message: `🧠 Planning: Analyzing ${currentState.pageInfo?.domain || 'page'}...`
+          });
 
-        const plan = await this.planner.plan(userTask, currentState, this.executionHistory);
+          plan = await this.planner.plan(userTask, currentState, this.executionHistory);
+        }
+        
         console.log(`Step ${this.currentStep} Plan:`, plan);
 
         if (plan.done) {
@@ -1165,22 +1173,48 @@ class UniversalMultiAgentExecutor {
             console.log('🔍 Raw Wootz pageState:', pageState);
             console.log('🔍 Raw elements array:', pageState.elements);
             
+            // Fix: Parse the nested JSON structure correctly
+            let elements = [];
+            let parsedPageData = null;
+            
+            try {
+              // The actual data is in pageState.state.page_data as a JSON string
+              if (pageState.state && pageState.state.page_data) {
+                console.log('🔍 Raw page_data:', pageState.state.page_data);
+                parsedPageData = JSON.parse(pageState.state.page_data);
+                elements = parsedPageData.elements || [];
+                console.log('🔍 Parsed elements array:', elements);
+              } else {
+                console.log('📊 No page_data found in state');
+                elements = pageState.elements || [];
+              }
+            } catch (parseError) {
+              console.error('🔍 Failed to parse page_data JSON:', parseError);
+              elements = pageState.elements || [];
+            }
+            
+            console.log(`🔍 Found ${elements.length} raw elements from Wootz`);
+            
+            // Extract URL and title from parsed data or fallback to pageState
+            const url = parsedPageData?.url || pageState.url || 'unknown';
+            const title = parsedPageData?.title || pageState.title || 'Unknown Page';
+            
             const processedState = {
               pageInfo: {
-                url: pageState.url || 'unknown',
-                title: pageState.title || 'Unknown Page',
-                domain: this.extractDomain(pageState.url)
+                url: url,
+                title: title,
+                domain: this.extractDomain(url)
               },
               pageContext: { 
-                platform: this.detectPlatform(pageState.url),
-                pageType: this.determinePageType(pageState.url)
+                platform: this.detectPlatform(url),
+                pageType: this.determinePageType(url)
               },
               loginStatus: { 
-                isLoggedIn: this.checkBasicLoginStatus(pageState.url)
+                isLoggedIn: this.checkBasicLoginStatus(url)
               },
-              interactiveElements: this.processElementsFromWootz(pageState.elements || []),
+              interactiveElements: this.processElementsFromWootz(elements),
               viewportInfo: {},
-              extractedContent: `Wootz page state: ${pageState.elements?.length || 0} elements`
+              extractedContent: `Wootz page state: ${elements.length} elements`
             };
             
             console.log(`📊 Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
@@ -1753,7 +1787,7 @@ class BackgroundScriptAgent {
 
   async executeTaskWithBackgroundManager(task, taskId) {
     try {
-      console.log('🚀 Executing universal task with BackgroundTaskManager:', task, 'ID:', taskId);
+      console.log('🚀 Executing universal task with single AI call:', task, 'ID:', taskId);
       
       if (!this.llmService) {
         const config = await this.getConfig();
@@ -1762,28 +1796,62 @@ class BackgroundScriptAgent {
         this.taskRouter = new AITaskRouter(this.llmService);
       }
 
-      const classification = await this.taskRouter.analyzeAndRoute(task);
+      // Get current page context for better classification
+      const currentContext = await this.getCurrentPageContext();
       
-      if (classification.intent === 'CHAT') {
-        const result = await this.handleSimpleChat(task);
+      // Single API call for classification + response
+      console.log('🧠 Making single intelligent routing call...');
+      const intelligentResult = await this.taskRouter.analyzeAndRoute(task, currentContext);
+      
+      console.log('🎯 Intelligent result:', intelligentResult);
+
+      if (intelligentResult.intent === 'CHAT') {
+        // Handle chat response directly
+        const result = {
+          success: true,
+          response: intelligentResult.response.message,
+          message: intelligentResult.response.message,
+          confidence: intelligentResult.confidence
+        };
+        
         this.connectionManager.broadcast({
           type: 'task_complete',
           result: result,
           taskId: taskId
         });
+        
         this.activeTasks.delete(taskId);
+        this.connectionManager.setActiveTask(null);
+        return;
+      }
+      
+      if (intelligentResult.intent === 'WEB_AUTOMATION') {
+        // Handle web automation with the provided plan
+        console.log('🤖 Starting web automation with intelligent plan...');
+        
+        const initialPlan = {
+          observation: intelligentResult.response.observation,
+          done: intelligentResult.response.done || false,
+          strategy: intelligentResult.response.strategy,
+          next_action: intelligentResult.response.next_action,
+          reasoning: intelligentResult.response.reasoning,
+          completion_criteria: intelligentResult.response.completion_criteria
+        };
+
+        await this.backgroundTaskManager.startTask(
+          taskId, 
+          { task, initialPlan }, // Pass the initial plan
+          this.multiAgentExecutor, 
+          this.connectionManager
+        );
         return;
       }
 
-      await this.backgroundTaskManager.startTask(
-        taskId, 
-        { task }, 
-        this.multiAgentExecutor, 
-        this.connectionManager
-      );
+      // Fallback for unknown intent
+      throw new Error(`Unknown intent: ${intelligentResult.intent}`);
       
     } catch (error) {
-      console.error('Background task execution error:', error);
+      console.error('Intelligent task execution error:', error);
       
       this.connectionManager.broadcast({
         type: 'task_error',
@@ -1879,9 +1947,30 @@ class BackgroundScriptAgent {
       return { success: false, error: error.message };
     }
   }
+
+  // Add helper method to get current page context
+  async getCurrentPageContext() {
+    try {
+      // Get basic page info for context
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const currentTab = tabs[0];
+
+      return {
+        url: currentTab?.url || 'unknown',
+        title: currentTab?.title || 'Unknown Page',
+        elementsCount: 0 // Will be populated by actual page state later
+      };
+    } catch (error) {
+      return {
+        url: 'unknown',
+        title: 'Unknown Page', 
+        elementsCount: 0
+      };
+    }
+  }
 }
 
-// AI Task Router (keeping existing implementation)
+// Optimized AI Task Router - Single API Call for Classification + Response
 class AITaskRouter {
   constructor(llmService) {
     this.llmService = llmService;
@@ -1889,31 +1978,72 @@ class AITaskRouter {
 
   async analyzeAndRoute(userMessage, currentContext = {}) {
     try {
-      const classificationPrompt = `You are an intelligent intent classifier.
+      const intelligentPrompt = `You are an intelligent AI assistant that specializes in universal web automation and conversation.
 
-Analyze: "${userMessage}"
+# USER MESSAGE
+"${userMessage}"
 
-Respond with JSON only:
+# CURRENT CONTEXT
+- Current URL: ${currentContext.url || 'unknown'}
+- Page Elements: ${currentContext.elementsCount || 0} interactive elements available
+
+# RESPONSE FORMAT (JSON ONLY)
 {
   "intent": "CHAT|WEB_AUTOMATION",
   "confidence": 0.0-1.0,
-  "reasoning": "brief explanation"
+  "reasoning": "Brief explanation of classification",
+  "response": {
+    // For CHAT intent:
+    "message": "Your conversational response here",
+    // For WEB_AUTOMATION intent:
+    "observation": "Current situation analysis",
+    "done": false,
+    "strategy": "High-level approach to accomplish the task",
+    "next_action": "Specific next action to take",
+    "reasoning": "Why this approach will work",
+    "completion_criteria": "How to know when task is complete"
+  }
 }
 
-Rules:
-- CHAT: Greetings, questions, explanations ("hello", "what is", "how are you")
-- WEB_AUTOMATION: Any task involving websites ("open", "search", "click", "navigate", "post", "buy", etc.)`;
+# CLASSIFICATION RULES
+- **CHAT**: General questions, greetings, explanations, help requests, asking about capabilities
+  - Examples: "hello", "what is X?", "how are you?", "explain automation", "what can you do?", "how to post a tweet"
+  - Response: Provide helpful conversational response in "message" field
+
+- **WEB_AUTOMATION**: Specific action requests to perform tasks on websites
+  - Examples: "open YouTube", "post this tweet", "search for X and click", "navigate to", "buy this product"
+  - Response: Provide detailed automation plan in the web automation fields
+
+# IMPORTANT GUIDELINES
+- Use AI intelligence to decide the intent, don't rely on simple keyword matching
+- For CHAT: Be helpful, friendly, and informative about your automation capabilities
+- For WEB_AUTOMATION: Create actionable, step-by-step automation strategies
+- Always maintain high confidence (0.8+) for clear intents
+- Provide complete responses based on the classified intent`;
 
       const response = await this.llmService.call([
-        { role: 'user', content: classificationPrompt }
-      ], { maxTokens: 150 });
+        { role: 'user', content: intelligentPrompt }
+      ], { maxTokens: 800 });
 
-      const classification = this.parseJSONResponse(response);
-      return classification.intent ? classification : this.fallbackRouting(userMessage);
+      const result = this.parseJSONResponse(response);
+      
+      // Validate the response structure
+      if (!result.intent || !result.response) {
+        console.warn('Invalid AI response structure, using fallback');
+        return this.fallbackIntelligentResponse(userMessage);
+      }
+
+      console.log('🎯 Intelligent classification result:', {
+        intent: result.intent,
+        confidence: result.confidence,
+        reasoning: result.reasoning
+      });
+
+      return result;
 
     } catch (error) {
-      console.error('AI classification failed:', error);
-      return this.fallbackRouting(userMessage);
+      console.error('Intelligent routing failed:', error);
+      return this.fallbackIntelligentResponse(userMessage);
     }
   }
 
@@ -1923,38 +2053,47 @@ Rules:
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
     } catch (error) {
+      console.error('JSON parsing failed:', error);
       return {};
     }
   }
 
-  fallbackRouting(userMessage) {
+  fallbackIntelligentResponse(userMessage) {
+    // Intelligent fallback - analyze message content for intent
     const lowerMessage = userMessage.toLowerCase();
     
-    const webKeywords = ['open', 'go to', 'navigate', 'search', 'click', 'type', 'post', 'buy', 'find', 'visit'];
-    const chatKeywords = ['hello', 'hi', 'what', 'how', 'why', 'explain'];
+    // Action indicators for web automation
+    const actionWords = ['open', 'go', 'navigate', 'search', 'click', 'type', 'post', 'buy', 'find', 'visit', 'play', 'watch', 'scroll', 'fill'];
+    const hasActionWords = actionWords.some(word => lowerMessage.includes(word));
     
-    const hasWebKeywords = webKeywords.some(keyword => lowerMessage.includes(keyword));
-    const hasChatKeywords = chatKeywords.some(keyword => lowerMessage.includes(keyword));
+    // Conversational indicators
+    const chatWords = ['hello', 'hi', 'what', 'how', 'why', 'explain', 'tell me', 'can you', 'help'];
+    const hasChatWords = chatWords.some(word => lowerMessage.includes(word));
     
-    if (hasWebKeywords) {
+    if (hasActionWords && !hasChatWords) {
       return {
         intent: 'WEB_AUTOMATION',
         confidence: 0.7,
-        reasoning: 'Contains web automation keywords'
+        reasoning: 'Detected action words indicating web automation request',
+        response: {
+          observation: `User wants to: ${userMessage}`,
+          done: false,
+          strategy: 'Analyze current page and execute the requested web automation task',
+          next_action: 'Get current page state and determine appropriate actions',
+          reasoning: 'Detected automation request from user message',
+          completion_criteria: 'Task will be complete when user request is fulfilled'
+        }
       };
-    } else if (hasChatKeywords) {
+    } else {
       return {
         intent: 'CHAT',
         confidence: 0.8,
-        reasoning: 'Contains conversational keywords'
+        reasoning: 'Appears to be a conversational request or question',
+        response: {
+          message: `I understand you said: "${userMessage}"\n\nI'm your universal AI web automation assistant! I can help you with any website - YouTube, social media, shopping, research, and more.\n\nJust tell me what you want to do, like:\n• "Open YouTube and search for tutorials"\n• "Navigate to Amazon and find products"\n• "Post on social media"\n• "Fill out forms automatically"\n\nWhat would you like me to help you with?`
+        }
       };
     }
-    
-    return {
-      intent: 'CHAT',
-      confidence: 0.5,
-      reasoning: 'Default classification'
-    };
   }
 }
 
