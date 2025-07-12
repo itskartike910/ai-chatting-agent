@@ -115,6 +115,14 @@ class BackgroundTaskManager {
               this.taskResults.set(taskId, task);
               this.runningTasks.delete(taskId);
               
+              // Clear execution state from storage when task completes
+              chrome.storage.local.set({
+                isExecuting: false,
+                activeTaskId: null,
+                taskStartTime: null,
+                sessionId: null // Add this line
+              });
+              
               console.log(`✅ BackgroundTaskManager completed: ${taskId}`);
             }
             
@@ -130,6 +138,14 @@ class BackgroundTaskManager {
 
     } catch (error) {
       console.error(`❌ BackgroundTaskManager error: ${taskId}`, error);
+      
+      // Clear execution state from storage on error
+      chrome.storage.local.set({
+        isExecuting: false,
+        activeTaskId: null,
+        taskStartTime: null,
+        sessionId: null // Add this line
+      });
       
       const task = this.runningTasks.get(taskId);
       if (task) {
@@ -1604,55 +1620,128 @@ class PersistentConnectionManager {
     this.messageQueue = [];
     this.backgroundTaskManager = backgroundTaskManager;
     this.activeTask = null;
+    this.lastSentMessageId = new Map();
+    this.currentSessionId = null; // Track current session
   }
 
   addConnection(connectionId, port) {
     console.log(`🔗 Adding connection: ${connectionId}`);
     
+    // Ensure we have a current session
+    if (!this.currentSessionId) {
+      this.currentSessionId = Date.now().toString();
+      console.log(`🆕 Auto-created new session: ${this.currentSessionId}`);
+    }
+    
     this.connections.set(connectionId, {
       port: port,
       connected: true,
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
+      sessionId: this.currentSessionId
     });
 
-    if (this.messageQueue.length > 0) {
-      console.log(`📤 Sending ${this.messageQueue.length} queued messages`);
-      this.messageQueue.forEach(message => {
-        this.safePortMessage(port, message);
-      });
-      this.messageQueue = [];
-    }
+    // ONLY send messages from current session that haven't been sent to this specific connection
+    const lastSentId = this.lastSentMessageId.get(connectionId) || 0;
+    const newMessages = this.messageQueue.filter(msg => 
+      msg.id > lastSentId && 
+      msg.sessionId === this.currentSessionId && // Only current session messages
+      (msg.type === 'status_update' || 
+       msg.type === 'task_start' || 
+       msg.type === 'task_complete' || 
+       msg.type === 'task_error' ||
+       msg.type === 'task_cancelled')
+    );
 
-    if (this.activeTask) {
-      const recentMessages = this.backgroundTaskManager.getRecentMessages(this.activeTask, 3);
-      recentMessages.forEach(message => {
-        this.safePortMessage(port, message);
-      });
-    }
+    // IMPORTANT: Only send messages if there's an active task in this session
+    const executionState = chrome.storage.local.get(['isExecuting', 'activeTaskId', 'sessionId']);
+    executionState.then(state => {
+      if (state.isExecuting && state.sessionId === this.currentSessionId && newMessages.length > 0) {
+        console.log(`📤 Sending ${newMessages.length} active session messages to ${connectionId}`);
+        newMessages.forEach(message => {
+          this.safePortMessage(port, message);
+        });
+        
+        const latestMessageId = Math.max(...newMessages.map(msg => msg.id));
+        this.lastSentMessageId.set(connectionId, latestMessageId);
+      } else {
+        console.log(`📝 No active task or messages for connection ${connectionId}`);
+      }
+
+      // Send current execution state from storage
+      if (state.isExecuting && state.sessionId === this.currentSessionId) {
+        this.safePortMessage(port, {
+          type: 'execution_state',
+          isExecuting: true,
+          activeTaskId: state.activeTaskId,
+          sessionId: this.currentSessionId
+        });
+      }
+    });
   }
 
   removeConnection(connectionId) {
     console.log(`🔌 Removing connection: ${connectionId}`);
     this.connections.delete(connectionId);
+    // Keep the lastSentMessageId for potential reconnection within same session
   }
 
   broadcast(message) {
+    // Add unique ID and session ID to message
+    message.id = Date.now() + Math.random();
+    message.sessionId = this.currentSessionId;
+    
     let messageSent = false;
     
     this.connections.forEach((connection, connectionId) => {
       if (connection.connected && this.safePortMessage(connection.port, message)) {
         messageSent = true;
+        this.lastSentMessageId.set(connectionId, message.id);
       }
     });
 
-    this.messageQueue.unshift(message);
-    if (this.messageQueue.length > 20) {
-      this.messageQueue.pop();
+    // Add to queue for future connections (only current session)
+    this.messageQueue.push(message);
+    
+    // Keep only last 10 messages to prevent memory issues
+    if (this.messageQueue.length > 10) {
+      this.messageQueue = this.messageQueue.slice(-10);
     }
 
     if (!messageSent) {
       console.log('📦 Queued for background persistence:', message.type);
     }
+  }
+
+  // Start new session (called when new chat is created)
+  startNewSession() {
+    this.currentSessionId = Date.now().toString();
+    console.log(`🆕 Starting new session: ${this.currentSessionId}`);
+    
+    // Clear old messages from different sessions
+    this.messageQueue = this.messageQueue.filter(msg => 
+      msg.sessionId === this.currentSessionId
+    );
+    
+    // Clear last sent message tracking for new session
+    this.lastSentMessageId.clear();
+    
+    return this.currentSessionId;
+  }
+
+  // Get current session ID
+  getCurrentSession() {
+    if (!this.currentSessionId) {
+      this.currentSessionId = Date.now().toString();
+    }
+    return this.currentSessionId;
+  }
+
+  // Clear all messages (for new chat)
+  clearMessages() {
+    console.log('🧹 Clearing all messages for new chat');
+    this.messageQueue = []; // Clear ALL messages
+    this.lastSentMessageId.clear(); // Clear all tracking
+    this.startNewSession();
   }
 
   safePortMessage(port, message) {
@@ -1686,9 +1775,68 @@ class BackgroundScriptAgent {
     this.llmService = null;
     this.multiAgentExecutor = null;
     this.taskRouter = null;
+    this.currentConfig = null; // Track current config
     
     this.setupMessageHandlers();
+    this.setupConfigWatcher(); // Add config watcher
     console.log('✅ Universal BackgroundScriptAgent initialized with Wootz API integration');
+  }
+
+  // Add config watcher to detect changes
+  setupConfigWatcher() {
+    // Listen for storage changes
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+      if (namespace === 'sync' && changes.agentConfig) {
+        console.log('🔄 Config changed, reinitializing services...');
+        const newConfig = changes.agentConfig.newValue;
+        this.reinitializeServices(newConfig);
+      }
+    });
+  }
+
+  // Reinitialize services when config changes
+  async reinitializeServices(newConfig = null) {
+    try {
+      if (!newConfig) {
+        newConfig = await this.getConfig();
+      }
+      
+      // Only reinitialize if config actually changed
+      if (JSON.stringify(this.currentConfig) !== JSON.stringify(newConfig)) {
+        console.log('🔄 Reinitializing LLM services with new config');
+        console.log('📝 New provider:', newConfig.aiProvider);
+        
+        this.currentConfig = newConfig;
+        this.llmService = new RobustMultiLLM(newConfig);
+        this.multiAgentExecutor = new UniversalMultiAgentExecutor(this.llmService);
+        this.taskRouter = new AITaskRouter(this.llmService);
+        
+        // Broadcast config update to all connected clients
+        this.connectionManager.broadcast({
+          type: 'config_updated',
+          provider: newConfig.aiProvider,
+          hasValidKey: this.hasValidApiKey(newConfig)
+        });
+        
+        console.log('✅ Services reinitialized successfully');
+      }
+    } catch (error) {
+      console.error('❌ Failed to reinitialize services:', error);
+    }
+  }
+
+  // Check if current provider has valid API key
+  hasValidApiKey(config) {
+    switch (config.aiProvider) {
+      case 'anthropic':
+        return !!config.anthropicApiKey;
+      case 'openai':
+        return !!config.openaiApiKey;
+      case 'gemini':
+        return !!config.geminiApiKey;
+      default:
+        return false;
+    }
   }
 
   setupMessageHandlers() {
@@ -1742,10 +1890,20 @@ class BackgroundScriptAgent {
         this.activeTasks.set(taskId, { 
           task: message.task, 
           connectionId: connectionId,
-          startTime: Date.now()
+          startTime: Date.now(),
+          sessionId: this.connectionManager.getCurrentSession()
         });
         
         this.connectionManager.setActiveTask(taskId);
+        
+        // Store execution state in chrome.storage.local
+        await chrome.storage.local.set({
+          isExecuting: true,
+          activeTaskId: taskId,
+          taskStartTime: Date.now(),
+          sessionId: this.connectionManager.getCurrentSession()
+        });
+        
         await this.executeTaskWithBackgroundManager(message.task, taskId);
         break;
 
@@ -1756,6 +1914,14 @@ class BackgroundScriptAgent {
           const cancelled = this.backgroundTaskManager.cancelTask(activeTaskId);
           this.activeTasks.delete(activeTaskId);
           this.connectionManager.setActiveTask(null);
+          
+          // Clear execution state from storage
+          await chrome.storage.local.set({
+            isExecuting: false,
+            activeTaskId: null,
+            taskStartTime: null,
+            sessionId: null
+          });
           
           this.connectionManager.broadcast({
             type: 'task_cancelled',
@@ -1769,11 +1935,47 @@ class BackgroundScriptAgent {
         }
         break;
 
+      case 'new_chat':
+        console.log('🆕 Received new_chat request');
+        
+        // Cancel any running tasks
+        const currentActiveTask = this.connectionManager.getActiveTask();
+        if (currentActiveTask) {
+          this.backgroundTaskManager.cancelTask(currentActiveTask);
+          this.activeTasks.delete(currentActiveTask);
+        }
+        
+        // Clear execution state completely (but preserve config)
+        await chrome.storage.local.clear(); // Only clear local storage
+        // DON'T clear sync storage as it contains user config
+        
+        // Clear messages and start new session
+        this.connectionManager.clearMessages();
+        
+        // Reset connection manager state
+        this.connectionManager.setActiveTask(null);
+        
+        // Notify frontend that chat has been cleared
+        this.connectionManager.safePortMessage(port, {
+          type: 'chat_cleared',
+          sessionId: this.connectionManager.getCurrentSession()
+        });
+        
+        console.log(`✅ New chat started with session: ${this.connectionManager.getCurrentSession()}`);
+        break;
+
       case 'get_status':
         const status = await this.getAgentStatus();
+        
+        // Also send execution state from storage
+        const executionState = await chrome.storage.local.get(['isExecuting', 'activeTaskId', 'sessionId']);
+        
         this.connectionManager.safePortMessage(port, {
           type: 'status_response',
-          status: status
+          status: status,
+          isExecuting: executionState.isExecuting || false,
+          activeTaskId: executionState.activeTaskId || null,
+          sessionId: executionState.sessionId || this.connectionManager.getCurrentSession()
         });
         break;
 
@@ -1789,24 +1991,23 @@ class BackgroundScriptAgent {
     try {
       console.log('🚀 Executing universal task with single AI call:', task, 'ID:', taskId);
       
+      // Always get fresh config and reinitialize if needed
+      const config = await this.getConfig();
+      await this.reinitializeServices(config);
+      
+      // Ensure services are initialized
       if (!this.llmService) {
-        const config = await this.getConfig();
-        this.llmService = new RobustMultiLLM(config);
-        this.multiAgentExecutor = new UniversalMultiAgentExecutor(this.llmService);
-        this.taskRouter = new AITaskRouter(this.llmService);
+        throw new Error('LLM service not properly initialized. Please check your API key configuration.');
       }
 
-      // Get current page context for better classification
       const currentContext = await this.getCurrentPageContext();
       
-      // Single API call for classification + response
       console.log('🧠 Making single intelligent routing call...');
       const intelligentResult = await this.taskRouter.analyzeAndRoute(task, currentContext);
       
       console.log('🎯 Intelligent result:', intelligentResult);
 
       if (intelligentResult.intent === 'CHAT') {
-        // Handle chat response directly
         const result = {
           success: true,
           response: intelligentResult.response.message,
@@ -1822,11 +2023,18 @@ class BackgroundScriptAgent {
         
         this.activeTasks.delete(taskId);
         this.connectionManager.setActiveTask(null);
+        
+        // Clear execution state from storage
+        await chrome.storage.local.set({
+          isExecuting: false,
+          activeTaskId: null,
+          taskStartTime: null
+        });
+        
         return;
       }
       
       if (intelligentResult.intent === 'WEB_AUTOMATION') {
-        // Handle web automation with the provided plan
         console.log('🤖 Starting web automation with intelligent plan...');
         
         const initialPlan = {
@@ -1840,28 +2048,68 @@ class BackgroundScriptAgent {
 
         await this.backgroundTaskManager.startTask(
           taskId, 
-          { task, initialPlan }, // Pass the initial plan
+          { task, initialPlan },
           this.multiAgentExecutor, 
           this.connectionManager
         );
         return;
       }
 
-      // Fallback for unknown intent
       throw new Error(`Unknown intent: ${intelligentResult.intent}`);
       
     } catch (error) {
       console.error('Intelligent task execution error:', error);
       
+      // Clear execution state from storage on error
+      await chrome.storage.local.set({
+        isExecuting: false,
+        activeTaskId: null,
+        taskStartTime: null,
+        sessionId: null
+      });
+      
+      // Show the ACTUAL error to the user, not a generic message
+      let userFriendlyError = this.formatErrorForUser(error);
+      
       this.connectionManager.broadcast({
         type: 'task_error',
-        error: error.message,
-        taskId: taskId
+        error: userFriendlyError,
+        taskId: taskId,
+        originalError: error.message
       });
       
       this.activeTasks.delete(taskId);
       this.connectionManager.setActiveTask(null);
     }
+  }
+
+  // Add better error formatting
+  formatErrorForUser(error) {
+    const errorMessage = error.message || 'Unknown error';
+    
+    // Handle API-specific errors with more detail
+    if (errorMessage.includes('429')) {
+      return `⚠️ Rate limit exceeded. Please wait a moment and try again.\nDetails: ${errorMessage}`;
+    }
+    
+    if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
+      return `🚫 AI service temporarily unavailable. Please try again in a few minutes.\nDetails: ${errorMessage}`;
+    }
+    
+    if (errorMessage.includes('401') || errorMessage.includes('authentication') || errorMessage.includes('API key')) {
+      return `🔑 Authentication failed. Please check your API key in settings.\nDetails: ${errorMessage}`;
+    }
+    
+    if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
+      return `🚫 Access denied. Please check your API key permissions.\nDetails: ${errorMessage}`;
+    }
+    
+    if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
+      return `❌ Invalid request. Please try rephrasing your task.\nDetails: ${errorMessage}`;
+    }
+    
+    // For any other error, show the actual error message
+    return `❌ Error: ${errorMessage}`;
   }
 
   async handleSimpleChat(task) {
@@ -1939,10 +2187,13 @@ class BackgroundScriptAgent {
 
   async updateConfig(config) {
     try {
+      // Save to sync storage
       await chrome.storage.sync.set({ agentConfig: config });
-      this.llmService = new RobustMultiLLM(config);
-      this.multiAgentExecutor = new UniversalMultiAgentExecutor(this.llmService);
-      return { success: true, message: 'Configuration updated' };
+      
+      // Immediately reinitialize services
+      await this.reinitializeServices(config);
+      
+      return { success: true, message: 'Configuration updated and applied' };
     } catch (error) {
       return { success: false, error: error.message };
     }
@@ -2043,7 +2294,8 @@ class AITaskRouter {
 
     } catch (error) {
       console.error('Intelligent routing failed:', error);
-      return this.fallbackIntelligentResponse(userMessage);
+      // DON'T use fallback - throw the actual error so user sees it
+      throw error;
     }
   }
 

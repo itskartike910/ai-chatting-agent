@@ -53,6 +53,36 @@ const ChatInterface = () => {
               setConnectionStatus('connected');
               isConnectingRef.current = false;
               console.log('Connection established');
+              
+              // Request current status including execution state
+              portRef.current.postMessage({ type: 'get_status' });
+              break;
+
+            case 'status_response':
+              // Handle execution state from background
+              if (message.isExecuting) {
+                setIsExecuting(true);
+                setTaskStatus({ status: 'executing', message: 'Task in progress...' });
+              }
+              break;
+
+            case 'execution_state':
+              // Handle execution state sent on connection
+              if (message.isExecuting) {
+                setIsExecuting(true);
+                setTaskStatus({ status: 'executing', message: 'Task in progress...' });
+              }
+              break;
+
+            case 'config_updated':
+              console.log('🔄 Config updated:', message.provider);
+              break;
+
+            case 'chat_cleared':
+              console.log('Chat cleared by background, session:', message.sessionId);
+              // Additional cleanup if needed
+              setTaskStatus(null);
+              setIsExecuting(false);
               break;
 
             case 'task_start':
@@ -247,8 +277,22 @@ const ChatInterface = () => {
   };
 
   const handleNewChat = () => {
+    // Clear local messages first
     clearMessages();
     setTaskStatus(null);
+    setIsExecuting(false);
+    
+    // Send new_chat message to background to clear backend state
+    if (portRef.current && connectionStatus === 'connected') {
+      try {
+        console.log('Sending new_chat message to background');
+        portRef.current.postMessage({
+          type: 'new_chat'
+        });
+      } catch (error) {
+        console.error('Error sending new_chat message:', error);
+      }
+    }
   };
 
   const getConnectionStatusColor = () => {
@@ -330,25 +374,6 @@ const ChatInterface = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-          {isExecuting && (
-            <button 
-              onClick={handleStopExecution}
-              style={{ 
-                padding: '4px 8px', 
-                backgroundColor: '#e0245e',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontSize: '10px',
-                fontWeight: '600',
-                lineHeight: '12px'
-              }}
-              title="Stop Execution"
-            >
-              🛑
-            </button>
-          )}
           <button 
             onClick={handleNewChat}
             style={{ 
@@ -395,9 +420,11 @@ const ChatInterface = () => {
         <MessageList messages={messages} />
       </div>
 
-      {/* Fixed Input at Bottom */}
+      {/* Fixed Input at Bottom - Pass stop handler and execution state */}
       <ChatInput 
         onSendMessage={handleSendMessage}
+        onStopExecution={handleStopExecution}
+        isExecuting={isExecuting}
         disabled={connectionStatus !== 'connected'}
         placeholder={
           connectionStatus === 'connected' 

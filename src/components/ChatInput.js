@@ -1,78 +1,133 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
-const ChatInput = ({ onSendMessage, disabled, placeholder = "Ask me anything..." }) => {
+const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, placeholder }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef(null);
 
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 100) + 'px';
+    }
+  }, [message]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim() && !disabled) {
+    if (message.trim() && !disabled && !isExecuting) {
       onSendMessage(message.trim());
       setMessage('');
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleStop = (e) => {
+    e.preventDefault();
+    if (onStopExecution && isExecuting) {
+      onStopExecution();
+    }
+  };
+
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e);
+      if (isExecuting) {
+        handleStop(e);
+      } else {
+        handleSubmit(e);
+      }
     }
   };
 
   return (
     <div style={{ 
-      padding: '8px 10px', 
+      padding: '8px 12px',
       borderTop: '1px solid #e1e8ed',
       backgroundColor: '#ffffff',
       flexShrink: 0
     }}>
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px' }}>
+      <form onSubmit={isExecuting ? handleStop : handleSubmit} style={{ 
+        display: 'flex', 
+        gap: '8px',
+        alignItems: 'flex-end'
+      }}>
+        <div style={{ flex: 1, position: 'relative' }}>
           <textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            rows="1"
             style={{
-              flex: 1,
+              width: '100%',
+              minHeight: '36px',
+              maxHeight: '100px',
               padding: '8px 12px',
               border: '1px solid #e1e8ed',
-              borderRadius: '16px',
+              borderRadius: '18px',
               resize: 'none',
-              fontSize: '13px',
-              outline: 'none',
+              fontSize: '14px',
+              lineHeight: '20px',
               fontFamily: 'inherit',
+              outline: 'none',
               backgroundColor: disabled ? '#f7f9fa' : '#ffffff',
-              minHeight: '32px',
-              maxHeight: '80px',
-              lineHeight: '16px',
-              userSelect: 'text',
-              WebkitUserSelect: 'text'
+              color: disabled ? '#657786' : '#14171a',
+              boxSizing: 'border-box',
+              overflow: 'hidden'
             }}
+            rows={1}
           />
-          <button 
-            type="submit" 
-            disabled={disabled || !message.trim()}
+        </div>
+        
+        {/* Conditional button - either Send or Stop */}
+        {isExecuting ? (
+          <button
+            type="button"
+            onClick={handleStop}
             style={{
-              padding: '8px 14px',
-              backgroundColor: disabled || !message.trim() ? '#e1e8ed' : '#1da1f2',
-              color: disabled || !message.trim() ? '#657786' : 'white',
+              padding: '8px 16px',
+              backgroundColor: '#e0245e',
+              color: 'white',
               border: 'none',
-              borderRadius: '16px',
-              cursor: disabled || !message.trim() ? 'not-allowed' : 'pointer',
-              fontSize: '12px',
+              borderRadius: '18px',
+              cursor: 'pointer',
+              fontSize: '14px',
               fontWeight: '600',
               minWidth: '60px',
-              height: '32px',
-              lineHeight: '16px'
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
             }}
+            title="Stop Execution"
           >
-            Send
+            🛑 Stop
           </button>
-        </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={!message.trim() || disabled}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: (!message.trim() || disabled) ? '#e1e8ed' : '#1da1f2',
+              color: (!message.trim() || disabled) ? '#657786' : 'white',
+              border: 'none',
+              borderRadius: '18px',
+              cursor: (!message.trim() || disabled) ? 'default' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              minWidth: '60px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px'
+            }}
+            title="Send Message"
+          >
+            ➤ Send
+          </button>
+        )}
       </form>
     </div>
   );

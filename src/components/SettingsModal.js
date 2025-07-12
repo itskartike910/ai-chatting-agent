@@ -9,9 +9,43 @@ const SettingsModal = ({ onClose }) => {
     setLocalConfig(config);
   }, [config]);
 
-  const handleSave = () => {
-    updateConfig(localConfig);
-    onClose();
+  const handleSave = async () => {
+    try {
+      console.log('💾 Saving configuration...');
+      
+      // Show saving state
+      const saveButton = document.querySelector('[data-save-button]');
+      if (saveButton) {
+        saveButton.textContent = '💾 Saving...';
+        saveButton.disabled = true;
+      }
+      
+      // Update config
+      await updateConfig(localConfig);
+      
+      // Show success briefly
+      if (saveButton) {
+        saveButton.textContent = '✅ Saved!';
+        setTimeout(() => {
+          onClose();
+        }, 500);
+      } else {
+        onClose();
+      }
+      
+    } catch (error) {
+      console.error('Failed to save config:', error);
+      
+      // Show error
+      const saveButton = document.querySelector('[data-save-button]');
+      if (saveButton) {
+        saveButton.textContent = '❌ Error';
+        saveButton.disabled = false;
+        setTimeout(() => {
+          saveButton.textContent = '💾 Save';
+        }, 2000);
+      }
+    }
   };
 
   // Get available models based on provider
@@ -441,6 +475,7 @@ const SettingsModal = ({ onClose }) => {
           Cancel
         </button>
         <button 
+          data-save-button
           onClick={handleSave}
           style={{ 
             ...buttonStyle,
