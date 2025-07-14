@@ -36,9 +36,9 @@ class ProceduralMemoryManager {
   }
 
   createProceduralSummary() {
-    const recentMessages = this.messages.slice(-4);
+    const recentMessages = this.messages.slice(-5);
     const summary = {
-      steps: `${Math.max(0, this.stepCounter - 4)}-${this.stepCounter}`,
+      steps: `${Math.max(0, this.stepCounter - 5)}-${this.stepCounter}`,
       actions: recentMessages.map(m => m.action || 'action').join(' → '),
       findings: recentMessages.map(m => this.ensureString(m.content)).join(' '),
       timestamp: Date.now()
@@ -52,7 +52,7 @@ class ProceduralMemoryManager {
 
   getContext() {
     return {
-      recentMessages: this.messages.slice(-3).map(m => ({
+      recentMessages: this.messages.slice(-5).map(m => ({
         ...m,
         content: this.ensureString(m.content)
       })),
@@ -163,7 +163,7 @@ class BackgroundTaskManager {
     return this.runningTasks.get(taskId) || this.taskResults.get(taskId) || null;
   }
 
-  getRecentMessages(taskId, limit = 10) {
+  getRecentMessages(taskId, limit = 20) {
     const task = this.getTaskStatus(taskId);
     return task?.messages?.slice(-limit) || [];
   }
@@ -515,19 +515,20 @@ class UniversalPlannerAgent {
     const proceduralHistory = this.formatProceduralSummaries(context.proceduralSummaries);
     const progressAnalysis = this.analyzeProgress(context, executionHistory);
     
-    const plannerPrompt = `You are an intelligent web automation planner. Analyze the current page state and create a strategic plan to accomplish the user's task.
+    const plannerPrompt = `You are an intelligent MOBILE web automation planner. Analyze the current mobile page state and create a strategic plan to accomplish the user's task.
 
 # USER TASK
 "${userTask}"
 
-# CURRENT PAGE STATE
+# CURRENT MOBILE PAGE STATE
 - URL: ${currentState.pageInfo?.url || 'unknown'}
 - Title: ${currentState.pageInfo?.title || 'unknown'}  
 - Domain: ${this.extractDomain(currentState.pageInfo?.url)}
 - Interactive Elements: ${currentState.interactiveElements?.length || 0} available
+- Platform: MOBILE BROWSER (touch interface, responsive design)
 
-# AVAILABLE ELEMENTS (Top 15)
-${this.formatElements(currentState.interactiveElements?.slice(0, 15) || [])}
+# AVAILABLE MOBILE ELEMENTS (All available)
+${this.formatElements(currentState.interactiveElements || [])}
 
 # EXECUTION PROGRESS
 - Current Step: ${context.currentStep}
@@ -540,8 +541,8 @@ ${recentActions}
 # PROCEDURAL HISTORY
 ${proceduralHistory}
 
-# EXECUTION HISTORY (Recent 3 steps)
-${executionHistory.slice(-3).map((h, i) => `Step ${h.step}: ${h.success ? '✅' : '❌'} ${h.navigation || 'Unknown action'}`).join('\n') || 'No previous steps'}
+# EXECUTION HISTORY (Recent 5 steps)
+${executionHistory.slice(-5).map((h, i) => `Step ${h.step}: ${h.success ? '✅' : '❌'} ${h.navigation || 'Unknown action'}`).join('\n') || 'No previous steps'}
 
 # RESPONSE FORMAT (NO BACKTICKS OR MARKDOWN)
 {
@@ -620,7 +621,7 @@ ${executionHistory.slice(-3).map((h, i) => `Step ${h.step}: ${h.success ? '✅' 
     const analysis = [];
     
     // Detect if we're stuck in a loop
-    const recentActions = executionHistory.slice(-3).map(h => h.navigation);
+    const recentActions = executionHistory.slice(-5).map(h => h.navigation);
     const uniqueActions = new Set(recentActions);
     if (recentActions.length >= 3 && uniqueActions.size === 1) {
       analysis.push('⚠️ LOOP DETECTED: Same action repeated multiple times');
@@ -696,6 +697,9 @@ ${executionHistory.slice(-3).map((h, i) => `Step ${h.step}: ${h.success ? '✅' 
   cleanJSONResponse(response) {
     let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
     
+    // Fix: Clean control characters from JSON strings
+    cleaned = cleaned.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
+    
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
   }
@@ -717,17 +721,18 @@ class UniversalNavigatorAgent {
     const actionHistory = this.analyzeActionHistory(context, currentState);
     const sequenceGuidance = this.getSequenceGuidance(context.recentMessages);
     
-    const navigatorPrompt = `You are a web navigation specialist. Execute the planned action using available page elements and actions.
+    const navigatorPrompt = `You are a MOBILE web navigation specialist. Execute the planned action using available mobile page elements and actions.
 
 # PLAN TO EXECUTE
 Strategy: ${plan.strategy}
 Next Action: ${plan.next_action}
 Reasoning: ${plan.reasoning}
 
-# CURRENT PAGE STATE
+# CURRENT MOBILE PAGE STATE
 URL: ${currentState.pageInfo?.url}
 Title: ${currentState.pageInfo?.title}
 Domain: ${this.extractDomain(currentState.pageInfo?.url)}
+Platform: MOBILE BROWSER (touch interface, responsive design)
 
 # EXECUTION CONTEXT
 - Current Step: ${context.currentStep}
@@ -742,7 +747,7 @@ ${actionHistory}
 # SEQUENCE GUIDANCE
 ${sequenceGuidance}
 
-# AVAILABLE ELEMENTS
+# AVAILABLE MOBILE ELEMENTS (All Interactive)
 ${this.formatElementsWithDetails(currentState.interactiveElements || [])}
 
 # AVAILABLE ACTIONS
@@ -953,7 +958,7 @@ Only use elements that are actually present in the current page state above!`;
       if (!availableIndexes.includes(action.parameters.index)) {
         return {
           isValid: false,
-          reason: `Element index ${action.parameters.index} not found. Available: ${availableIndexes.slice(0, 10).join(', ')}`
+          reason: `Element index ${action.parameters.index} not found. Available: ${availableIndexes.slice(0, 20).join(', ')}`
         };
       }
     }
@@ -995,7 +1000,7 @@ Only use elements that are actually present in the current page state above!`;
   formatElementsWithDetails(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
-    return elements.slice(0, 20).map(el => {
+    return elements.slice(0, 30).map(el => {
       let description = `[${el.index}] ${el.tagName?.toLowerCase() || 'element'}`;
       
       if (el.elementType) description += ` (${el.elementType})`;
@@ -1021,6 +1026,9 @@ Only use elements that are actually present in the current page state above!`;
 
   cleanJSONResponse(response) {
     let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
+    
+    // Fix: Clean control characters from JSON strings
+    cleaned = cleaned.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
     
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
@@ -1104,7 +1112,7 @@ ${executionHistory.map((h, i) => `Step ${i + 1}: ${h.navigation || 'action'} - $
 - Available Elements: ${finalState.interactiveElements?.length || 0}
 
 # VISIBLE PAGE ELEMENTS (for context)
-${this.formatElements(finalState.interactiveElements?.slice(0, 10) || [])}
+${this.formatElements(finalState.interactiveElements?.slice(0, 20) || [])}
 
 # RESPONSE FORMAT (JSON only)
 {
@@ -1168,6 +1176,9 @@ ${this.formatElements(finalState.interactiveElements?.slice(0, 10) || [])}
 
   cleanJSONResponse(response) {
     let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
+    
+    // Fix: Clean control characters from JSON strings
+    cleaned = cleaned.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
     
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
@@ -1596,33 +1607,23 @@ class UniversalMultiAgentExecutor {
     
     console.log(`🔍 Processing ${elements.length} raw elements from Wootz`);
     
-    // Remove the isInteractive filter since Wootz API only returns interactive elements
-    const processed = elements
-      .filter(el => el && el.index !== undefined) // Only filter out null/undefined elements
-      .map((el, arrayIndex) => {
-        const processed = {
-          index: el.index !== undefined ? el.index : arrayIndex,
-          arrayIndex: arrayIndex,
-          tagName: el.tagName || 'UNKNOWN',
-          text: el.textContent || el.text || el.innerText || '',
-          ariaLabel: el.ariaLabel || el.label || '',
-          elementType: this.categorizeElementType(el),
-          isLoginElement: this.isLoginRelatedElement(el),
-          isPostElement: this.isPostRelatedElement(el),
-          isVisible: el.isVisible !== false,
-          bounds: el.bounds || el.rect || {},
-          selector: el.selector || this.generateSimpleSelector(el),
-          originalElement: el
-        };
-        
-        // Debug log first few elements
-        if (arrayIndex < 3) {
-          console.log(`🔍 Processed element ${arrayIndex}:`, processed);
-        }
-        
-        return processed;
-      })
-      .slice(0, 30);
+    // Process ALL elements - no filtering since Wootz API already sends only interactive elements
+    const processed = elements.map((el, arrayIndex) => {
+      return {
+        index: el.index !== undefined ? el.index : arrayIndex,
+        arrayIndex: arrayIndex,
+        tagName: el.tagName || 'UNKNOWN',
+        text: el.textContent || el.text || el.innerText || '',
+        ariaLabel: el.ariaLabel || el.label || '',
+        elementType: this.categorizeElementType(el),
+        isLoginElement: this.isLoginRelatedElement(el),
+        isPostElement: this.isPostRelatedElement(el),
+        isVisible: el.isVisible !== false,
+        bounds: el.bounds || el.rect || {},
+        selector: el.selector || this.generateSimpleSelector(el),
+        originalElement: el
+      };
+    });
     
     console.log(`📊 Processed ${processed.length} elements successfully`);
     return processed;
@@ -2031,9 +2032,9 @@ class PersistentConnectionManager {
     // Add to queue for future connections (only current session)
     this.messageQueue.push(message);
     
-    // Keep only last 10 messages to prevent memory issues
-    if (this.messageQueue.length > 10) {
-      this.messageQueue = this.messageQueue.slice(-10);
+    // Keep only last 20 messages to prevent memory issues
+    if (this.messageQueue.length > 20) {
+      this.messageQueue = this.messageQueue.slice(-20);
     }
 
     if (!messageSent) {
@@ -2562,7 +2563,7 @@ class AITaskRouter {
     this.userMessage = userMessage;
     
     try {
-      const intelligentPrompt = `You are an intelligent AI assistant that specializes in universal web automation and conversation.
+      const intelligentPrompt = `You are an intelligent AI assistant that specializes in mobile web automation and conversation.
 
 # USER MESSAGE
 "${userMessage}"
@@ -2570,6 +2571,7 @@ class AITaskRouter {
 # CURRENT CONTEXT
 - Current URL: ${currentContext.url || 'unknown'}
 - Page Elements: ${currentContext.elementsCount || 0} interactive elements available
+- Platform: MOBILE BROWSER (mobile-optimized interfaces)
 
 # RESPONSE FORMAT
 Use this EXACT format with special delimiters to avoid JSON parsing issues:
@@ -2588,9 +2590,9 @@ For WEB_AUTOMATION intent - provide JSON:
 {
   "observation": "Current situation analysis",
   "done": false,
-  "strategy": "High-level approach",
-  "next_action": "Specific next action",
-  "reasoning": "Why this approach will work",
+  "strategy": "High-level mobile-optimized approach",
+  "next_action": "Specific next action for mobile interface",
+  "reasoning": "Why this mobile approach will work",
   "completion_criteria": "How to know when complete"
 }
 ===RESPONSE_END===
@@ -2668,6 +2670,9 @@ Always provide complete, well-formatted responses!`;
       } else {
         // Clean the response text for JSON parsing - REMOVE ALL BACKTICKS
         responseText = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/`/g, '');
+        
+        // Fix: Clean control characters from JSON strings
+        responseText = responseText.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
         
         // Try to parse as JSON for web automation
         try {
