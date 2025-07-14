@@ -17,6 +17,24 @@ const ChatInterface = () => {
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
 
+  // Helper function to detect markdown content
+  const hasMarkdownContent = (content) => {
+    if (!content || typeof content !== 'string') return false;
+    
+    // Check for common markdown patterns
+    const markdownPatterns = [
+      /```[\s\S]*?```/,  // Code blocks
+      /`[^`]+`/,         // Inline code
+      /\*\*[^*]+\*\*/,   // Bold
+      /\*[^*]+\*/,       // Italic
+      /^#{1,3}\s+/m,     // Headers
+      /^\s*[-*+]\s+/m,   // Bullet points
+      /^\s*\d+\.\s+/m    // Numbered lists
+    ];
+    
+    return markdownPatterns.some(pattern => pattern.test(content));
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -110,10 +128,14 @@ const ChatInterface = () => {
             case 'task_complete':
               setIsExecuting(false);
               setTaskStatus({ status: 'completed', message: 'Task completed!' });
+              
+              const responseContent = message.result.response || message.result.message;
+              
               addMessage({
                 type: 'assistant',
-                content: message.result.response || message.result.message,
+                content: responseContent,
                 timestamp: Date.now(),
+                isMarkdown: message.result.isMarkdown || hasMarkdownContent(responseContent), // Use flag from backend first
                 actions: message.result.actions
               });
               break;
@@ -221,6 +243,7 @@ const ChatInterface = () => {
         }
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSendMessage = async (message) => {

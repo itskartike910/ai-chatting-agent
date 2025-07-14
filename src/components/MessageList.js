@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MessageList = ({ messages }) => {
   const messagesEndRef = useRef(null);
@@ -39,7 +41,8 @@ const MessageList = ({ messages }) => {
           color: '#14171a',
           alignSelf: 'flex-start',
           border: '1px solid #e1e8ed',
-          borderBottomLeftRadius: '4px'
+          borderBottomLeftRadius: '4px',
+          textAlign: 'left' // Ensure left alignment for assistant messages
         };
       case 'system':
         return {
@@ -69,6 +72,144 @@ const MessageList = ({ messages }) => {
       default:
         return baseStyle;
     }
+  };
+
+  // Custom markdown components with proper styling
+  const markdownComponents = {
+    // Code blocks
+    pre: ({ children }) => (
+      <pre style={{
+        backgroundColor: '#f6f8fa',
+        border: '1px solid #e1e4e8',
+        borderRadius: '6px',
+        padding: '12px',
+        overflow: 'auto',
+        margin: '8px 0',
+        fontSize: '11px',
+        lineHeight: '1.4'
+      }}>
+        {children}
+      </pre>
+    ),
+    // Inline code
+    code: ({ node, inline, children, ...props }) => (
+      inline ? (
+        <code style={{
+          backgroundColor: '#f6f8fa',
+          padding: '2px 4px',
+          borderRadius: '3px',
+          fontSize: '11px',
+          fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace'
+        }} {...props}>
+          {children}
+        </code>
+      ) : (
+        <code style={{
+          fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
+          fontSize: '11px'
+        }} {...props}>
+          {children}
+        </code>
+      )
+    ),
+    // Headers
+    h1: ({ children }) => (
+      <h1 style={{
+        fontSize: '16px',
+        fontWeight: '600',
+        margin: '12px 0 8px 0',
+        color: '#14171a'
+      }}>
+        {children}
+      </h1>
+    ),
+    h2: ({ children }) => (
+      <h2 style={{
+        fontSize: '14px',
+        fontWeight: '600',
+        margin: '12px 0 8px 0',
+        color: '#14171a'
+      }}>
+        {children}
+      </h2>
+    ),
+    h3: ({ children }) => (
+      <h3 style={{
+        fontSize: '13px',
+        fontWeight: '600',
+        margin: '12px 0 8px 0',
+        color: '#14171a'
+      }}>
+        {children}
+      </h3>
+    ),
+    // Strong/Bold
+    strong: ({ children }) => (
+      <strong style={{
+        fontWeight: '600',
+        color: '#14171a'
+      }}>
+        {children}
+      </strong>
+    ),
+    // Emphasis/Italic
+    em: ({ children }) => (
+      <em style={{
+        fontStyle: 'italic',
+        color: '#586069'
+      }}>
+        {children}
+      </em>
+    ),
+    // Unordered lists
+    ul: ({ children }) => (
+      <ul style={{
+        margin: '8px 0',
+        paddingLeft: '20px'
+      }}>
+        {children}
+      </ul>
+    ),
+    // Ordered lists
+    ol: ({ children }) => (
+      <ol style={{
+        margin: '8px 0',
+        paddingLeft: '20px'
+      }}>
+        {children}
+      </ol>
+    ),
+    // List items
+    li: ({ children }) => (
+      <li style={{
+        margin: '2px 0',
+        fontSize: '13px',
+        lineHeight: '1.4'
+      }}>
+        {children}
+      </li>
+    ),
+    // Paragraphs
+    p: ({ children }) => (
+      <p style={{
+        margin: '8px 0',
+        lineHeight: '1.5'
+      }}>
+        {children}
+      </p>
+    ),
+    // Blockquotes
+    blockquote: ({ children }) => (
+      <blockquote style={{
+        borderLeft: '4px solid #e1e4e8',
+        paddingLeft: '12px',
+        margin: '8px 0',
+        fontStyle: 'italic',
+        color: '#586069'
+      }}>
+        {children}
+      </blockquote>
+    )
   };
 
   const WelcomeMessage = () => (
@@ -128,7 +269,20 @@ const MessageList = ({ messages }) => {
       
       {messages.map((message, index) => (
         <div key={index} style={getMessageStyle(message.type)}>
-          <div>{message.content}</div>
+          {/* Render content with proper markdown support */}
+          <div style={{ textAlign: 'left', width: '100%' }}>
+            {message.isMarkdown ? (
+              <ReactMarkdown 
+                components={markdownComponents}
+                remarkPlugins={[remarkGfm]}
+                style={{ textAlign: 'left' }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            ) : (
+              message.content
+            )}
+          </div>
           {message.actions && message.actions.length > 0 && (
             <div style={{ 
               marginTop: '6px', 

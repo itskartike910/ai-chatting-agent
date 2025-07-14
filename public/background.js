@@ -510,6 +510,11 @@ class UniversalPlannerAgent {
   async plan(userTask, currentState, executionHistory) {
     const context = this.memoryManager.getContext();
     
+    // Enhanced context analysis
+    const recentActions = this.formatRecentActions(context.recentMessages);
+    const proceduralHistory = this.formatProceduralSummaries(context.proceduralSummaries);
+    const progressAnalysis = this.analyzeProgress(context, executionHistory);
+    
     const plannerPrompt = `You are an intelligent web automation planner. Analyze the current page state and create a strategic plan to accomplish the user's task.
 
 # USER TASK
@@ -524,30 +529,41 @@ class UniversalPlannerAgent {
 # AVAILABLE ELEMENTS (Top 15)
 ${this.formatElements(currentState.interactiveElements?.slice(0, 15) || [])}
 
-# EXECUTION HISTORY
+# EXECUTION PROGRESS
+- Current Step: ${context.currentStep}
+- Steps Completed: ${executionHistory.length}
+${progressAnalysis}
+
+# RECENT ACTIONS TAKEN
+${recentActions}
+
+# PROCEDURAL HISTORY
+${proceduralHistory}
+
+# EXECUTION HISTORY (Recent 3 steps)
 ${executionHistory.slice(-3).map((h, i) => `Step ${h.step}: ${h.success ? '✅' : '❌'} ${h.navigation || 'Unknown action'}`).join('\n') || 'No previous steps'}
 
-# CONTEXT MEMORY
-${context.proceduralSummaries.map(s => `Steps ${s.steps}: ${s.findings.substring(0, 100)}...`).join('\n') || 'No previous context'}
-
-# RESPONSE FORMAT
-Respond with JSON only:
+# RESPONSE FORMAT (NO BACKTICKS OR MARKDOWN)
 {
-  "observation": "Current situation analysis",
+  "observation": "Current situation analysis including what has been accomplished",
   "done": false,
-  "strategy": "High-level approach to accomplish the task",
-  "next_action": "Specific next action to take",
-  "reasoning": "Why this approach will work",
+  "strategy": "High-level approach based on current progress and remaining tasks",
+  "next_action": "Specific next action considering what was just completed",
+  "reasoning": "Why this approach will work given the current context",
   "completion_criteria": "How to know when task is complete"
 }
 
-# RULES
+# CRITICAL RULES
 - Set "done": true ONLY when the task is completely finished
-- Be specific about what action to take next
-- Consider the domain context but don't make assumptions about specific platforms
-- Focus on visible, interactive elements
-- Plan one logical step at a time
-- If navigation is needed, be specific about the URL`;
+- Consider what actions have already been taken (avoid repeating successful actions)
+- Build on previous progress instead of starting over
+- If the last action was typing text, next action should be clicking submit/search button
+- If the last action was clicking search, next action should be waiting then finding results
+- Use context to avoid getting stuck in loops
+- Be specific about what action to take next based on current page state
+- NEVER mark done until the final objective is achieved
+- Learn from failed actions in execution history
+- Progress logically through multi-step sequences`;
 
     try {
       const response = await this.llmService.call([
@@ -556,21 +572,110 @@ Respond with JSON only:
       
       const plan = JSON.parse(this.cleanJSONResponse(response));
       
+      // Enhanced memory logging with context awareness
       this.memoryManager.addMessage({
         role: 'planner',
         action: 'plan',
-        content: plan.next_action || 'Plan created'
+        content: `Step ${context.currentStep}: ${plan.next_action || 'Plan created'}`
       });
       
       return plan;
     } catch (error) {
       console.error('Planner failed:', error);
-      return this.getFallbackPlan(userTask, currentState);
+      return this.getFallbackPlan(userTask, currentState, context);
     }
   }
 
+  // New method to format recent actions for better context
+  formatRecentActions(recentMessages) {
+    if (!recentMessages || recentMessages.length === 0) {
+      return 'No recent actions available';
+    }
+    
+    return recentMessages.map(msg => {
+      const stepInfo = msg.step ? `Step ${msg.step}` : 'Recent';
+      const roleInfo = msg.role || 'unknown';
+      const actionInfo = msg.action || 'action';
+      const contentInfo = (msg.content || '').substring(0, 100);
+      return `${stepInfo} (${roleInfo}): ${actionInfo} - ${contentInfo}`;
+    }).join('\n');
+  }
+
+  // New method to format procedural summaries
+  formatProceduralSummaries(proceduralSummaries) {
+    if (!proceduralSummaries || proceduralSummaries.length === 0) {
+      return 'No procedural history available';
+    }
+    
+    return proceduralSummaries.map(summary => {
+      const stepRange = summary.steps || 'Unknown steps';
+      const actionChain = summary.actions || 'No actions';
+      const findings = (summary.findings || '').substring(0, 150);
+      return `Steps ${stepRange}: ${actionChain}\nFindings: ${findings}`;
+    }).join('\n\n');
+  }
+
+  // New method to analyze progress and detect patterns
+  analyzeProgress(context, executionHistory) {
+    const analysis = [];
+    
+    // Detect if we're stuck in a loop
+    const recentActions = executionHistory.slice(-3).map(h => h.navigation);
+    const uniqueActions = new Set(recentActions);
+    if (recentActions.length >= 3 && uniqueActions.size === 1) {
+      analysis.push('⚠️ LOOP DETECTED: Same action repeated multiple times');
+    }
+    
+    // Detect sequential patterns
+    const lastAction = context.recentMessages[context.recentMessages.length - 1];
+    if (lastAction) {
+      if (lastAction.action === 'navigate' && lastAction.content?.includes('type')) {
+        analysis.push('📝 SEQUENCE: Just typed text - should click submit/search next');
+      } else if (lastAction.action === 'navigate' && lastAction.content?.includes('click')) {
+        analysis.push('🖱️ SEQUENCE: Just clicked - should wait for page changes or find results');
+      }
+    }
+    
+    // Progress tracking
+    const totalActions = context.currentStep;
+    if (totalActions > 10) {
+      analysis.push(`⏱️ PROGRESS: ${totalActions} actions taken - task may be complex`);
+    }
+    
+    return analysis.join('\n') || 'No specific patterns detected';
+  }
+
+  // Enhanced fallback plan that uses context
+  getFallbackPlan(userTask, currentState, context) {
+    const domain = this.extractDomain(currentState.pageInfo?.url);
+    const lastAction = context?.recentMessages?.[context.recentMessages.length - 1];
+    
+    let nextAction = "Examine available interactive elements and take appropriate action";
+    let reasoning = "Need to understand the current page before proceeding";
+    
+    // Context-aware fallback logic
+    if (lastAction) {
+      if (lastAction.content?.includes('type') || lastAction.content?.includes('input')) {
+        nextAction = "Look for and click submit or search button to proceed with the typed input";
+        reasoning = "Previous action was typing text, so logical next step is to submit it";
+      } else if (lastAction.content?.includes('click') && lastAction.content?.includes('search')) {
+        nextAction = "Wait for search results to load, then look for relevant content to click";
+        reasoning = "Previous action was clicking search, so next step is finding results";
+      }
+    }
+    
+    return {
+      observation: `Currently on ${domain}. Step ${context?.currentStep || 0}. ${lastAction ? `Last action: ${lastAction.action}` : 'No previous actions'}. Need to continue task: ${userTask}`,
+      done: false,
+      strategy: "Build on previous progress and continue with logical next steps",
+      next_action: nextAction,
+      reasoning: reasoning,
+      completion_criteria: "Task objectives met based on user requirements"
+    };
+  }
+
   extractDomain(url) {
-    if (!url) return 'unknown';
+    if (!url || typeof url !== 'string') return 'unknown';
     try {
       return new URL(url).hostname;
     } catch {
@@ -589,26 +694,14 @@ Respond with JSON only:
   }
 
   cleanJSONResponse(response) {
-    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
+    
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
   }
-
-  getFallbackPlan(userTask, currentState) {
-    const domain = this.extractDomain(currentState.pageInfo?.url);
-    
-    return {
-      observation: `Currently on ${domain}. Need to analyze page for task: ${userTask}`,
-      done: false,
-      strategy: "Analyze current page elements and determine appropriate actions",
-      next_action: "Examine available interactive elements and take appropriate action",
-      reasoning: "Need to understand the current page before proceeding",
-      completion_criteria: "Task objectives met based on user requirements"
-    };
-  }
 }
 
-// Universal Navigator Agent - Platform Agnostic
+// Enhanced UniversalNavigatorAgent that properly uses context
 class UniversalNavigatorAgent {
   constructor(llmService, memoryManager, actionRegistry) {
     this.llmService = llmService;
@@ -618,6 +711,11 @@ class UniversalNavigatorAgent {
 
   async navigate(plan, currentState) {
     const context = this.memoryManager.getContext();
+    
+    // Enhanced context analysis for navigation
+    const recentActions = this.formatRecentActions(context.recentMessages);
+    const actionHistory = this.analyzeActionHistory(context, currentState);
+    const sequenceGuidance = this.getSequenceGuidance(context.recentMessages);
     
     const navigatorPrompt = `You are a web navigation specialist. Execute the planned action using available page elements and actions.
 
@@ -631,32 +729,58 @@ URL: ${currentState.pageInfo?.url}
 Title: ${currentState.pageInfo?.title}
 Domain: ${this.extractDomain(currentState.pageInfo?.url)}
 
+# EXECUTION CONTEXT
+- Current Step: ${context.currentStep}
+- Total Actions Taken: ${context.recentMessages.length}
+
+# RECENT ACTIONS ANALYSIS
+${recentActions}
+
+# ACTION HISTORY ANALYSIS
+${actionHistory}
+
+# SEQUENCE GUIDANCE
+${sequenceGuidance}
+
 # AVAILABLE ELEMENTS
 ${this.formatElementsWithDetails(currentState.interactiveElements || [])}
 
 # AVAILABLE ACTIONS
 ${this.formatAvailableActions()}
 
-# RESPONSE FORMAT - JSON ONLY
+# RESPONSE FORMAT - JSON ONLY (NO BACKTICKS OR MARKDOWN)
 {
-  "thinking": "Analysis of current situation and plan",
+  "thinking": "Analysis of current situation, recent actions, and planned next step",
   "action": {
     "name": "action_name",
     "parameters": {
       "index": 5,
       "text": "example text",
-      "intent": "Clear description of what this action accomplishes"
+      "intent": "Clear description of what this action accomplishes and how it builds on previous actions"
     }
   }
 }
 
-# CRITICAL RULES
-- Use EXACT index numbers from the element list above
+# CRITICAL CONTEXT-AWARE RULES
+- NEVER repeat the exact same action that just failed
+- If you just typed text, you MUST click a submit/search button next (don't type again)
+- If you just clicked search, look for results to appear before taking next action
+- If you see an element was already clicked/used, choose a different approach
+- Learn from failed attempts in recent actions
+- Build on successful previous steps
+- Use element indices that actually exist in the current page
 - Always include descriptive "intent" explaining what the action accomplishes
-- Choose the most appropriate action from the available actions list
-- For navigation, provide complete URLs with protocol (https://)
-- Be specific and precise with all parameters
-- Only use elements that are actually present in the list above`;
+- PERSIST through multi-step processes - don't give up early
+- Consider what the last action accomplished when choosing the next action
+
+# SEQUENTIAL LOGIC BASED ON RECENT ACTIONS
+- After TYPING: Look for and click submit/search/enter buttons
+- After CLICKING SEARCH: Wait briefly, then look for search results
+- After NAVIGATION: Wait for page to load, then find relevant elements
+- After FAILED ACTION: Try alternative approach or different element
+- After SUCCESSFUL CLICK: Proceed to next logical step in the sequence
+
+Only use elements that are actually present in the current page state above!`;
 
     try {
       const response = await this.llmService.call([
@@ -665,38 +789,202 @@ ${this.formatAvailableActions()}
       
       const navResult = JSON.parse(this.cleanJSONResponse(response));
       
-      // Validate the action
+      // Validate the action with context awareness
       if (navResult.action && navResult.action.name) {
         const availableActions = this.actionRegistry.getAvailableActions();
         if (!availableActions[navResult.action.name]) {
           console.warn(`⚠️ Unknown action: ${navResult.action.name}`);
-          return this.getFallbackNavigation(plan, currentState);
+          return this.getFallbackNavigation(plan, currentState, context);
         }
         
-        // Validate element index if provided
-        if (navResult.action.parameters?.index !== undefined) {
-          const availableIndexes = (currentState.interactiveElements || []).map(el => el.index);
-          if (!availableIndexes.includes(navResult.action.parameters.index)) {
-            console.warn(`⚠️ Invalid element index ${navResult.action.parameters.index}. Available: ${availableIndexes.join(', ')}`);
-          }
+        // Enhanced validation with context
+        const validationResult = this.validateActionWithContext(navResult.action, currentState, context);
+        if (!validationResult.isValid) {
+          console.warn(`⚠️ Context validation failed: ${validationResult.reason}`);
+          return this.getFallbackNavigation(plan, currentState, context);
         }
       }
       
+      // Enhanced memory logging with context awareness
       this.memoryManager.addMessage({
         role: 'navigator',
         action: 'navigate',
-        content: navResult.action?.parameters?.intent || 'Navigation executed'
+        content: `Step ${context.currentStep}: ${navResult.action?.parameters?.intent || 'Navigation executed'}`
       });
       
       return navResult;
     } catch (error) {
       console.error('Navigator failed:', error);
-      return this.getFallbackNavigation(plan, currentState);
+      return this.getFallbackNavigation(plan, currentState, context);
     }
   }
 
+  // New method to format recent actions for navigation context
+  formatRecentActions(recentMessages) {
+    if (!recentMessages || recentMessages.length === 0) {
+      return 'No recent actions taken';
+    }
+    
+    return recentMessages.map((msg, index) => {
+      const stepInfo = msg.step ? `Step ${msg.step}` : `Recent ${index + 1}`;
+      const roleInfo = msg.role || 'unknown';
+      const actionInfo = msg.action || 'action';
+      const contentInfo = (msg.content || '').substring(0, 120);
+      const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : 'unknown time';
+      return `${stepInfo} (${roleInfo} at ${timestamp}): ${actionInfo} - ${contentInfo}`;
+    }).join('\n');
+  }
+
+  // New method to analyze action history patterns
+  analyzeActionHistory(context, currentState) {
+    const analysis = [];
+    const recentMessages = context.recentMessages || [];
+    
+    if (recentMessages.length === 0) {
+      return 'No action history available';
+    }
+    
+    // Detect repeated failures
+    const failedActions = recentMessages.filter(msg => 
+      msg.content?.includes('failed') || msg.content?.includes('error')
+    );
+    if (failedActions.length > 0) {
+      analysis.push(`⚠️ ${failedActions.length} recent failures detected - avoid repeating same approach`);
+    }
+    
+    // Detect successful patterns
+    const successfulActions = recentMessages.filter(msg => 
+      msg.content?.includes('success') || msg.content?.includes('completed')
+    );
+    if (successfulActions.length > 0) {
+      analysis.push(`✅ ${successfulActions.length} successful actions - build on this progress`);
+    }
+    
+    // Detect if we're in a sequence
+    const lastAction = recentMessages[recentMessages.length - 1];
+    if (lastAction) {
+      if (lastAction.content?.includes('typed') || lastAction.content?.includes('input')) {
+        analysis.push('📝 SEQUENCE: Just completed text input - next action should be submit/search');
+      } else if (lastAction.content?.includes('click') && lastAction.content?.includes('search')) {
+        analysis.push('🔍 SEQUENCE: Just clicked search - next action should be finding results');
+      } else if (lastAction.content?.includes('navigate')) {
+        analysis.push('🌐 SEQUENCE: Just navigated - page may still be loading');
+      }
+    }
+    
+    // Check current page state
+    const domain = this.extractDomain(currentState.pageInfo?.url);
+    const elementsCount = currentState.interactiveElements?.length || 0;
+    analysis.push(`📊 Current page: ${domain} with ${elementsCount} interactive elements`);
+    
+    return analysis.join('\n') || 'No specific patterns detected in action history';
+  }
+
+  // New method to provide sequence-specific guidance
+  getSequenceGuidance(recentMessages) {
+    if (!recentMessages || recentMessages.length === 0) {
+      return 'Starting fresh - analyze page and choose appropriate first action';
+    }
+    
+    const lastAction = recentMessages[recentMessages.length - 1];
+    if (!lastAction) {
+      return 'No clear last action - proceed with current plan';
+    }
+    
+    const actionContent = (lastAction.content || '').toLowerCase();
+    
+    if (actionContent.includes('type') || actionContent.includes('input') || actionContent.includes('fill')) {
+      return `🎯 NEXT: After typing, you must click submit/search/enter button
+      - Look for buttons with text like "Search", "Submit", "Go", "Enter"
+      - Check for search icons or magnifying glass buttons
+      - Don't type again - the input should already be filled`;
+    }
+    
+    if (actionContent.includes('click') && actionContent.includes('search')) {
+      return `🎯 NEXT: After clicking search, wait for results
+      - Look for new content that appeared
+      - Find relevant search results to click
+      - Check for loading indicators that finished`;
+    }
+    
+    if (actionContent.includes('navigate') || actionContent.includes('url')) {
+      return `🎯 NEXT: After navigation, page is loading
+      - Wait for page to fully load
+      - Look for main interactive elements on new page
+      - Find elements relevant to the user's task`;
+    }
+    
+    if (actionContent.includes('scroll')) {
+      return `🎯 NEXT: After scrolling, new content may be visible
+      - Look for new elements that appeared
+      - Check if target content is now visible
+      - Consider if more scrolling is needed`;
+    }
+    
+    if (actionContent.includes('failed') || actionContent.includes('error')) {
+      return `🎯 NEXT: Previous action failed - try different approach
+      - Choose a different element or method
+      - Look for alternative paths to accomplish the goal
+      - Don't repeat the exact same action that just failed`;
+    }
+    
+    return 'Continue with planned sequence based on current progress';
+  }
+
+  // New method to validate actions against context
+  validateActionWithContext(action, currentState, context) {
+    const recentMessages = context.recentMessages || [];
+    
+    // Check for immediate repetition of failed actions
+    const lastAction = recentMessages[recentMessages.length - 1];
+    if (lastAction && lastAction.content?.includes('failed')) {
+      const lastActionType = this.extractActionType(lastAction.content);
+      if (lastActionType === action.name) {
+        return {
+          isValid: false,
+          reason: `Trying to repeat ${action.name} action that just failed`
+        };
+      }
+    }
+    
+    // Validate element index exists
+    if (action.parameters?.index !== undefined) {
+      const availableIndexes = (currentState.interactiveElements || []).map(el => el.index);
+      if (!availableIndexes.includes(action.parameters.index)) {
+        return {
+          isValid: false,
+          reason: `Element index ${action.parameters.index} not found. Available: ${availableIndexes.slice(0, 10).join(', ')}`
+        };
+      }
+    }
+    
+    // Check for logical sequence violations
+    if (lastAction && action.name === 'type') {
+      if (lastAction.content?.includes('typed') || lastAction.content?.includes('input')) {
+        return {
+          isValid: false,
+          reason: 'Just typed text - should click submit/search instead of typing again'
+        };
+      }
+    }
+    
+    return { isValid: true };
+  }
+
+  // Helper method to extract action type from content
+  extractActionType(content) {
+    if (!content) return 'unknown';
+    const lower = content.toLowerCase();
+    if (lower.includes('click')) return 'click';
+    if (lower.includes('type') || lower.includes('input')) return 'type';
+    if (lower.includes('scroll')) return 'scroll';
+    if (lower.includes('navigate')) return 'navigate';
+    if (lower.includes('wait')) return 'wait';
+    return 'unknown';
+  }
+
   extractDomain(url) {
-    if (!url) return 'unknown';
+    if (!url || typeof url !== 'string') return 'unknown';
     try {
       return new URL(url).hostname;
     } catch {
@@ -732,23 +1020,63 @@ ${this.formatAvailableActions()}
   }
 
   cleanJSONResponse(response) {
-    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
+    
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
   }
 
-  getFallbackNavigation(plan, currentState) {
+  // Enhanced fallback navigation with context
+  getFallbackNavigation(plan, currentState, context) {
     const domain = this.extractDomain(currentState.pageInfo?.url);
+    const lastAction = context?.recentMessages?.[context.recentMessages.length - 1];
     
-    return {
-      thinking: `Fallback navigation for ${domain}. Need to wait and observe page state.`,
-      action: {
-        name: 'wait',
-        parameters: {
-          duration: 2000,
-          intent: 'Wait to allow page to load and observe current state'
+    let fallbackAction = {
+      name: 'wait',
+      parameters: {
+        duration: 2000,
+        intent: 'Wait to allow page to load and observe current state'
+      }
+    };
+    
+    // Context-aware fallback logic
+    if (lastAction) {
+      const actionContent = (lastAction.content || '').toLowerCase();
+      
+      if (actionContent.includes('type') || actionContent.includes('input')) {
+        // Look for a search button to click
+        const searchButtons = (currentState.interactiveElements || []).filter(el => {
+          const text = (el.text || '').toLowerCase();
+          return text.includes('search') || text.includes('submit') || text.includes('go');
+        });
+        
+        if (searchButtons.length > 0) {
+          fallbackAction = {
+            name: 'click',
+            parameters: {
+              index: searchButtons[0].index,
+              intent: 'Click search button after typing text input'
+            }
+          };
+        }
+      } else if (actionContent.includes('failed')) {
+        // Try a different approach if last action failed
+        const availableElements = currentState.interactiveElements || [];
+        if (availableElements.length > 0) {
+          fallbackAction = {
+            name: 'click',
+            parameters: {
+              index: availableElements[0].index,
+              intent: 'Try different element after previous action failed'
+            }
+          };
         }
       }
+    }
+    
+    return {
+      thinking: `Context-aware fallback for ${domain}. Step ${context?.currentStep || 0}. ${lastAction ? `Last action: ${lastAction.action}` : 'No previous actions'}. Using context to determine best fallback approach.`,
+      action: fallbackAction
     };
   }
 }
@@ -839,7 +1167,8 @@ ${this.formatElements(finalState.interactiveElements?.slice(0, 10) || [])}
   }
 
   cleanJSONResponse(response) {
-    let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
+    
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
   }
@@ -2012,7 +2341,8 @@ class BackgroundScriptAgent {
           success: true,
           response: intelligentResult.response.message,
           message: intelligentResult.response.message,
-          confidence: intelligentResult.confidence
+          confidence: intelligentResult.confidence,
+          isMarkdown: intelligentResult.response.isMarkdown || true
         };
         
         this.connectionManager.broadcast({
@@ -2228,6 +2558,9 @@ class AITaskRouter {
   }
 
   async analyzeAndRoute(userMessage, currentContext = {}) {
+    // Store userMessage for use in fallback methods.
+    this.userMessage = userMessage;
+    
     try {
       const intelligentPrompt = `You are an intelligent AI assistant that specializes in universal web automation and conversation.
 
@@ -2238,52 +2571,55 @@ class AITaskRouter {
 - Current URL: ${currentContext.url || 'unknown'}
 - Page Elements: ${currentContext.elementsCount || 0} interactive elements available
 
-# RESPONSE FORMAT (JSON ONLY)
+# RESPONSE FORMAT
+Use this EXACT format with special delimiters to avoid JSON parsing issues:
+
+===CLASSIFICATION_START===
+INTENT: CHAT|WEB_AUTOMATION
+CONFIDENCE: 0.0-1.0
+REASONING: Brief explanation of classification
+===CLASSIFICATION_END===
+
+===RESPONSE_START===
+For CHAT intent - provide markdown formatted response:
+Your helpful response here with **bold**, *italic*, \`code\`, etc.
+
+For WEB_AUTOMATION intent - provide JSON:
 {
-  "intent": "CHAT|WEB_AUTOMATION",
-  "confidence": 0.0-1.0,
-  "reasoning": "Brief explanation of classification",
-  "response": {
-    // For CHAT intent:
-    "message": "Your conversational response here",
-    // For WEB_AUTOMATION intent:
-    "observation": "Current situation analysis",
-    "done": false,
-    "strategy": "High-level approach to accomplish the task",
-    "next_action": "Specific next action to take",
-    "reasoning": "Why this approach will work",
-    "completion_criteria": "How to know when task is complete"
-  }
+  "observation": "Current situation analysis",
+  "done": false,
+  "strategy": "High-level approach",
+  "next_action": "Specific next action",
+  "reasoning": "Why this approach will work",
+  "completion_criteria": "How to know when complete"
 }
+===RESPONSE_END===
 
 # CLASSIFICATION RULES
-- **CHAT**: General questions, greetings, explanations, help requests, asking about capabilities
-  - Examples: "hello", "what is X?", "how are you?", "explain automation", "what can you do?", "how to post a tweet"
-  - Response: Provide helpful conversational response in "message" field
+- **CHAT**: General questions, greetings, explanations, help requests, coding questions
+  - Examples: "hello", "what is X?", "give me code for Y", "explain Z"
+  - Response: Provide helpful response in **markdown format** with proper code blocks
 
-- **WEB_AUTOMATION**: Specific action requests to perform tasks on websites
-  - Examples: "open YouTube", "post this tweet", "search for X and click", "navigate to", "buy this product"
-  - Response: Provide detailed automation plan in the web automation fields
+- **WEB_AUTOMATION**: Specific action requests to perform tasks on websites  
+  - Examples: "open YouTube", "post this tweet", "search for X and click"
+  - Response: Provide JSON automation plan
 
-# IMPORTANT GUIDELINES
-- Use AI intelligence to decide the intent, don't rely on simple keyword matching
-- For CHAT: Be helpful, friendly, and informative about your automation capabilities
-- For WEB_AUTOMATION: Create actionable, step-by-step automation strategies
-- Always maintain high confidence (0.8+) for clear intents
-- Provide complete responses based on the classified intent`;
+# MARKDOWN FORMATTING FOR CHAT
+- Use \`\`\`language for code blocks
+- Use **bold** for emphasis
+- Use *italic* for secondary emphasis  
+- Use \`inline code\` for short code snippets
+- Use proper headings with # ## ###
+- Use bullet points with - or *
+
+Always provide complete, well-formatted responses!`;
 
       const response = await this.llmService.call([
         { role: 'user', content: intelligentPrompt }
-      ], { maxTokens: 800 });
+      ], { maxTokens: 1200 });
 
-      const result = this.parseJSONResponse(response);
+      const result = this.parseDelimitedResponse(response);
       
-      // Validate the response structure
-      if (!result.intent || !result.response) {
-        console.warn('Invalid AI response structure, using fallback');
-        return this.fallbackIntelligentResponse(userMessage);
-      }
-
       console.log('🎯 Intelligent classification result:', {
         intent: result.intent,
         confidence: result.confidence,
@@ -2294,11 +2630,78 @@ class AITaskRouter {
 
     } catch (error) {
       console.error('Intelligent routing failed:', error);
-      // DON'T use fallback - throw the actual error so user sees it
       throw error;
     }
   }
 
+  // New parsing method using delimiters
+  parseDelimitedResponse(response) {
+    try {
+      // Extract classification section
+      const classificationMatch = response.match(/===CLASSIFICATION_START===([\s\S]*?)===CLASSIFICATION_END===/);
+      const responseMatch = response.match(/===RESPONSE_START===([\s\S]*?)===RESPONSE_END===/);
+      
+      if (!classificationMatch || !responseMatch) {
+        console.warn('Could not find delimited sections, using fallback parsing');
+        return this.parseJSONResponse(response); // Fallback to old method
+      }
+      
+      const classificationText = classificationMatch[1].trim();
+      let responseText = responseMatch[1].trim();
+      
+      // Parse classification
+      const intentMatch = classificationText.match(/INTENT:\s*([^\n]+)/);
+      const confidenceMatch = classificationText.match(/CONFIDENCE:\s*([0-9.]+)/);
+      const reasoningMatch = classificationText.match(/REASONING:\s*([^\n]+)/);
+      
+      const intent = intentMatch ? intentMatch[1].trim() : 'CHAT';
+      const confidence = confidenceMatch ? parseFloat(confidenceMatch[1]) : 0.8;
+      const reasoning = reasoningMatch ? reasoningMatch[1].trim() : 'Classified using delimiter parsing';
+      
+      // Parse response based on intent
+      let parsedResponse;
+      if (intent === 'CHAT') {
+        parsedResponse = {
+          message: responseText, // Keep as markdown text
+          isMarkdown: true // Flag to indicate markdown formatting
+        };
+      } else {
+        // Clean the response text for JSON parsing - REMOVE ALL BACKTICKS
+        responseText = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/`/g, '');
+        
+        // Try to parse as JSON for web automation
+        try {
+          parsedResponse = JSON.parse(responseText);
+        } catch (jsonError) {
+          console.error('Failed to parse web automation JSON:', jsonError);
+          console.error('Problematic text:', responseText);
+          
+          // Fallback for web automation
+          parsedResponse = {
+            observation: "Failed to parse automation plan",
+            done: false,
+            strategy: "Analyze current page and determine actions",
+            next_action: "Get current page state",
+            reasoning: "Parsing error occurred",
+            completion_criteria: "Complete user request"
+          };
+        }
+      }
+      
+      return {
+        intent: intent,
+        confidence: confidence,
+        reasoning: reasoning,
+        response: parsedResponse
+      };
+      
+    } catch (error) {
+      console.error('Delimiter parsing failed:', error);
+      return this.fallbackIntelligentResponse();
+    }
+  }
+
+  // Keep the old JSON parsing as fallback
   parseJSONResponse(response) {
     try {
       let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
@@ -2306,12 +2709,13 @@ class AITaskRouter {
       return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
     } catch (error) {
       console.error('JSON parsing failed:', error);
-      return {};
+      return this.fallbackIntelligentResponse();
     }
   }
 
-  fallbackIntelligentResponse(userMessage) {
-    // Intelligent fallback - analyze message content for intent
+  fallbackIntelligentResponse() {
+    // Use stored userMessage
+    const userMessage = this.userMessage || 'Unknown message';
     const lowerMessage = userMessage.toLowerCase();
     
     // Action indicators for web automation
@@ -2342,7 +2746,8 @@ class AITaskRouter {
         confidence: 0.8,
         reasoning: 'Appears to be a conversational request or question',
         response: {
-          message: `I understand you said: "${userMessage}"\n\nI'm your universal AI web automation assistant! I can help you with any website - YouTube, social media, shopping, research, and more.\n\nJust tell me what you want to do, like:\n• "Open YouTube and search for tutorials"\n• "Navigate to Amazon and find products"\n• "Post on social media"\n• "Fill out forms automatically"\n\nWhat would you like me to help you with?`
+          message: `I understand you said: "${userMessage}"\n\nI'm your universal AI web automation assistant! I can help you with any website - YouTube, social media, shopping, research, and more.\n\nJust tell me what you want to do, like:\n• "Open YouTube and search for tutorials"\n• "Navigate to Amazon and find products"\n• "Post on social media"\n• "Fill out forms automatically"\n\nWhat would you like me to help you with?`,
+          isMarkdown: true
         }
       };
     }
