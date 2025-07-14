@@ -86,7 +86,7 @@ const SettingsModal = ({ onClose }) => {
     display: 'flex', 
     flexDirection: 'column',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F0F0F0FF',
     overflow: 'hidden',
     position: 'fixed',
     top: 0,
@@ -101,8 +101,8 @@ const SettingsModal = ({ onClose }) => {
     justifyContent: 'space-between', 
     alignItems: 'center', 
     padding: '8px 12px',
-    borderBottom: '1px solid #e1e8ed',
-    backgroundColor: '#ffffff',
+    borderBottom: '1px solid #8A8A8AFF',
+    background: 'linear-gradient(to bottom, #B1B1B1FF, #CECECEFF)',
     flexShrink: 0,
     height: '48px',
     boxSizing: 'border-box'
@@ -117,14 +117,14 @@ const SettingsModal = ({ onClose }) => {
 
   const sectionStyle = {
     padding: '12px',
-    borderBottom: '1px solid #f7f9fa'
+    borderBottom: '1px solid #8A8A8AFF'
   };
 
   const labelStyle = {
     display: 'block',
     marginBottom: '4px',
     fontWeight: '600',
-    color: '#14171a',
+    color: '#000000FF',
     fontSize: '12px'
   };
 
@@ -132,11 +132,11 @@ const SettingsModal = ({ onClose }) => {
     width: '100%',
     padding: '8px 10px',
     borderRadius: '6px',
-    border: '1px solid #e1e8ed',
+    border: '1px solid #BEBEBEFF',
     fontSize: '13px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FDFDFDFF',
     userSelect: 'text',
     WebkitUserSelect: 'text'
   };
@@ -166,8 +166,8 @@ const SettingsModal = ({ onClose }) => {
     padding: '8px 12px',
     display: 'flex', 
     gap: '6px', 
-    borderTop: '1px solid #e1e8ed',
-    backgroundColor: '#f7f9fa',
+    borderTop: '1px solid #8A8A8AFF',
+    background: 'linear-gradient(to top, #B1B1B1FF, #EBEBEBFF)',
     flexShrink: 0
   };
 
@@ -189,19 +189,20 @@ const SettingsModal = ({ onClose }) => {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ 
             margin: 0, 
-            color: '#14171a', 
+            color: '#00559BFF', 
             fontSize: '16px', 
-            fontWeight: '600',
+            fontWeight: '700',
             lineHeight: '20px'
           }}>
-            ⚙️ Settings
+            ⚙️ SETTINGS
           </h3>
           <p style={{ 
             margin: 0, 
-            color: '#657786', 
-            fontSize: '10px',
+            color: '#000000FF', 
+            fontSize: '12px',
             lineHeight: '12px',
-            marginTop: '1px'
+            marginTop: '1px', 
+            marginLeft: '10px'
           }}>
             Configure AI models
           </p>
@@ -209,21 +210,16 @@ const SettingsModal = ({ onClose }) => {
         <button 
           onClick={onClose} 
           style={{ 
-            background: '#f7f9fa', 
-            border: '1px solid #e1e8ed',
-            borderRadius: '6px',
-            width: '28px',
-            height: '28px',
-            cursor: 'pointer',
-            color: '#657786',
-            fontSize: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0
+            padding: '4px 2px', 
+              backgroundColor: '#F0F0F0FF',
+              border: '1px solid #6B6B6BFF',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontSize: '20px',
+              lineHeight: '18px',
           }}
         >
-          ✕
+          ❌
         </button>
       </div>
 
@@ -232,7 +228,7 @@ const SettingsModal = ({ onClose }) => {
         {/* AI Provider Section */}
         <div style={sectionStyle}>
           <h4 style={{ 
-            color: '#14171a', 
+            color: '#000000FF', 
             fontSize: '14px', 
             fontWeight: '600', 
             margin: '0 0 8px 0' 
@@ -416,10 +412,10 @@ const SettingsModal = ({ onClose }) => {
               style={{ width: '14px', height: '14px', margin: '1px 0 0 0' }}
             />
             <div>
-              <div style={{ fontSize: '12px', fontWeight: '500', color: '#14171a' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: '#000000FF', textAlign: 'left' }}>
                 🔐 Auto-login assistance
               </div>
-              <div style={{ fontSize: '10px', color: '#657786' }}>
+              <div style={{ fontSize: '10px', color: '#657786', textAlign: 'left' }}>
                 Help fill login forms
               </div>
             </div>
@@ -433,10 +429,10 @@ const SettingsModal = ({ onClose }) => {
               style={{ width: '14px', height: '14px', margin: '1px 0 0 0' }}
             />
             <div>
-              <div style={{ fontSize: '12px', fontWeight: '500', color: '#14171a' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: '#000000FF', textAlign: 'left' }}>
                 🛡️ Safe mode
               </div>
-              <div style={{ fontSize: '10px', color: '#657786' }}>
+              <div style={{ fontSize: '10px', color: '#657786', textAlign: 'left' }}>
                 Human-like delays
               </div>
             </div>
@@ -446,15 +442,15 @@ const SettingsModal = ({ onClose }) => {
             <input
               type="checkbox"
               checked={localConfig.debugMode || false}
-              onChange={(e) => setLocalConfig({...localConfig, debugMode: e.target.checked})}
+              onChange={(e) => setLocalConfig({...localConfig, debugMode: e.target.checked})} 
               style={{ width: '14px', height: '14px', margin: '1px 0 0 0' }}
             />
             <div>
-              <div style={{ fontSize: '12px', fontWeight: '500', color: '#14171a' }}>
+              <div style={{ fontSize: '12px', fontWeight: '500', color: '#000000FF', textAlign: 'left' }}>
                 🔍 Debug mode
               </div>
-              <div style={{ fontSize: '10px', color: '#657786' }}>
-                Show detailed logs
+              <div style={{ fontSize: '10px', color: '#657786', textAlign: 'left' }}>
+                Show highlighted elements
               </div>
             </div>
           </label>

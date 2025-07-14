@@ -366,8 +366,8 @@ const ChatInterface = () => {
         justifyContent: 'space-between', 
         alignItems: 'center', 
         padding: '8px 12px',
-        borderBottom: '1px solid #e1e8ed',
-        backgroundColor: '#ffffff',
+        borderBottom: '1px solid #8A8A8AFF',
+        background: 'linear-gradient(to bottom, #B1B1B1FF, #CECECEFF)',
         flexShrink: 0,
         height: '48px',
         boxSizing: 'border-box'
@@ -375,15 +375,16 @@ const ChatInterface = () => {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ 
             margin: 0, 
-            color: '#1da1f2', 
+            color: '#00559BFF', 
             fontSize: '16px', 
-            fontWeight: '600',
-            lineHeight: '20px'
+            fontWeight: '800',
+            lineHeight: '20px', 
+            textAlign: 'left'
           }}>
-            AI Chat Agent
+            AI CHAT AGENT
           </h3>
           <div style={{ 
-            fontSize: '10px', 
+            fontSize: '12px', 
             color: getConnectionStatusColor(),
             marginTop: '1px',
             display: 'flex',
@@ -391,37 +392,38 @@ const ChatInterface = () => {
             gap: '3px',
             lineHeight: '12px'
           }}>
-            <span style={{ fontSize: '8px' }}>●</span>
+            <span style={{ fontSize: '12px' }}>●</span>
             <span>{getConnectionStatusText()}</span>
             {isExecuting && <span>• Working...</span>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: '7.5px', flexShrink: 0 }}>
           <button 
             onClick={handleNewChat}
             style={{ 
-              padding: '4px 8px', 
-              backgroundColor: '#f7f9fa',
-              border: '1px solid #e1e8ed',
-              borderRadius: '12px',
+              padding: '4px 6px', 
+              backgroundColor: '#F0F0F0FF',
+              border: '1px solid #6B6B6BFF',
+              borderRadius: '10px',
               cursor: 'pointer',
-              fontSize: '12px',
-              lineHeight: '12px'
+              fontSize: '20px',
+              lineHeight: '18px',
             }}
             title="New Chat"
           >
-            💬
+            📝
           </button>
           <button 
             onClick={() => setShowSettings(true)}
             style={{ 
-              padding: '4px 8px',
-              backgroundColor: '#f7f9fa',
-              border: '1px solid #e1e8ed',
-              borderRadius: '12px',
+              padding: '4px 6px',
+              backgroundColor: '#F0F0F0FF',
+              border: '1px solid #6B6B6BFF',
+              color: '#000000FF',
+              borderRadius: '10px',
               cursor: 'pointer',
-              fontSize: '12px',
-              lineHeight: '12px'
+              fontSize: '20px',
+              lineHeight: '18px'
             }}
             title="Settings"
           >

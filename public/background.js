@@ -1516,10 +1516,13 @@ class UniversalMultiAgentExecutor {
   async getCurrentState() {
     try {
       console.log('📊 Getting page state via Wootz API');
+
+      const config = await chrome.storage.local.get('config');
+      const debugMode = config?.config?.debugMode || false;
       
       return new Promise((resolve) => {
         chrome.wootz.getPageState({
-          debugMode: true,
+          debugMode: debugMode,
           includeHidden: true
         }, (result) => {
           if (result.success && result.pageState) {

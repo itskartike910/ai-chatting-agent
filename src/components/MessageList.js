@@ -21,6 +21,7 @@ const MessageList = ({ messages }) => {
       maxWidth: '82%',
       wordWrap: 'break-word',
       fontSize: '13px',
+      fontWeight: '600',
       lineHeight: '1.3'
     };
 
@@ -42,7 +43,7 @@ const MessageList = ({ messages }) => {
           alignSelf: 'flex-start',
           border: '1px solid #e1e8ed',
           borderBottomLeftRadius: '4px',
-          textAlign: 'left' // Ensure left alignment for assistant messages
+          textAlign: 'left' 
         };
       case 'system':
         return {
@@ -53,7 +54,7 @@ const MessageList = ({ messages }) => {
           fontSize: '11px',
           fontStyle: 'italic',
           border: '1px solid #ffeaa7',
-          textAlign: 'center',
+          textAlign: 'left',
           maxWidth: '88%',
           margin: '2px 8px'
         };
@@ -79,8 +80,8 @@ const MessageList = ({ messages }) => {
     // Code blocks
     pre: ({ children }) => (
       <pre style={{
-        backgroundColor: '#f6f8fa',
-        border: '1px solid #e1e4e8',
+        backgroundColor: '#F0F0F0FF',
+        border: '1px solid #A5A5A5FF',
         borderRadius: '6px',
         padding: '12px',
         overflow: 'auto',
@@ -220,37 +221,39 @@ const MessageList = ({ messages }) => {
       padding: '0 16px'
     }}>
       <div style={{ fontSize: '36px', marginBottom: '12px' }}>🤖</div>
-      <h4 style={{ color: '#1da1f2', marginBottom: '8px', fontSize: '15px' }}>Welcome to AI Social Agent!</h4>
-      <p style={{ marginBottom: '12px', fontSize: '12px' }}>Ask me to help you with tasks:</p>
+      <h4 style={{ color: '#005E99FF', marginBottom: '6px', fontSize: '15px', fontWeight: '750' }}>Welcome to AI Chat Agent!</h4>
+      <p style={{ marginBottom: '12px', fontSize: '13px', color: '#000000FF', fontWeight: '600' }}>Ask me to help you with tasks or start a conversation:</p>
       <div style={{ 
         textAlign: 'left', 
         maxWidth: '280px', 
         margin: '0 auto',
-        backgroundColor: '#f7f9fa',
+        backgroundColor: '#DDDDDDFF',
+        color: '#000000FF',
         padding: '12px',
         borderRadius: '10px',
-        border: '1px solid #e1e8ed'
+        border: '1px solid #888888FF'
       }}>
-        <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+        <div style={{ marginBottom: '6px', fontSize: '12px' }}>
           <strong>• YouTube:</strong> "Search for videos and play"
         </div>
-        <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+        <div style={{ marginBottom: '6px', fontSize: '12px' }}>
           <strong>• Social:</strong> "Post content on Twitter"
         </div>
-        <div style={{ marginBottom: '6px', fontSize: '11px' }}>
+        <div style={{ marginBottom: '6px', fontSize: '12px' }}>
           <strong>• Shopping:</strong> "Find products online"
         </div>
-        <div style={{ fontSize: '11px' }}>
+        <div style={{ fontSize: '12px' }}>
           <strong>• Any site:</strong> "Help me navigate this page"
         </div>
       </div>
       <p style={{ 
-        fontSize: '10px', 
-        color: '#657786', 
-        marginTop: '12px',
-        fontStyle: 'italic'
+        fontSize: '13px', 
+        color: '#000000FF', 
+        marginTop: '15px',
+        fontStyle: 'italic', 
+        fontWeight: '600'
       }}>
-        Configure your API keys in Settings ⚙️ to get started
+        Configure your API keys in Settings ⚙️ to get started..
       </p>
     </div>
   );
@@ -261,7 +264,7 @@ const MessageList = ({ messages }) => {
       overflowY: 'auto', 
       display: 'flex', 
       flexDirection: 'column',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#F0F0F0FF', 
       WebkitOverflowScrolling: 'touch',
       scrollBehavior: 'smooth'
     }}>

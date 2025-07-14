@@ -40,8 +40,8 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
   return (
     <div style={{ 
       padding: '8px 12px',
-      borderTop: '1px solid #e1e8ed',
-      backgroundColor: '#ffffff',
+      borderTop: '1px solid #8A8A8AFF',
+      background: 'linear-gradient(to top, #B1B1B1FF, #EBEBEBFF)',
       flexShrink: 0
     }}>
       <form onSubmit={isExecuting ? handleStop : handleSubmit} style={{ 
@@ -62,8 +62,8 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
               minHeight: '36px',
               maxHeight: '100px',
               padding: '8px 12px',
-              border: '1px solid #e1e8ed',
-              borderRadius: '18px',
+              border: '1px solid #A5A5A5FF',
+              borderRadius: '12px',
               resize: 'none',
               fontSize: '14px',
               lineHeight: '20px',
@@ -97,7 +97,8 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '4px'
+              gap: '4px', 
+              marginBottom: '5px'
             }}
             title="Stop Execution"
           >
@@ -109,9 +110,9 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
             disabled={!message.trim() || disabled}
             style={{
               padding: '8px 16px',
-              backgroundColor: (!message.trim() || disabled) ? '#e1e8ed' : '#1da1f2',
+              backgroundColor: (!message.trim() || disabled) ? '#e1e8ed' : '#00694AFF',
               color: (!message.trim() || disabled) ? '#657786' : 'white',
-              border: 'none',
+              border: '1px solid #A5A5A5FF',
               borderRadius: '18px',
               cursor: (!message.trim() || disabled) ? 'default' : 'pointer',
               fontSize: '14px',
@@ -121,7 +122,8 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '4px'
+              gap: '4px',
+              marginBottom: '5px'
             }}
             title="Send Message"
           >
