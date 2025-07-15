@@ -515,20 +515,35 @@ class UniversalPlannerAgent {
     const proceduralHistory = this.formatProceduralSummaries(context.proceduralSummaries);
     const progressAnalysis = this.analyzeProgress(context, executionHistory);
     
-    const plannerPrompt = `You are an intelligent MOBILE web automation planner. Analyze the current mobile page state and create a strategic plan to accomplish the user's task.
+    const plannerPrompt = `You are an intelligent MOBILE web automation planner. Analyze the enhanced mobile page state and create a strategic plan.
 
 # USER TASK
 "${userTask}"
 
 # CURRENT MOBILE PAGE STATE
 - URL: ${currentState.pageInfo?.url || 'unknown'}
-- Title: ${currentState.pageInfo?.title || 'unknown'}  
+- Title: ${currentState.pageInfo?.title || 'unknown'}
 - Domain: ${this.extractDomain(currentState.pageInfo?.url)}
-- Interactive Elements: ${currentState.interactiveElements?.length || 0} available
-- Platform: MOBILE BROWSER (touch interface, responsive design)
+- Page Type: ${currentState.pageContext?.pageType || 'general'}
+- Device: ${currentState.viewportInfo?.deviceType || 'mobile'} (${currentState.viewportInfo?.width}x${currentState.viewportInfo?.height})
+- Orientation: ${currentState.viewportInfo?.isPortrait ? 'Portrait' : 'Landscape'}
 
-# AVAILABLE MOBILE ELEMENTS (All available)
-${this.formatElements(currentState.interactiveElements || [])}
+# PAGE CONTEXT ANALYSIS
+- Login Status: ${currentState.pageContext?.isLoggedIn ? 'Logged In' : 'Not Logged In'}
+- Has Login Form: ${currentState.pageContext?.hasLoginForm ? 'Yes' : 'No'}
+- Has User Menu: ${currentState.pageContext?.hasUserMenu ? 'Yes' : 'No'}
+
+# PAGE CAPABILITIES
+- Can Login: ${currentState.pageContext?.capabilities?.canLogin ? 'Yes' : 'No'}
+- Can Search: ${currentState.pageContext?.capabilities?.canSearch ? 'Yes' : 'No'}
+- Has Forms: ${currentState.pageContext?.capabilities?.hasForms ? 'Yes' : 'No'}
+- Interactive: ${currentState.pageContext?.capabilities?.isInteractive ? 'Yes' : 'No'}
+
+# ELEMENT CATEGORIES SUMMARY
+${Object.entries(currentState.elementCategories || {}).map(([cat, count]) => `- ${cat}: ${count} elements`).join('\n')}
+
+# AVAILABLE MOBILE ELEMENTS (Categorized by Purpose)
+${this.formatEnhancedElements(currentState.interactiveElements || [])}
 
 # EXECUTION PROGRESS
 - Current Step: ${context.currentStep}
@@ -546,25 +561,22 @@ ${executionHistory.slice(-5).map((h, i) => `Step ${h.step}: ${h.success ? '✅' 
 
 # RESPONSE FORMAT (NO BACKTICKS OR MARKDOWN)
 {
-  "observation": "Current situation analysis including what has been accomplished",
+  "observation": "Current situation analysis with enhanced page context",
   "done": false,
-  "strategy": "High-level approach based on current progress and remaining tasks",
-  "next_action": "Specific next action considering what was just completed",
-  "reasoning": "Why this approach will work given the current context",
+  "strategy": "Mobile-optimized approach using categorized elements and page capabilities",
+  "next_action": "Specific next action using element categories and purposes",
+  "reasoning": "Why this approach works with current page type and capabilities",
   "completion_criteria": "How to know when task is complete"
 }
 
-# CRITICAL RULES
-- Set "done": true ONLY when the task is completely finished
-- Consider what actions have already been taken (avoid repeating successful actions)
-- Build on previous progress instead of starting over
-- If the last action was typing text, next action should be clicking submit/search button
-- If the last action was clicking search, next action should be waiting then finding results
-- Use context to avoid getting stuck in loops
-- Be specific about what action to take next based on current page state
-- NEVER mark done until the final objective is achieved
-- Learn from failed actions in execution history
-- Progress logically through multi-step sequences`;
+# ENHANCED MOBILE RULES
+- Use element categories (form, navigation, action, content) for better targeting
+- Consider page type (${currentState.pageContext?.pageType}) for context-aware actions
+- Leverage device type (${currentState.viewportInfo?.deviceType}) for mobile-optimized interactions
+- Use element purposes (authentication, submit, navigation) for precise actions
+- Build on page capabilities and login status for informed decisions
+- Reference elements by category and purpose, not just index
+- Consider mobile viewport constraints and touch interface`;
 
     try {
       const response = await this.llmService.call([
@@ -1529,55 +1541,56 @@ class UniversalMultiAgentExecutor {
           if (result.success && result.pageState) {
             const pageState = result.pageState;
             
-            // Add debugging to see the actual structure
             console.log('🔍 Raw Wootz pageState:', pageState);
-            console.log('🔍 Raw elements array:', pageState.elements);
             
-            // Fix: Parse the nested JSON structure correctly
-            let elements = [];
-            let parsedPageData = null;
-            
-            try {
-              // The actual data is in pageState.state.page_data as a JSON string
-              if (pageState.state && pageState.state.page_data) {
-                console.log('🔍 Raw page_data:', pageState.state.page_data);
-                parsedPageData = JSON.parse(pageState.state.page_data);
-                elements = parsedPageData.elements || [];
-                console.log('🔍 Parsed elements array:', elements);
-              } else {
-                console.log('📊 No page_data found in state');
-                elements = pageState.elements || [];
-              }
-            } catch (parseError) {
-              console.error('🔍 Failed to parse page_data JSON:', parseError);
-              elements = pageState.elements || [];
-            }
-            
-            console.log(`🔍 Found ${elements.length} raw elements from Wootz`);
-            
-            // Extract URL and title from parsed data or fallback to pageState
-            const url = parsedPageData?.url || pageState.url || 'unknown';
-            const title = parsedPageData?.title || pageState.title || 'Unknown Page';
-            
+            // Parse the improved pageState structure
             const processedState = {
               pageInfo: {
-                url: url,
-                title: title,
-                domain: this.extractDomain(url)
+                url: pageState.url || 'unknown',
+                title: pageState.title || 'Unknown Page',
+                domain: this.extractDomain(pageState.url)
               },
-              pageContext: { 
-                platform: this.detectPlatform(url),
-                pageType: this.determinePageType(url)
+              
+              // Enhanced page context from API
+              pageContext: {
+                platform: this.detectPlatform(pageState.url),
+                pageType: pageState.pageContext?.pageType || this.determinePageType(pageState.url),
+                hasLoginForm: pageState.pageContext?.hasLoginForm || false,
+                hasUserMenu: pageState.pageContext?.hasUserMenu || false,
+                isLoggedIn: pageState.pageContext?.isLoggedIn || false,
+                capabilities: pageState.capabilities || {}
               },
+              
+              // Viewport information for mobile optimization
+              viewportInfo: {
+                width: pageState.viewport?.width || 0,
+                height: pageState.viewport?.height || 0,
+                isMobileWidth: pageState.viewport?.isMobileWidth || false,
+                isTabletWidth: pageState.viewport?.isTabletWidth || false,
+                isPortrait: pageState.viewport?.isPortrait || true,
+                deviceType: pageState.viewport?.deviceType || 'mobile',
+                aspectRatio: pageState.viewport?.aspectRatio || 0.75
+              },
+              
+              // Process elements with enhanced metadata
+              interactiveElements: this.processEnhancedElementsFromWootz(pageState.elements || []),
+              
+              // Element categorization for better planning
+              elementCategories: pageState.elementCategories || {},
+              
+              // Legacy compatibility
               loginStatus: { 
-                isLoggedIn: this.checkBasicLoginStatus(url)
+                isLoggedIn: pageState.pageContext?.isLoggedIn || false
               },
-              interactiveElements: this.processElementsFromWootz(elements),
-              viewportInfo: {},
-              extractedContent: `Wootz page state: ${elements.length} elements`
+              
+              extractedContent: `Enhanced Wootz page state: ${(pageState.elements || []).length} elements`
             };
             
-            console.log(`📊 Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
+            console.log(`📊 Enhanced Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
+            console.log(`📱 Viewport: ${processedState.viewportInfo.deviceType} ${processedState.viewportInfo.width}x${processedState.viewportInfo.height}`);
+            console.log(`🏷️ Categories:`, processedState.elementCategories);
+            console.log(`⚡ Capabilities:`, processedState.pageContext.capabilities);
+            
             resolve(processedState);
           } else {
             console.log('📊 Wootz State: Failed, using fallback');
@@ -1593,6 +1606,94 @@ class UniversalMultiAgentExecutor {
     }
   }
 
+  // Enhanced element processing for improved API response
+  processEnhancedElementsFromWootz(elements) {
+    if (!elements || !Array.isArray(elements)) {
+      console.log('🔍 Elements not array or null:', elements);
+      return [];
+    }
+    
+    console.log(`🔍 Processing ${elements.length} enhanced elements from Wootz`);
+    
+    // Process ALL elements with enhanced metadata
+    const processed = elements.map((el, arrayIndex) => {
+      return {
+        // Core identification
+        index: el.index !== undefined ? el.index : arrayIndex,
+        arrayIndex: arrayIndex,
+        tagName: el.tagName || 'UNKNOWN',
+        xpath: el.xpath || '',
+        
+        // Enhanced categorization from API
+        category: el.category || 'unknown', 
+        purpose: el.purpose || 'general', 
+        
+        // Content
+        text: el.textContent || el.text || '',
+        
+        // Interaction properties
+        isVisible: el.isVisible !== false,
+        isInteractive: el.isInteractive !== false,
+        
+        // Enhanced attributes
+        attributes: el.attributes || {},
+        
+        // Position and size
+        bounds: el.bounds || {},
+        
+        // Legacy compatibility fields
+        ariaLabel: el.attributes?.['aria-label'] || '',
+        elementType: this.mapCategoryToElementType(el.category, el.tagName),
+        isLoginElement: el.purpose === 'authentication' || el.category === 'form',
+        isPostElement: el.purpose === 'post' || el.purpose === 'compose',
+        selector: this.generateSelectorFromAttributes(el.attributes),
+        
+        // Store original for debugging
+        originalElement: el
+      };
+    });
+    
+    console.log(`📊 Processed ${processed.length} enhanced elements successfully`);
+    return processed;
+  }
+
+  // Map API categories to legacy element types for compatibility
+  mapCategoryToElementType(category, tagName) {
+    const tag = (tagName || '').toLowerCase();
+    
+    switch (category) {
+      case 'form':
+        if (tag === 'input') return 'input';
+        if (tag === 'textarea') return 'textarea';
+        if (tag === 'select') return 'select';
+        return 'form_element';
+      case 'action':
+        return 'button';
+      case 'navigation':
+        return 'link';
+      case 'content':
+        return 'content';
+      default:
+        if (tag === 'button') return 'button';
+        if (tag === 'input') return 'input';
+        if (tag === 'a') return 'link';
+        return 'other';
+    }
+  }
+
+  // Generate better selectors from enhanced attributes
+  generateSelectorFromAttributes(attributes) {
+    if (!attributes) return 'unknown';
+    
+    // Priority order for selector generation
+    if (attributes.id) return `#${attributes.id}`;
+    if (attributes['data-testid']) return `[data-testid="${attributes['data-testid']}"]`;
+    if (attributes.name) return `[name="${attributes.name}"]`;
+    if (attributes.class) return `.${attributes.class.split(' ')[0]}`;
+    
+    return 'element';
+  }
+
   extractDomain(url) {
     if (!url || typeof url !== 'string') return 'unknown';
     try {
@@ -1600,69 +1701,6 @@ class UniversalMultiAgentExecutor {
     } catch {
       return 'unknown';
     }
-  }
-
-  // Fixed element processing for Wootz API
-  processElementsFromWootz(elements) {
-    if (!elements || !Array.isArray(elements)) {
-      console.log('🔍 Elements not array or null:', elements);
-      return [];
-    }
-    
-    console.log(`🔍 Processing ${elements.length} raw elements from Wootz`);
-    
-    // Process ALL elements - no filtering since Wootz API already sends only interactive elements
-    const processed = elements.map((el, arrayIndex) => {
-      return {
-        index: el.index !== undefined ? el.index : arrayIndex,
-        arrayIndex: arrayIndex,
-        tagName: el.tagName || 'UNKNOWN',
-        text: el.textContent || el.text || el.innerText || '',
-        ariaLabel: el.ariaLabel || el.label || '',
-        elementType: this.categorizeElementType(el),
-        isLoginElement: this.isLoginRelatedElement(el),
-        isPostElement: this.isPostRelatedElement(el),
-        isVisible: el.isVisible !== false,
-        bounds: el.bounds || el.rect || {},
-        selector: el.selector || this.generateSimpleSelector(el),
-        originalElement: el
-      };
-    });
-    
-    console.log(`📊 Processed ${processed.length} elements successfully`);
-    return processed;
-  }
-
-  categorizeElementType(element) {
-    const tagName = (element.tagName || '').toLowerCase();
-    const type = (element.type || '').toLowerCase();
-    
-    if (tagName === 'button') return 'button';
-    if (tagName === 'input') return type || 'input';
-    if (tagName === 'textarea') return 'textarea';
-    if (tagName === 'a') return 'link';
-    if (element.contentEditable === 'true') return 'contenteditable';
-    return 'other';
-  }
-
-  isLoginRelatedElement(element) {
-    const text = ((element.textContent || element.text || '') + ' ' + (element.ariaLabel || '')).toLowerCase();
-    const loginKeywords = ['login', 'sign in', 'email', 'password', 'username'];
-    return loginKeywords.some(keyword => text.includes(keyword));
-  }
-
-  isPostRelatedElement(element) {
-    const text = ((element.textContent || element.text || '') + ' ' + (element.ariaLabel || '')).toLowerCase();
-    const postKeywords = ['tweet', 'post', 'share', 'publish', 'compose'];
-    return postKeywords.some(keyword => text.includes(keyword));
-  }
-
-  generateSimpleSelector(element) {
-    if (element.attributes) {
-      if (element.attributes.id) return `#${element.attributes.id}`;
-      if (element.attributes['data-testid']) return `[data-testid="${element.attributes['data-testid']}"]`;
-    }
-    return (element.tagName || 'div').toLowerCase();
   }
 
   getDefaultState() {
