@@ -368,7 +368,7 @@ const ChatInterface = ({ user, onLogout }) => {
       display: 'flex', 
       flexDirection: 'column',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#002550FF',
       overflow: 'hidden',
       position: 'fixed',
       top: '50%',

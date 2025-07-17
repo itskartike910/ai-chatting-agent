@@ -221,13 +221,13 @@ const MessageList = ({ messages }) => {
       padding: '0 16px'
     }}>
       <div style={{ fontSize: '36px', marginBottom: '12px' }}>🤖</div>
-      <h4 style={{ color: '#005E99FF', marginBottom: '6px', fontSize: '15px', fontWeight: '750' }}>Welcome to AI Chat Agent!</h4>
-      <p style={{ marginBottom: '12px', fontSize: '13px', color: '#000000FF', fontWeight: '600' }}>Ask me to help you with tasks or start a conversation:</p>
+      <h4 style={{ color: '#AADEFFFF', marginBottom: '6px', fontSize: '15px', fontWeight: '750' }}>Welcome to AI Chat Agent!</h4>
+      <p style={{ marginBottom: '12px', fontSize: '13px', color: '#ABDFFFEA', fontWeight: '600' }}>Ask me to help you with tasks or start a conversation:</p>
       <div style={{ 
         textAlign: 'left', 
         maxWidth: '280px', 
         margin: '0 auto',
-        backgroundColor: '#DDDDDDFF',
+        backgroundColor: '#FFDCDCE3',
         color: '#000000FF',
         padding: '12px',
         borderRadius: '10px',
@@ -248,7 +248,7 @@ const MessageList = ({ messages }) => {
       </div>
       <p style={{ 
         fontSize: '13px', 
-        color: '#000000FF', 
+        color: '#FFDCDCFF', 
         marginTop: '15px',
         fontStyle: 'italic', 
         fontWeight: '600'
@@ -264,7 +264,7 @@ const MessageList = ({ messages }) => {
       overflowY: 'auto', 
       display: 'flex', 
       flexDirection: 'column',
-      backgroundColor: '#F0F0F0FF', 
+      backgroundColor: '#002550FF', 
       WebkitOverflowScrolling: 'touch',
       scrollBehavior: 'smooth'
     }}>

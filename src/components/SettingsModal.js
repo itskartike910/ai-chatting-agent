@@ -184,7 +184,7 @@ const SettingsModal = ({ onClose }) => {
     display: 'flex', 
     gap: '8px', 
     borderTop: '1px solid rgba(255, 220, 220, 0.3)',
-    background: 'linear-gradient(135deg, #002550FF 0%, #764ba2 100%)',
+    background: 'linear-gradient(to top, #00499CFF, #002550FF)',
     flexShrink: 0
   };
 

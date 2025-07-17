@@ -41,7 +41,7 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
     <div style={{ 
       padding: '8px 12px',
       borderTop: '1px solid #8A8A8AFF',
-      background: 'linear-gradient(to top, #B1B1B1FF, #EBEBEBFF)',
+      background: 'linear-gradient(to top, #00499CFF, #002550FF)',
       flexShrink: 0
     }}>
       <form onSubmit={isExecuting ? handleStop : handleSubmit} style={{ 
@@ -69,7 +69,7 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
               lineHeight: '20px',
               fontFamily: 'inherit',
               outline: 'none',
-              backgroundColor: disabled ? '#f7f9fa' : '#ffffff',
+              backgroundColor: disabled ? '#FFDCDCCB' : '#FFDCDCFF',
               color: disabled ? '#657786' : '#14171a',
               boxSizing: 'border-box',
               overflow: 'hidden'
@@ -98,7 +98,7 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
               alignItems: 'center',
               justifyContent: 'center',
               gap: '4px', 
-              marginBottom: '5px'
+              marginBottom: '3px'
             }}
             title="Stop Execution"
           >
@@ -110,9 +110,9 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
             disabled={!message.trim() || disabled}
             style={{
               padding: '8px 16px',
-              backgroundColor: (!message.trim() || disabled) ? '#e1e8ed' : '#00694AFF',
+              backgroundColor: (!message.trim() || disabled) ? '#FFDCDCCB' : '#00694AFF',
               color: (!message.trim() || disabled) ? '#657786' : 'white',
-              border: '1px solid #A5A5A5FF',
+              border: '1px solid #FFDCDCFF',
               borderRadius: '18px',
               cursor: (!message.trim() || disabled) ? 'default' : 'pointer',
               fontSize: '14px',
@@ -123,7 +123,7 @@ const ChatInput = ({ onSendMessage, onStopExecution, isExecuting, disabled, plac
               alignItems: 'center',
               justifyContent: 'center',
               gap: '4px',
-              marginBottom: '5px'
+              marginBottom: '3px'
             }}
             title="Send Message"
           >

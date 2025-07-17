@@ -107,7 +107,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
   };
 
   const headerStyle = {
-    padding: '0px 10px 0px 10px',
+    padding: '10px 10px 0px 10px',
     background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
     color: 'white',
     textAlign: 'center'

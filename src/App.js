@@ -18,34 +18,8 @@ function App() {
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get(['userAuth', 'userSubscription']);
-        
-        const isLoggedIn = !!(result.userAuth?.token && result.userAuth?.user);
-        const hasSubscription = !!(result.userSubscription?.active && result.userSubscription?.expiresAt > Date.now());
-        
-        setAuthState({
-          isLoggedIn,
-          hasSubscription,
-          user: result.userAuth?.user || null,
-          loading: false
-        });
-      } else {
-        setAuthState(prev => ({ ...prev, loading: false }));
-      }
-    } catch (error) {
-      console.error('Error checking auth status:', error);
-      setAuthState(prev => ({ ...prev, loading: false }));
-    }
-  };
-
   const handleLogin = async (credentials) => {
-    // TODO: Implement actual API call
-    console.log('Login attempt:', credentials);
-    
-    // Simulate API call for now
+    // Mock user data
     const mockUser = {
       id: '123',
       email: credentials.email,
@@ -67,7 +41,7 @@ function App() {
       
       setAuthState({
         isLoggedIn: true,
-        hasSubscription: !mockUser.isNewUser, // Existing users have subscription, new users need to subscribe
+        hasSubscription: !mockUser.isNewUser,
         user: mockUser,
         loading: false
       });
@@ -117,6 +91,44 @@ function App() {
       });
     } catch (error) {
       console.error('Logout error:', error);
+    }
+  };
+
+  const checkAuthStatus = async () => {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        const result = await chrome.storage.local.get(['userAuth', 'userSubscription']);
+        
+        // Check if token exists and is not expired
+        const tokenValid = result.userAuth?.token && 
+                          result.userAuth?.tokenExpiry && 
+                          result.userAuth.tokenExpiry > Date.now();
+        
+        const isLoggedIn = !!tokenValid;
+        
+        // Check subscription status
+        const hasSubscription = !!(
+          result.userSubscription?.active && 
+          result.userSubscription?.expiresAt > Date.now()
+        );
+        
+        if (!isLoggedIn) {
+          // Clear invalid auth data
+          await chrome.storage.local.remove(['userAuth', 'userSubscription']);
+        }
+        
+        setAuthState({
+          isLoggedIn,
+          hasSubscription,
+          user: isLoggedIn ? result.userAuth?.user : null,
+          loading: false
+        });
+      } else {
+        setAuthState(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setAuthState(prev => ({ ...prev, loading: false }));
     }
   };
 
