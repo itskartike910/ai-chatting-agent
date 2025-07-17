@@ -88,20 +88,48 @@ const AuthPage = ({ onLogin }) => {
     paddingTop: '10px'
   };
 
+  const inputContainerStyle = {
+    position: 'relative',
+    marginBottom: '16px'
+  };
+
   const inputStyle = {
     width: '100%',
-    padding: '12px 16px',
+    padding: '16px 16px 8px 16px',
     borderRadius: '12px',
     border: '2px solid #FFFFFFFF',
     fontSize: '16px',
     color: '#FFDCDCFF',
-    marginBottom: '16px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
     backgroundColor: '#003A7CFF',
-    transition: 'border-color 0.3s',
+    transition: 'border-color 0.3s, padding 0.3s',
     userSelect: 'text',
-    WebkitUserSelect: 'text'
+    WebkitUserSelect: 'text',
+    outline: 'none'
+  };
+
+  const labelStyle = {
+    position: 'absolute',
+    left: '16px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    color: '#FFDCDCA1',
+    fontSize: '16px',
+    transition: 'all 0.3s ease',
+    pointerEvents: 'none',
+    // backgroundColor: '#002550FF',
+    borderRadius: '15px',
+    padding: '2px 8px',
+    zIndex: 1
+  };
+
+  const labelActiveStyle = {
+    top: '-8px',
+    transform: 'translateY(0)',
+    fontSize: '12px',
+    color: '#FFDCDCFF',
+    backgroundColor: '#002550FF'
   };
 
   const passwordContainerStyle = {
@@ -159,18 +187,23 @@ const AuthPage = ({ onLogin }) => {
       {/* Custom CSS for placeholder styling */}
       <style>
         {`
-          .auth-input::placeholder {
-            color: rgba(255, 220, 220, 0.7) !important;
-            opacity: 1 !important;
+          .floating-label.active {
+            top: -8px !important;
+            transform: translateY(0) !important;
+            font-size: 12px !important;
+            color: #FFDCDCFF !important;
+            background-color: #002550FF !important;
           }
-          .auth-input::-webkit-input-placeholder {
-            color: rgba(255, 220, 220, 0.7) !important;
+          
+          .auth-input:focus + .floating-label {
+            top: -8px !important;
+            transform: translateY(0) !important;
+            font-size: 12px !important;
+            color: #FFDCDCFF !important;
           }
-          .auth-input::-moz-placeholder {
-            color: rgba(255, 220, 220, 0.7) !important;
-          }
-          .auth-input:-ms-input-placeholder {
-            color: rgba(255, 220, 220, 0.7) !important;
+          
+          .auth-input:focus {
+            border-color: #4A90E2 !important;
           }
           
           @keyframes robot-bounce {
@@ -220,37 +253,83 @@ const AuthPage = ({ onLogin }) => {
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              style={inputStyle}
-              className="auth-input"
-              disabled={loading}
-            />
+            <div style={inputContainerStyle}>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                style={{...inputStyle, marginBottom: 0}}
+                className="auth-input"
+                disabled={loading}
+                onFocus={(e) => e.target.parentElement.querySelector('.floating-label').classList.add('active')}
+                onBlur={(e) => {
+                  if (!e.target.value) {
+                    e.target.parentElement.querySelector('.floating-label').classList.remove('active');
+                  }
+                }}
+              />
+              <label 
+                className="floating-label" 
+                style={{
+                  ...labelStyle, 
+                  ...(formData.name ? labelActiveStyle : {})
+                }}
+              >
+                Full Name
+              </label>
+            </div>
           )}
           
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            style={inputStyle}
-            className="auth-input"
-            disabled={loading}
-          />
+          <div style={inputContainerStyle}>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              style={{...inputStyle, marginBottom: 0}}
+              className="auth-input"
+              disabled={loading}
+              onFocus={(e) => e.target.parentElement.querySelector('.floating-label').classList.add('active')}
+              onBlur={(e) => {
+                if (!e.target.value) {
+                  e.target.parentElement.querySelector('.floating-label').classList.remove('active');
+                }
+              }}
+            />
+            <label 
+              className="floating-label" 
+              style={{
+                ...labelStyle, 
+                ...(formData.email ? labelActiveStyle : {})
+              }}
+            >
+              Email Address
+            </label>
+          </div>
           
-          <div style={passwordContainerStyle}>
+          <div style={{...passwordContainerStyle, ...inputContainerStyle}}>
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Password"
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               style={{...inputStyle, marginBottom: 0}}
               className="auth-input"
               disabled={loading}
+              onFocus={(e) => e.target.parentElement.querySelector('.floating-label').classList.add('active')}
+              onBlur={(e) => {
+                if (!e.target.value) {
+                  e.target.parentElement.querySelector('.floating-label').classList.remove('active');
+                }
+              }}
             />
+            <label 
+              className="floating-label" 
+              style={{
+                ...labelStyle, 
+                ...(formData.password ? labelActiveStyle : {})
+              }}
+            >
+              Password
+            </label>
             <button 
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -261,16 +340,30 @@ const AuthPage = ({ onLogin }) => {
           </div>
 
           {!isLogin && (
-            <div style={passwordContainerStyle}>
+            <div style={{...passwordContainerStyle, ...inputContainerStyle}}>
               <input
                 type={showConfirmPassword ? "text" : "password"}
-                placeholder="Confirm Password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                 style={{...inputStyle, marginBottom: 0}}
                 className="auth-input"
                 disabled={loading}
+                onFocus={(e) => e.target.parentElement.querySelector('.floating-label').classList.add('active')}
+                onBlur={(e) => {
+                  if (!e.target.value) {
+                    e.target.parentElement.querySelector('.floating-label').classList.remove('active');
+                  }
+                }}
               />
+              <label 
+                className="floating-label" 
+                style={{
+                  ...labelStyle, 
+                  ...(formData.confirmPassword ? labelActiveStyle : {})
+                }}
+              >
+                Confirm Password
+              </label>
               <button 
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
