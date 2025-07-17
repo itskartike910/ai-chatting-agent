@@ -7,12 +7,13 @@ import TaskStatus from './TaskStatus';
 import SettingsModal from './SettingsModal';
 import { useChat } from '../hooks/useChat';
 
-const ChatInterface = () => {
+const ChatInterface = ({ user, onLogout }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const { messages, addMessage, clearMessages } = useChat();
   const [isExecuting, setIsExecuting] = useState(false);
   const [taskStatus, setTaskStatus] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const portRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
@@ -345,7 +346,7 @@ const ChatInterface = () => {
     <div className="chat-interface" style={{ 
       width: '100vw',
       height: '100vh',
-      maxWidth: '400px',
+      maxWidth: '500px',
       maxHeight: '600px',
       display: 'flex', 
       flexDirection: 'column',
@@ -353,8 +354,9 @@ const ChatInterface = () => {
       backgroundColor: '#ffffff',
       overflow: 'hidden',
       position: 'fixed',
-      top: 0,
-      left: 0,
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTouchCallout: 'none',
@@ -429,6 +431,67 @@ const ChatInterface = () => {
           >
             ⚙️
           </button>
+          {/* User Menu */}
+          <div style={{ position: 'relative' }}>
+            <button 
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              style={{ 
+                padding: '4px 6px',
+                backgroundColor: '#F0F0F0FF',
+                border: '1px solid #6B6B6BFF',
+                color: '#000000FF',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontSize: '20px',
+                lineHeight: '18px'
+              }}
+              title="User Menu"
+            >
+              👤
+            </button>
+            
+            {showUserMenu && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '4px',
+                backgroundColor: 'white',
+                border: '1px solid #e1e8ed',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                minWidth: '160px',
+                zIndex: 1000
+              }}>
+                <div style={{
+                  padding: '8px 12px',
+                  borderBottom: '1px solid #f0f0f0',
+                  fontSize: '12px',
+                  color: '#657786'
+                }}>
+                  {user?.name || user?.email}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    onLogout();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#e0245e',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    textAlign: 'left'
+                  }}
+                >
+                  🚪 Sign Out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
