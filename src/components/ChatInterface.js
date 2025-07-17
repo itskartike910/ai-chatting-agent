@@ -6,6 +6,14 @@ import ChatInput from './ChatInput';
 import TaskStatus from './TaskStatus';
 import SettingsModal from './SettingsModal';
 import { useChat } from '../hooks/useChat';
+import { 
+  FaEdit, 
+  FaCog, 
+  FaUser, 
+  FaSignOutAlt,
+  FaWifi,
+  FaExclamationTriangle
+} from 'react-icons/fa';
 
 const ChatInterface = ({ user, onLogout }) => {
   const [showSettings, setShowSettings] = useState(false);
@@ -337,6 +345,15 @@ const ChatInterface = ({ user, onLogout }) => {
     }
   };
 
+  const getConnectionIcon = () => {
+    switch (connectionStatus) {
+      case 'connected': return <FaWifi />;
+      case 'connecting': return <FaWifi style={{ opacity: 0.6 }} />;
+      case 'error': return <FaExclamationTriangle />;
+      default: return <FaWifi style={{ opacity: 0.3 }} />;
+    }
+  };
+
   // If settings is open, show full-page settings
   if (showSettings) {
     return <SettingsModal onClose={() => setShowSettings(false)} />;
@@ -362,14 +379,14 @@ const ChatInterface = ({ user, onLogout }) => {
       WebkitTouchCallout: 'none',
       touchAction: 'manipulation'
     }}>
-      {/* Fixed Header - Reduced height */}
+      {/* Fixed Header - Updated with consistent styling */}
       <div className="header" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
         padding: '8px 12px',
         borderBottom: '1px solid #8A8A8AFF',
-        background: 'linear-gradient(to bottom, #B1B1B1FF, #CECECEFF)',
+        background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
         flexShrink: 0,
         height: '48px',
         boxSizing: 'border-box'
@@ -377,7 +394,7 @@ const ChatInterface = ({ user, onLogout }) => {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ 
             margin: 0, 
-            color: '#00559BFF', 
+            color: '#FFDCDCFF', 
             fontSize: '16px', 
             fontWeight: '800',
             lineHeight: '20px', 
@@ -391,63 +408,70 @@ const ChatInterface = ({ user, onLogout }) => {
             marginTop: '1px',
             display: 'flex',
             alignItems: 'center',
-            gap: '3px',
+            gap: '4px',
             lineHeight: '12px'
           }}>
-            <span style={{ fontSize: '12px' }}>●</span>
+            {getConnectionIcon()}
             <span>{getConnectionStatusText()}</span>
             {isExecuting && <span>• Working...</span>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '7.5px', flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button 
             onClick={handleNewChat}
             style={{ 
-              padding: '4px 6px', 
-              backgroundColor: '#F0F0F0FF',
-              border: '1px solid #6B6B6BFF',
-              borderRadius: '10px',
+              padding: '6px 8px', 
+              backgroundColor: 'rgba(255, 220, 220, 0.2)',
+              border: '1px solid rgba(255, 220, 220, 0.3)',
+              borderRadius: '8px',
               cursor: 'pointer',
-              fontSize: '20px',
-              lineHeight: '18px',
+              fontSize: '16px',
+              color: '#FFDCDCFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             title="New Chat"
           >
-            📝
+            <FaEdit />
           </button>
           <button 
             onClick={() => setShowSettings(true)}
             style={{ 
-              padding: '4px 6px',
-              backgroundColor: '#F0F0F0FF',
-              border: '1px solid #6B6B6BFF',
-              color: '#000000FF',
-              borderRadius: '10px',
+              padding: '6px 8px',
+              backgroundColor: 'rgba(255, 220, 220, 0.2)',
+              border: '1px solid rgba(255, 220, 220, 0.3)',
+              color: '#FFDCDCFF',
+              borderRadius: '8px',
               cursor: 'pointer',
-              fontSize: '20px',
-              lineHeight: '18px'
+              fontSize: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             title="Settings"
           >
-            ⚙️
+            <FaCog />
           </button>
           {/* User Menu */}
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => setShowUserMenu(!showUserMenu)}
               style={{ 
-                padding: '4px 6px',
-                backgroundColor: '#F0F0F0FF',
-                border: '1px solid #6B6B6BFF',
-                color: '#000000FF',
-                borderRadius: '10px',
+                padding: '6px 8px',
+                backgroundColor: 'rgba(255, 220, 220, 0.2)',
+                border: '1px solid rgba(255, 220, 220, 0.3)',
+                color: '#FFDCDCFF',
+                borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '20px',
-                lineHeight: '18px'
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
               title="User Menu"
             >
-              👤
+              <FaUser />
             </button>
             
             {showUserMenu && (
@@ -484,10 +508,14 @@ const ChatInterface = ({ user, onLogout }) => {
                     color: '#e0245e',
                     fontSize: '13px',
                     cursor: 'pointer',
-                    textAlign: 'left'
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                 >
-                  🚪 Sign Out
+                  <FaSignOutAlt />
+                  Sign Out
                 </button>
               </div>
             )}

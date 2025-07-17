@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FaEye, FaEyeSlash, FaRocket, FaEdit, FaKey, FaStar, FaLock, FaRobot } from 'react-icons/fa';
 
 const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -82,9 +83,9 @@ const AuthPage = ({ onLogin }) => {
   };
 
   const contentStyle = {
-    flex: 1,
+    flex: 'none',
     padding: '20px',
-    overflowY: 'auto'
+    paddingTop: '10px'
   };
 
   const inputStyle = {
@@ -94,7 +95,6 @@ const AuthPage = ({ onLogin }) => {
     border: '2px solid #FFFFFFFF',
     fontSize: '16px',
     color: '#FFDCDCFF',
-    placeholder: '#FFDCDCFF',
     marginBottom: '16px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
@@ -111,15 +111,18 @@ const AuthPage = ({ onLogin }) => {
 
   const eyeButtonStyle = {
     position: 'absolute',
-    right: '10px',
+    right: '12px',
     top: '50%',
     transform: 'translateY(-50%)',
     background: 'none',
     border: 'none',
     color: '#FFDCDCFF',
     cursor: 'pointer',
-    fontSize: '20px',
-    padding: '5px'
+    fontSize: '18px',
+    padding: '5px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   };
 
   const buttonStyle = {
@@ -131,7 +134,11 @@ const AuthPage = ({ onLogin }) => {
     fontWeight: '600',
     cursor: loading ? 'not-allowed' : 'pointer',
     transition: 'all 0.3s',
-    marginBottom: '20px'
+    marginBottom: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
   };
 
   const primaryButtonStyle = {
@@ -148,17 +155,40 @@ const AuthPage = ({ onLogin }) => {
   };
 
   return (
-    <div style={containerStyle}>
+    <div style={{...containerStyle, overflowY: 'auto'}}>
+      {/* Custom CSS for placeholder styling */}
+      <style>
+        {`
+          .auth-input::placeholder {
+            color: rgba(255, 220, 220, 0.7) !important;
+            opacity: 1 !important;
+          }
+          .auth-input::-webkit-input-placeholder {
+            color: rgba(255, 220, 220, 0.7) !important;
+          }
+          .auth-input::-moz-placeholder {
+            color: rgba(255, 220, 220, 0.7) !important;
+          }
+          .auth-input:-ms-input-placeholder {
+            color: rgba(255, 220, 220, 0.7) !important;
+          }
+          
+          @keyframes robot-bounce {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+          }
+          
+          .robot-icon {
+            animation: robot-bounce 2s ease-in-out infinite;
+            display: inline-block;
+          }
+        `}
+      </style>
+
       {/* Header */}
       <div style={headerStyle}>
-        <div style={{ fontSize: '40px', marginBottom: '5px', cursor: 'pointer' }}>
-          <span style={{ display: 'inline-block', animation: 'cursor-track 3s infinite' }}>🤖</span>
-          <style>{`
-            @keyframes cursor-track {
-              0%, 100% { transform: translateX(-5px); }
-              50% { transform: translateX(5px); }
-            }`}
-          </style>
+        <div style={{ fontSize: '40px', marginBottom: '3px',marginTop: '5px', color: '#FFD1D1FF' }}>
+          <FaRobot className="robot-icon" />
         </div>
         <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '700' }}>
           AI CHAT AGENT
@@ -170,7 +200,7 @@ const AuthPage = ({ onLogin }) => {
 
       {/* Content */}
       <div style={contentStyle}>
-        <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <h3 style={{ 
             fontSize: '18px', 
             fontWeight: '600', 
@@ -196,6 +226,7 @@ const AuthPage = ({ onLogin }) => {
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
               style={inputStyle}
+              className="auth-input"
               disabled={loading}
             />
           )}
@@ -206,6 +237,7 @@ const AuthPage = ({ onLogin }) => {
             value={formData.email}
             onChange={(e) => setFormData({...formData, email: e.target.value})}
             style={inputStyle}
+            className="auth-input"
             disabled={loading}
           />
           
@@ -216,6 +248,7 @@ const AuthPage = ({ onLogin }) => {
               value={formData.password}
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               style={{...inputStyle, marginBottom: 0}}
+              className="auth-input"
               disabled={loading}
             />
             <button 
@@ -223,7 +256,7 @@ const AuthPage = ({ onLogin }) => {
               onClick={() => setShowPassword(!showPassword)}
               style={eyeButtonStyle}
             >
-              {showPassword ? '👁️' : '👁️‍🗨️'}
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
 
@@ -235,6 +268,7 @@ const AuthPage = ({ onLogin }) => {
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                 style={{...inputStyle, marginBottom: 0}}
+                className="auth-input"
                 disabled={loading}
               />
               <button 
@@ -242,7 +276,7 @@ const AuthPage = ({ onLogin }) => {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 style={eyeButtonStyle}
               >
-                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
           )}
@@ -251,7 +285,7 @@ const AuthPage = ({ onLogin }) => {
             <div style={{
               backgroundColor: '#fef2f2',
               border: '1px solid #fca5a5',
-              borderRadius: '6px',
+              borderRadius: '8px',
               padding: '12px',
               marginBottom: '16px',
               fontSize: '14px',
@@ -266,7 +300,24 @@ const AuthPage = ({ onLogin }) => {
             style={primaryButtonStyle}
             disabled={loading}
           >
-            {loading ? '🔄 Processing...' : (isLogin ? '🚀 Sign In' : '✨ Create Account')}
+            {loading ? (
+              <>
+                <div style={{
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid transparent',
+                  borderTop: '2px solid #ffffff',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Processing...
+              </>
+            ) : (
+              <>
+                {isLogin ? <FaRocket /> : <FaStar />}
+                {isLogin ? 'Sign In' : 'Create Account'}
+              </>
+            )}
           </button>
         </form>
 
@@ -284,26 +335,48 @@ const AuthPage = ({ onLogin }) => {
           style={secondaryButtonStyle}
           disabled={loading}
         >
-          {isLogin ? '📝 Need an account? Sign Up' : '🔑 Already have an account? Sign In'}
+          {isLogin ? (
+            <>
+              <FaEdit />
+              Need an account? Sign Up
+            </>
+          ) : (
+            <>
+              <FaKey />
+              Already have an account? Sign In
+            </>
+          )}
         </button>
 
         <div style={{
-          marginTop: '10px',
-          padding: '10px',
+          marginTop: '16px',
+          padding: '12px',
           backgroundColor: '#FFF9C3FF',
           borderRadius: '10px',
           border: '1px solid #FFFFFFFF'
         }}>
           <div style={{ fontSize: '12px', color: '#000000FF', textAlign: 'center' }}>
-            <p style={{ margin: '0 0 6px 0' }}>
-              ✨ <strong>New users get a 7-day free trial!</strong>
+            <p style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              <FaStar style={{ fontSize: '14px' }} />
+              <strong>New users get a 7-day free trial!</strong>
             </p>
-            <p style={{ margin: 0 }}>
-              🔒 Your data is secure and encrypted
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              <FaLock style={{ fontSize: '12px' }} />
+              Your data is secure and encrypted
             </p>
           </div>
         </div>
       </div>
+
+      {/* Spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };

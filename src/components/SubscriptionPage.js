@@ -1,4 +1,15 @@
 import React, { useState } from 'react';
+import { 
+  FaStar, 
+  FaBullseye, 
+  FaUnlock, 
+  FaEdit, 
+  FaComments, 
+  FaCrown, 
+  FaGift, 
+  FaCreditCard,
+  FaSignOutAlt,
+} from 'react-icons/fa';
 
 const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
   const [selectedPlan, setSelectedPlan] = useState('yearly');
@@ -84,7 +95,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
     display: 'flex',
     flexDirection: 'column',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#002550FF',
     overflow: 'hidden',
     position: 'fixed',
     top: '50%',
@@ -96,22 +107,22 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
   };
 
   const headerStyle = {
-    padding: '16px 20px',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+    padding: '0px 10px 0px 10px',
+    background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
     color: 'white',
     textAlign: 'center'
   };
 
   const contentStyle = {
-    flex: 1,
+    flex: 'none',
     padding: '20px',
-    overflowY: 'auto',
-    backgroundColor: '#1e293b'
+    paddingTop: '10px',
+    backgroundColor: '#002550FF'
   };
 
   const planCardStyle = (isSelected, isRecommended) => ({
-    backgroundColor: isSelected ? '#374151' : '#2d3748',
-    border: `2px solid ${isSelected ? '#3b82f6' : '#4a5568'}`,
+    backgroundColor: isSelected ? '#003A7CFF' : '#002550FF',
+    border: `2px solid ${isSelected ? '#3b82f6' : '#FFDCDCFF'}`,
     borderRadius: '12px',
     padding: '16px',
     marginBottom: '12px',
@@ -124,18 +135,35 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
     })
   });
 
+  const buttonStyle = {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '12px',
+    border: 'none',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: loading ? 'not-allowed' : 'pointer',
+    marginBottom: '12px',
+    transition: 'all 0.3s',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px'
+  };
+
   return (
-    <div style={containerStyle}>
+    <div style={{...containerStyle, overflowY: 'auto'}}>
       {/* Header */}
       <div style={headerStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ flex: 1 }}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>
-              ✨ Unleash AI's full powers with Premium
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <FaStar />
+              Unleash AI's full powers with Premium
             </h3>
           </div>
         </div>
-        <p style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.9 }}>
+        <p style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.9, color: '#FFDCDCFF' }}>
           Welcome, {user?.name || user?.email}!
         </p>
       </div>
@@ -147,15 +175,19 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '8px',
-            marginBottom: '16px'
+            gap: '12px',
+            marginBottom: '16px',
+            padding: '12px',
+            backgroundColor: '#003A7CFF',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 220, 220, 0.2)'
           }}>
-            <span style={{ fontSize: '20px' }}>🎯</span>
+            <FaBullseye style={{ fontSize: '20px', color: '#FFDCDCFF' }} />
             <div>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: 'white' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#FFDCDCFF' }}>
                 Explore different AI models
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255, 220, 220, 0.8)' }}>
                 Priority access to powerful models with different skills.
               </div>
             </div>
@@ -164,15 +196,19 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '8px',
-            marginBottom: '16px'
+            gap: '12px',
+            marginBottom: '16px',
+            padding: '12px',
+            backgroundColor: '#003A7CFF',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 220, 220, 0.2)'
           }}>
-            <span style={{ fontSize: '20px' }}>🔓</span>
+            <FaUnlock style={{ fontSize: '20px', color: '#FFDCDCFF' }} />
             <div>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: 'white' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#FFDCDCFF' }}>
                 Unlock your creativity
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255, 220, 220, 0.8)' }}>
                 Access models better suited for creative tasks and content generation.
               </div>
             </div>
@@ -181,15 +217,19 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '8px',
-            marginBottom: '16px'
+            gap: '12px',
+            marginBottom: '16px',
+            padding: '12px',
+            backgroundColor: '#003A7CFF',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 220, 220, 0.2)'
           }}>
-            <span style={{ fontSize: '20px' }}>📝</span>
+            <FaEdit style={{ fontSize: '20px', color: '#FFDCDCFF' }} />
             <div>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: 'white' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#FFDCDCFF' }}>
                 Stay on topic
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255, 220, 220, 0.8)' }}>
                 Get more accurate answers for more nuanced conversations.
               </div>
             </div>
@@ -198,15 +238,19 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '8px',
-            marginBottom: '20px'
+            gap: '12px',
+            marginBottom: '20px',
+            padding: '12px',
+            backgroundColor: '#003A7CFF',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 220, 220, 0.2)'
           }}>
-            <span style={{ fontSize: '20px' }}>💬</span>
+            <FaComments style={{ fontSize: '20px', color: '#FFDCDCFF' }} />
             <div>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: 'white' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#FFDCDCFF' }}>
                 Chat for longer
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+              <div style={{ fontSize: '12px', color: 'rgba(255, 220, 220, 0.8)' }}>
                 Get higher rate limits for longer conversations.
               </div>
             </div>
@@ -232,15 +276,19 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
                   fontSize: '10px',
                   fontWeight: '600',
                   padding: '4px 12px',
-                  borderRadius: '12px'
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}>
+                  <FaCrown style={{ fontSize: '8px' }} />
                   BEST VALUE
                 </div>
               )}
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '16px', fontWeight: '600', color: 'white' }}>
+                  <div style={{ fontSize: '16px', fontWeight: '600', color: '#FFDCDCFF' }}>
                     {plan.name}
                   </div>
                   {plan.savings && (
@@ -250,7 +298,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
                   )}
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: 'white' }}>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFDCDCFF' }}>
                     USD ${plan.price}
                     <span style={{ fontSize: '12px', fontWeight: '400' }}>
                       {plan.period}
@@ -259,7 +307,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
                   {plan.originalPrice && (
                     <div style={{ 
                       fontSize: '12px', 
-                      color: '#94a3b8', 
+                      color: 'rgba(255, 220, 220, 0.6)', 
                       textDecoration: 'line-through' 
                     }}>
                       ${plan.originalPrice}
@@ -290,20 +338,29 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
           onClick={handleTrial}
           disabled={loading}
           style={{
-            width: '100%',
-            padding: '14px',
+            ...buttonStyle,
             backgroundColor: loading ? '#4a5568' : '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            marginBottom: '12px',
-            transition: 'all 0.3s'
+            color: 'white'
           }}
         >
-          {loading ? '🔄 Processing...' : '🎉 Try 7 days free'}
+          {loading ? (
+            <>
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid transparent',
+                borderTop: '2px solid #ffffff',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              Processing...
+            </>
+          ) : (
+            <>
+              <FaGift />
+              Try 7 days free
+            </>
+          )}
         </button>
 
         {/* Subscribe Button */}
@@ -311,47 +368,71 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
           onClick={handleSubscribe}
           disabled={loading}
           style={{
-            width: '100%',
-            padding: '14px',
+            ...buttonStyle,
             backgroundColor: loading ? '#4a5568' : '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '16px',
-            fontWeight: '600',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            marginBottom: '16px',
-            transition: 'all 0.3s'
+            color: 'white'
           }}
         >
-          {loading ? '🔄 Processing...' : `💳 Subscribe ${plans[selectedPlan].name}`}
+          {loading ? (
+            <>
+              <div style={{
+                width: '16px',
+                height: '16px',
+                border: '2px solid transparent',
+                borderTop: '2px solid #ffffff',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              Processing...
+            </>
+          ) : (
+            <>
+              <FaCreditCard />
+              Subscribe {plans[selectedPlan].name}
+            </>
+          )}
         </button>
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '16px' }}>
           <p style={{ 
             fontSize: '11px', 
-            color: '#94a3b8',
-            margin: '0 0 8px 0'
+            color: 'rgba(255, 220, 220, 0.8)',
+            margin: '0 0 12px 0'
           }}>
             All subscriptions are auto-renewed but can be cancelled at any time before renewal.
           </p>
           <button 
             onClick={onLogout}
             style={{ 
-              padding: '4px 8px', 
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              border: 'none',
+              padding: '8px 16px', 
+              backgroundColor: 'rgba(255, 220, 220, 0.2)',
+              border: '1px solid rgba(255, 220, 220, 0.3)',
               borderRadius: '6px',
-              color: 'white',
+              color: '#FFDCDCFF',
               cursor: 'pointer',
-              fontSize: '12px'
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              margin: '0 auto'
             }}
           >
+            <FaSignOutAlt />
             Sign Out
           </button>
         </div>
       </div>
+
+      {/* Spinner animation */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };
