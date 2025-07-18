@@ -368,7 +368,7 @@ const AuthPage = ({ onLogin }) => {
               onClick={() => setShowPassword(!showPassword)}
               style={eyeButtonStyle}
             >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
+              {showPassword ? <FaEye /> : <FaEyeSlash />}
             </button>
           </div>
 
@@ -402,7 +402,7 @@ const AuthPage = ({ onLogin }) => {
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 style={eyeButtonStyle}
               >
-                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                {showConfirmPassword ? <FaEye /> : <FaEyeSlash />}
               </button>
             </div>
           )}
