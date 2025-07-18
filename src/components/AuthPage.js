@@ -212,7 +212,7 @@ const AuthPage = ({ onLogin }) => {
           }
           
           @keyframes robot-bounce {
-            0%, 100% { transform: translateY(0px); }
+            0%, 100% { transform: translateY(1px); }
             50% { transform: translateY(-5px); }
           }
           
@@ -225,7 +225,7 @@ const AuthPage = ({ onLogin }) => {
 
       {/* Header */}
       <div style={headerStyle}>
-        <div style={{ fontSize: '40px', marginBottom: '3px',marginTop: '5px', color: '#FFD1D1FF' }}>
+        <div style={{ fontSize: '40px', marginBottom: '-5px',marginTop: '5px', color: '#FFD1D1FF' }}>
           <FaRobot className="robot-icon" />
         </div>
         <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '700' }}>
