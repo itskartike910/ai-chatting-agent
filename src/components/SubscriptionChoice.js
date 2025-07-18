@@ -91,12 +91,6 @@ const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, user }) => {
           <FaKey />
           Use Your Own API Keys
         </button>
-
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <p style={{ fontSize: '12px', color: 'rgba(255, 220, 220, 0.6)' }}>
-            Both options provide unlimited usage
-          </p>
-        </div>
       </div>
     </div>
   );

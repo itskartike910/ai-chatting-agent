@@ -7,7 +7,6 @@ import {
   FaCrown, 
   FaGift, 
   FaCreditCard,
-  FaSignOutAlt,
   FaKey,
   FaArrowLeft
 } from 'react-icons/fa';
@@ -158,8 +157,13 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
   if (loading) {
     return (
       <div style={{
-        width: '100vw',
-        height: '100vh',
+        position: 'fixed', 
+        top: 0,           
+        left: 0,          
+        right: 0,         
+        bottom: 0,        
+        width: '100%',    
+        height: '100%',   
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -499,25 +503,6 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
           }}>
             All subscriptions are auto-renewed but can be cancelled at any time before renewal.
           </p>
-          <button 
-            onClick={onLogout}
-            style={{ 
-              padding: '8px 16px', 
-              backgroundColor: 'rgba(255, 220, 220, 0.2)',
-              border: '1px solid rgba(255, 220, 220, 0.3)',
-              borderRadius: '6px',
-              color: '#FFDCDCFF',
-              cursor: 'pointer',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              margin: '0 auto'
-            }}
-          >
-            <FaSignOutAlt />
-            Sign Out
-          </button>
         </div>
       </div>
 

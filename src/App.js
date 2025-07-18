@@ -17,8 +17,13 @@ function AppContent() {
   if (loading) {
     return (
       <div style={{
-        width: '100vw',
-        height: '100vh',
+        position: 'fixed', 
+        top: 0,           
+        left: 0,          
+        right: 0,         
+        bottom: 0,        
+        width: '100%',    
+        height: '100%',   
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -40,7 +45,7 @@ function AppContent() {
           color: '#FFDCDCFF',
           textAlign: 'center'
         }}>
-          <span id="loading-text">Loading</span>
+          <span id="loading-text"> </span>
         </div>
         
         <style>
