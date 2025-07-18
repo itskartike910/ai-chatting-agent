@@ -268,7 +268,42 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       timestamp: Date.now()
     });
 
-    // Send to background script if connected
+    // Check if user has API quota before sending
+    if (!subscription.usingPersonalAPI && subscription.remaining_requests <= 0) {
+      setShowSubscriptionChoice(true);
+      return;
+    }
+
+    try {
+      if (!subscription.usingPersonalAPI) {
+        const response = await subscription.makeAIRequest(message);
+        
+        addMessage({
+          type: 'assistant',
+          content: response.response || response.content || 'No response generated',
+          timestamp: Date.now(),
+          isMarkdown: hasMarkdownContent(response.response || response.content)
+        });
+        
+        return;
+      }
+    } catch (error) {
+      if (error.message === 'TRIAL_EXPIRED') {
+        setShowSubscriptionChoice(true);
+        return;
+      } else if (error.message === 'USE_PERSONAL_API') {
+        
+      } else {
+        addMessage({
+          type: 'error',
+          content: `❌ API Error: ${error.message}`,
+          timestamp: Date.now()
+        });
+        return;
+      }
+    }
+
+    // Fallback to background script (existing logic)
     if (portRef.current && connectionStatus === 'connected' && !isExecuting) {
       try {
         console.log('Sending message to background:', message);

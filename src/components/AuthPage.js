@@ -7,7 +7,8 @@ const AuthPage = ({ onLogin }) => {
     email: '',
     password: '',
     name: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    username: '' // Added username field
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +30,9 @@ const AuthPage = ({ onLogin }) => {
         if (!formData.name) {
           throw new Error('Name is required for signup');
         }
+        if (!formData.username) { 
+          throw new Error('Username is required for signup');
+        }
         if (formData.password !== formData.confirmPassword) {
           throw new Error('Passwords do not match');
         }
@@ -41,6 +45,7 @@ const AuthPage = ({ onLogin }) => {
         email: formData.email,
         password: formData.password,
         name: formData.name,
+        username: formData.username,
         isNewUser: !isLogin
       };
 
@@ -279,6 +284,34 @@ const AuthPage = ({ onLogin }) => {
               </label>
             </div>
           )}
+
+          {!isLogin && (
+            <div style={inputContainerStyle}>
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) => setFormData({...formData, username: e.target.value})}
+                style={{...inputStyle, marginBottom: 0}}
+                className="auth-input"
+                disabled={loading}
+                onFocus={(e) => e.target.parentElement.querySelector('.floating-label').classList.add('active')}
+                onBlur={(e) => {
+                  if (!e.target.value) {
+                    e.target.parentElement.querySelector('.floating-label').classList.remove('active');
+                  }
+                }}
+              />
+              <label 
+                className="floating-label" 
+                style={{
+                  ...labelStyle, 
+                  ...(formData.username ? labelActiveStyle : {})
+                }}
+              >
+                Username
+              </label>
+            </div>
+          )}
           
           <div style={inputContainerStyle}>
             <input
@@ -422,7 +455,8 @@ const AuthPage = ({ onLogin }) => {
               email: '',
               password: '',
               name: '',
-              confirmPassword: ''
+              confirmPassword: '',
+              username: '' 
             });
           }}
           style={secondaryButtonStyle}

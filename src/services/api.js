@@ -2,14 +2,13 @@
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-console.log('🌍 API Base URL:', API_BASE_URL); // Debug log to verify
+console.log('🌍 API Base URL:', API_BASE_URL);
 
 class APIService {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.token = null;
     
-    // Debug log
     console.log('🔗 APIService initialized with URL:', this.baseURL);
   }
 
