@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaCog, 
   FaTimes, 
@@ -15,13 +16,18 @@ import {
   FaSave
 } from 'react-icons/fa';
 
-const SettingsModal = ({ onClose }) => {
+const SettingsModal = () => {
   const { config, updateConfig } = useConfig();
   const [localConfig, setLocalConfig] = useState(config);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setLocalConfig(config);
   }, [config]);
+
+  const handleClose = () => {
+    navigate('/profile');
+  };
 
   const handleSave = async () => {
     try {
@@ -41,10 +47,10 @@ const SettingsModal = ({ onClose }) => {
       if (saveButton) {
         saveButton.textContent = '✅ Saved!';
         setTimeout(() => {
-          onClose();
+          navigate('/profile');
         }, 500);
       } else {
-        onClose();
+        navigate('/profile');
       }
       
     } catch (error) {
@@ -235,6 +241,7 @@ const SettingsModal = ({ onClose }) => {
             lineHeight: '22px',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px'
           }}>
             <FaCog />
@@ -251,7 +258,7 @@ const SettingsModal = ({ onClose }) => {
           </p>
         </div>
         <button 
-          onClick={onClose} 
+          onClick={handleClose} 
           style={{ 
             padding: '6px 8px', 
             backgroundColor: 'rgba(255, 220, 220, 0.2)',
@@ -527,7 +534,7 @@ const SettingsModal = ({ onClose }) => {
       {/* Fixed Footer */}
       <div style={footerStyle}>
         <button 
-          onClick={onClose}
+          onClick={handleClose}
           style={{ 
             ...buttonStyle,
             backgroundColor: 'rgba(255, 220, 220, 0.2)',

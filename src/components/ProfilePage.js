@@ -11,7 +11,8 @@ import {
   FaKey,
   FaInfinity,
   FaClock,
-  FaStar
+  FaStar,
+  FaCog
 } from 'react-icons/fa';
 
 const ProfilePage = ({ user, subscription, onLogout }) => {
@@ -185,7 +186,24 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           </p>
         </div>
         
-        <div style={{ width: '40px' }}></div> {/* Spacer for centering */}
+        <button 
+          onClick={() => navigate('/settings')}
+          style={{ 
+            padding: '6px 8px', 
+            backgroundColor: 'rgba(255, 220, 220, 0.2)',
+            border: '1px solid rgba(255, 220, 220, 0.3)',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px',
+            color: '#FFDCDCFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+          title="Settings"
+        >
+          <FaCog />
+        </button>
       </div>
 
       {/* Scrollable Content */}

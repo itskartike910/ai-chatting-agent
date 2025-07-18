@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  FaStar, 
   FaBullseye, 
   FaUnlock, 
   FaEdit, 
@@ -9,10 +8,14 @@ import {
   FaGift, 
   FaCreditCard,
   FaSignOutAlt,
-  FaKey
+  FaKey,
+  FaArrowLeft
 } from 'react-icons/fa';
 
+import { useNavigate } from 'react-router-dom';
+
 const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
+  const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState('yearly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -152,17 +155,95 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
     gap: '8px'
   };
 
+  if (loading) {
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#002550FF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid rgba(255, 220, 220, 0.3)',
+          borderTop: '4px solid #FFDCDCFF',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '20px'
+        }} />
+        <div style={{ 
+          fontSize: '16px', 
+          color: '#FFDCDCFF',
+          textAlign: 'center'
+        }}>
+          <span id="loading-text">Loading</span>
+        </div>
+        
+        <style>
+          {`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            
+            @keyframes dots {
+              0% { content: 'Loading'; }
+              33% { content: 'Loading.'; }
+              66% { content: 'Loading..'; }
+              100% { content: 'Loading...'; }
+            }
+            
+            #loading-text::after {
+              content: '';
+              animation: dots 1.5s infinite;
+            }
+          `}
+        </style>
+      </div>
+    );
+  }
+
   return (
-    <div style={{...containerStyle, overflowY: 'auto'}}>
+    <div style={{...containerStyle, overflowY: 'auto'}} onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        onOpenSettings();
+      }
+    }}>
       {/* Header */}
       <div style={headerStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ flex: 1 }}>
+          <button 
+            onClick={() => navigate('/profile')}
+            style={{ 
+              padding: '6px 8px', 
+              backgroundColor: 'rgba(255, 220, 220, 0.2)',
+              border: '1px solid rgba(255, 220, 220, 0.3)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#FFDCDCFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginLeft: '6px'
+            }}
+            title="Back to Profile"
+          >
+            <FaArrowLeft />
+          </button>
+          
+          <div style={{ flex: 1, textAlign: 'center' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              <FaStar />
               Unleash AI's full powers with Premium
             </h3>
           </div>
+          
+          <div style={{ width: '40px' }}></div> {/* Spacer for centering */}
         </div>
         <p style={{ margin: '8px 0 0 0', fontSize: '13px', opacity: 0.9, color: '#FFDCDCFF' }}>
           Welcome, {user?.name || user?.email}!

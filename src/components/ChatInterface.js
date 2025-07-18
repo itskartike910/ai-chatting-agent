@@ -4,11 +4,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import TaskStatus from './TaskStatus';
-import SettingsModal from './SettingsModal';
 import { useChat } from '../hooks/useChat';
 import { 
   FaEdit, 
-  FaCog, 
   FaUser, 
   FaWifi,
   FaExclamationTriangle
@@ -19,7 +17,6 @@ import { useNavigate } from 'react-router-dom';
 
 const ChatInterface = ({ user, subscription, onLogout }) => {
   const navigate = useNavigate();
-  const [showSettings, setShowSettings] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const { messages, addMessage, clearMessages } = useChat();
   const [isExecuting, setIsExecuting] = useState(false);
@@ -261,18 +258,18 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   }, []);
 
   const handleSendMessage = async (message) => {
+    // Check if user has API quota before sending
+    if (!subscription.usingPersonalAPI && subscription.remaining_requests <= 0) {
+      setShowSubscriptionChoice(true);
+      return;
+    }
+
     // Add user message immediately
     addMessage({
       type: 'user',
       content: message,
       timestamp: Date.now()
     });
-
-    // Check if user has API quota before sending
-    if (!subscription.usingPersonalAPI && subscription.remaining_requests <= 0) {
-      setShowSubscriptionChoice(true);
-      return;
-    }
 
     try {
       if (!subscription.usingPersonalAPI) {
@@ -394,23 +391,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     }
   };
 
-  // If settings is open, show full-page settings
-  if (showSettings) {
-    return <SettingsModal onClose={() => setShowSettings(false)} />;
-  }
-
-  // Add subscription choice modal before the return statement
-  if (showSubscriptionChoice) {
-    return (
-      <SubscriptionChoice 
-        onSubscribe={() => window.location.href = '#/subscription'}
-        onUseAPI={() => window.location.href = '#/settings'}
-        onClose={() => setShowSubscriptionChoice(false)}
-        user={user}
-      />
-    );
-  }
-
+  // Add subscription choice modal as an overlay in the return statement
   return (
     <div className="chat-interface" style={{ 
       width: '100vw',
@@ -491,24 +472,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           >
             <FaEdit />
           </button>
-          <button 
-            onClick={() => setShowSettings(true)}
-            style={{ 
-              padding: '6px 8px',
-              backgroundColor: 'rgba(255, 220, 220, 0.2)',
-              border: '1px solid rgba(255, 220, 220, 0.3)',
-              color: '#FFDCDCFF',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Settings"
-          >
-            <FaCog />
-          </button>
           {/* User Menu */}
           <div style={{ position: 'relative' }}>
             <button 
@@ -558,6 +521,22 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             : "Connecting..."
         }
       />
+      
+      {/* Add subscription choice as overlay */}
+      {showSubscriptionChoice && (
+        <SubscriptionChoice 
+          onSubscribe={() => {
+            setShowSubscriptionChoice(false);
+            navigate('/subscription');
+          }}
+          onUseAPI={() => {
+            setShowSubscriptionChoice(false);
+            navigate('/settings');
+          }}
+          onClose={() => setShowSubscriptionChoice(false)}
+          user={user}
+        />
+      )}
     </div>
   );
 };

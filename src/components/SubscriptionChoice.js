@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaStar, FaKey, FaCreditCard, FaTimes } from 'react-icons/fa';
+import { FaStar, FaKey, FaTimes } from 'react-icons/fa';
 
 const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, user }) => {
   const containerStyle = {
@@ -42,7 +42,11 @@ const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, user }) => {
   };
 
   return (
-    <div style={containerStyle} onClick={onClose}>
+    <div style={containerStyle} onClick={(e) => {
+      if (e.target === e.currentTarget) {
+        onClose();
+      }
+    }}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ color: '#FFDCDCFF', margin: 0, fontSize: '20px' }}>

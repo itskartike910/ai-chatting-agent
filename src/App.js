@@ -1,5 +1,3 @@
-/*global chrome*/
-
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
@@ -8,7 +6,6 @@ import ChatInterface from './components/ChatInterface';
 import AuthPage from './components/AuthPage';
 import SubscriptionPage from './components/SubscriptionPage';
 import SettingsModal from './components/SettingsModal';
-import SubscriptionChoice from './components/SubscriptionChoice';
 import ProfilePage from './components/ProfilePage';
 import './App.css';
 
@@ -19,17 +16,53 @@ function AppContent() {
   // Loading state
   if (loading) {
     return (
-      <div className="App" style={{
+      <div style={{
+        width: '100vw',
+        height: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        height: '100vh',
-        backgroundColor: '#002550FF'
+        backgroundColor: '#002550FF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px', color: '#FFDCDCFF' }}>🤖</div> 
-          <div style={{ fontSize: '16px', color: '#FFDCDCFF' }}>Loading...</div>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '4px solid rgba(255, 220, 220, 0.3)',
+          borderTop: '4px solid #FFDCDCFF',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '20px'
+        }} />
+        <div style={{ 
+          fontSize: '16px', 
+          color: '#FFDCDCFF',
+          textAlign: 'center'
+        }}>
+          <span id="loading-text">Loading</span>
         </div>
+        
+        <style>
+          {`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            
+            @keyframes dots {
+              0% { content: 'Loading'; }
+              33% { content: 'Loading.'; }
+              66% { content: 'Loading..'; }
+              100% { content: 'Loading...'; }
+            }
+            
+            #loading-text::after {
+              content: '';
+              animation: dots 1.5s infinite;
+            }
+          `}
+        </style>
       </div>
     );
   }
@@ -60,13 +93,6 @@ function AppContent() {
         element={
           !isLoggedIn ? (
             <Navigate to="/auth" replace />
-          ) : subscription.isTrialExpired() && !subscription.usingPersonalAPI ? (
-            <SubscriptionChoice 
-              onSubscribe={() => window.location.hash = '/subscription'}
-              onUseAPI={() => window.location.hash = '/settings'}
-              onClose={() => {}}
-              user={user}
-            />
           ) : (
             <ChatInterface 
               user={user}
@@ -102,7 +128,7 @@ function AppContent() {
           !isLoggedIn ? (
             <Navigate to="/auth" replace />
           ) : (
-            <SettingsModal onClose={() => window.location.hash = '/chat'} />
+            <SettingsModal />
           )
         } 
       />

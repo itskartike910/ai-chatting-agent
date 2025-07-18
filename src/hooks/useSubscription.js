@@ -19,6 +19,7 @@ export const useSubscription = (user) => {
     if (user) {
       loadSubscriptionData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadSubscriptionData = async () => {
