@@ -9,6 +9,7 @@ import AuthPage from './components/AuthPage';
 import SubscriptionPage from './components/SubscriptionPage';
 import SettingsModal from './components/SettingsModal';
 import SubscriptionChoice from './components/SubscriptionChoice';
+import ProfilePage from './components/ProfilePage';
 import './App.css';
 
 function AppContent() {
@@ -102,6 +103,21 @@ function AppContent() {
             <Navigate to="/auth" replace />
           ) : (
             <SettingsModal onClose={() => window.location.hash = '/chat'} />
+          )
+        } 
+      />
+
+      <Route 
+        path="/profile" 
+        element={
+          !isLoggedIn ? (
+            <Navigate to="/auth" replace />
+          ) : (
+            <ProfilePage 
+              user={user}
+              subscription={subscription}
+              onLogout={logout}
+            />
           )
         } 
       />

@@ -42,13 +42,30 @@ export const useSubscription = (user) => {
         });
       } else {
         const subscription = await apiService.getUserSubscription();
-        const remaining = Math.max(0, subscription.monthly_request_limit - subscription.requests_used);
+        
+        // Handle both subscription API and usage API response formats
+        let monthly_limit = subscription.monthly_request_limit;
+        let requests_used = subscription.requests_used;
+        
+        // If the subscription doesn't have usage data, get it from usage endpoint
+        if (typeof requests_used === 'undefined') {
+          try {
+            const usage = await apiService.getUsageStats();
+            monthly_limit = usage.monthly_limit || monthly_limit;
+            requests_used = usage.requests_used || 0;
+          } catch (usageError) {
+            console.warn('Could not fetch usage stats:', usageError);
+            requests_used = 0;
+          }
+        }
+        
+        const remaining = Math.max(0, monthly_limit - requests_used);
         
         setSubscriptionState({
           status: subscription.status,
           plan_type: subscription.plan_type,
-          monthly_request_limit: subscription.monthly_request_limit,
-          requests_used: subscription.requests_used,
+          monthly_request_limit: monthly_limit,
+          requests_used: requests_used,
           remaining_requests: remaining,
           trial_end: subscription.trial_end,
           current_period_end: subscription.current_period_end,

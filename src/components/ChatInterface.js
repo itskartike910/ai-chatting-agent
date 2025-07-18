@@ -10,20 +10,20 @@ import {
   FaEdit, 
   FaCog, 
   FaUser, 
-  FaSignOutAlt,
   FaWifi,
   FaExclamationTriangle
 } from 'react-icons/fa';
 import RequestCounter from './RequestCounter';
 import SubscriptionChoice from './SubscriptionChoice';
+import { useNavigate } from 'react-router-dom';
 
 const ChatInterface = ({ user, subscription, onLogout }) => {
+  const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const { messages, addMessage, clearMessages } = useChat();
   const [isExecuting, setIsExecuting] = useState(false);
   const [taskStatus, setTaskStatus] = useState(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const portRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
@@ -512,7 +512,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           {/* User Menu */}
           <div style={{ position: 'relative' }}>
             <button 
-              onClick={() => setShowUserMenu(!showUserMenu)}
+              onClick={() => navigate('/profile')}
               style={{ 
                 padding: '6px 8px',
                 backgroundColor: 'rgba(255, 220, 220, 0.2)',
@@ -525,56 +525,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}
-              title="User Menu"
+              title="Profile"
             >
               <FaUser />
             </button>
-            
-            {showUserMenu && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: '4px',
-                backgroundColor: '#FFDCDCFF',
-                border: '1px solid #757575FF',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                minWidth: '160px',
-                zIndex: 1000
-              }}>
-                <div style={{
-                  padding: '8px 12px',
-                  borderBottom: '1px solid #f0f0f0',
-                  fontSize: '12px',
-                  color: '#657786'
-                }}>
-                  {user?.name || user?.email}
-                </div>
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    onLogout();
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    border: 'none',
-                    backgroundColor: 'transparent',
-                    color: '#e0245e',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <FaSignOutAlt />
-                  Sign Out
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
