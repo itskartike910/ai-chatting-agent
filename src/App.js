@@ -1,185 +1,126 @@
 /*global chrome*/
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './hooks/useAuth';
+import { useSubscription } from './hooks/useSubscription';
 import ChatInterface from './components/ChatInterface';
 import AuthPage from './components/AuthPage';
 import SubscriptionPage from './components/SubscriptionPage';
+import SettingsModal from './components/SettingsModal';
+import SubscriptionChoice from './components/SubscriptionChoice';
 import './App.css';
 
-function App() {
-  const [authState, setAuthState] = useState({
-    isLoggedIn: false,
-    hasSubscription: false,
-    user: null,
-    loading: true
-  });
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const handleLogin = async (credentials) => {
-    // Mock user data
-    const mockUser = {
-      id: '123',
-      email: credentials.email,
-      name: credentials.name || 'User',
-      isNewUser: credentials.isNewUser
-    };
-    
-    const mockToken = 'mock-jwt-token-' + Date.now();
-    
-    try {
-      // Store auth data
-      await chrome.storage.local.set({
-        userAuth: {
-          token: mockToken,
-          user: mockUser,
-          loginTime: Date.now()
-        }
-      });
-      
-      setAuthState({
-        isLoggedIn: true,
-        hasSubscription: !mockUser.isNewUser,
-        user: mockUser,
-        loading: false
-      });
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { success: false, error: 'Failed to save login data' };
-    }
-  };
-
-  const handleSubscription = async (subscriptionData) => {
-    // TODO: Implement actual payment API
-    console.log('Subscription attempt:', subscriptionData);
-    
-    try {
-      // Store subscription data
-      await chrome.storage.local.set({
-        userSubscription: {
-          active: true,
-          plan: subscriptionData.plan,
-          expiresAt: Date.now() + (subscriptionData.plan === 'yearly' ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000),
-          subscribedAt: Date.now()
-        }
-      });
-      
-      setAuthState(prev => ({
-        ...prev,
-        hasSubscription: true
-      }));
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Subscription error:', error);
-      return { success: false, error: 'Failed to save subscription data' };
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await chrome.storage.local.remove(['userAuth', 'userSubscription']);
-      setAuthState({
-        isLoggedIn: false,
-        hasSubscription: false,
-        user: null,
-        loading: false
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  const checkAuthStatus = async () => {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get(['userAuth', 'userSubscription']);
-        
-        // Check if token exists and is not expired
-        const tokenValid = result.userAuth?.token && 
-                          result.userAuth?.tokenExpiry && 
-                          result.userAuth.tokenExpiry > Date.now();
-        
-        const isLoggedIn = !!tokenValid;
-        
-        // Check subscription status
-        const hasSubscription = !!(
-          result.userSubscription?.active && 
-          result.userSubscription?.expiresAt > Date.now()
-        );
-        
-        if (!isLoggedIn) {
-          // Clear invalid auth data
-          await chrome.storage.local.remove(['userAuth', 'userSubscription']);
-        }
-        
-        setAuthState({
-          isLoggedIn,
-          hasSubscription,
-          user: isLoggedIn ? result.userAuth?.user : null,
-          loading: false
-        });
-      } else {
-        setAuthState(prev => ({ ...prev, loading: false }));
-      }
-    } catch (error) {
-      console.error('Error checking auth status:', error);
-      setAuthState(prev => ({ ...prev, loading: false }));
-    }
-  };
+function AppContent() {
+  const { isLoggedIn, user, loading, login, signup, logout } = useAuth();
+  const subscription = useSubscription(user);
 
   // Loading state
-  if (authState.loading) {
+  if (loading) {
     return (
       <div className="App" style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
-        backgroundColor: '#f0f0f0'
+        backgroundColor: '#002550FF'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🤖</div>
-          <div style={{ fontSize: '16px', color: '#666' }}>Loading...</div>
+          <div style={{ fontSize: '48px', marginBottom: '16px', color: '#FFDCDCFF' }}>🤖</div> 
+          <div style={{ fontSize: '16px', color: '#FFDCDCFF' }}>Loading...</div>
         </div>
       </div>
     );
   }
 
-  // Show auth page if not logged in
-  if (!authState.isLoggedIn) {
-    return (
-      <div className="App">
-        <AuthPage onLogin={handleLogin} />
-      </div>
-    );
-  }
+  const handleLogin = async (credentials) => {
+    if (credentials.isNewUser) {
+      return await signup(credentials);
+    } else {
+      return await login(credentials);
+    }
+  };
 
-  // Show subscription page if logged in but no subscription (new users)
-  if (!authState.hasSubscription) {
-    return (
-      <div className="App">
-        <SubscriptionPage 
-          onSubscribe={handleSubscription}
-          onLogout={handleLogout}
-          user={authState.user}
-        />
-      </div>
-    );
-  }
-
-  // Show chat interface if logged in and has subscription
   return (
-    <div className="App">
-      <ChatInterface 
-        user={authState.user}
-        onLogout={handleLogout}
+    <Routes>
+      <Route 
+        path="/auth" 
+        element={
+          isLoggedIn ? (
+            <Navigate to="/chat" replace />
+          ) : (
+            <AuthPage onLogin={handleLogin} />
+          )
+        } 
       />
-    </div>
+      
+      <Route 
+        path="/chat" 
+        element={
+          !isLoggedIn ? (
+            <Navigate to="/auth" replace />
+          ) : subscription.isTrialExpired() && !subscription.usingPersonalAPI ? (
+            <SubscriptionChoice 
+              onSubscribe={() => window.location.hash = '/subscription'}
+              onUseAPI={() => window.location.hash = '/settings'}
+              onClose={() => {}}
+              user={user}
+            />
+          ) : (
+            <ChatInterface 
+              user={user}
+              subscription={subscription}
+              onLogout={logout}
+            />
+          )
+        } 
+      />
+      
+      <Route 
+        path="/subscription" 
+        element={
+          !isLoggedIn ? (
+            <Navigate to="/auth" replace />
+          ) : (
+            <SubscriptionPage 
+              onSubscribe={async (data) => {
+                console.log('Subscription:', data);
+                return { success: true };
+              }}
+              onLogout={logout}
+              onOpenSettings={() => window.location.hash = '/settings'}
+              user={user}
+            />
+          )
+        } 
+      />
+      
+      <Route 
+        path="/settings" 
+        element={
+          !isLoggedIn ? (
+            <Navigate to="/auth" replace />
+          ) : (
+            <SettingsModal onClose={() => window.location.hash = '/chat'} />
+          )
+        } 
+      />
+      
+      <Route 
+        path="/" 
+        element={<Navigate to={isLoggedIn ? "/chat" : "/auth"} replace />} 
+      />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <div className="App">
+        <AppContent />
+      </div>
+    </Router>
   );
 }
 

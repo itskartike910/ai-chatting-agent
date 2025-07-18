@@ -9,9 +9,10 @@ import {
   FaGift, 
   FaCreditCard,
   FaSignOutAlt,
+  FaKey
 } from 'react-icons/fa';
 
-const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
+const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
   const [selectedPlan, setSelectedPlan] = useState('yearly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -391,6 +392,21 @@ const SubscriptionPage = ({ onSubscribe, onLogout, user }) => {
               Subscribe {plans[selectedPlan].name}
             </>
           )}
+        </button>
+
+        {/* Use API Key Button */}
+        <button
+          onClick={onOpenSettings}
+          style={{
+            ...buttonStyle,
+            backgroundColor: 'transparent',
+            color: '#FFDCDCFF',
+            border: '1px solid rgba(255, 220, 220, 0.3)',
+            marginBottom: '16px'
+          }}
+        >
+          <FaKey />
+          Use your API key instead
         </button>
 
         {/* Footer */}

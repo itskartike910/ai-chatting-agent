@@ -14,8 +14,10 @@ import {
   FaWifi,
   FaExclamationTriangle
 } from 'react-icons/fa';
+import RequestCounter from './RequestCounter';
+import SubscriptionChoice from './SubscriptionChoice';
 
-const ChatInterface = ({ user, onLogout }) => {
+const ChatInterface = ({ user, subscription, onLogout }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const { messages, addMessage, clearMessages } = useChat();
@@ -25,6 +27,9 @@ const ChatInterface = ({ user, onLogout }) => {
   const portRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isConnectingRef = useRef(false);
+
+  // Add state for subscription choice modal
+  const [showSubscriptionChoice, setShowSubscriptionChoice] = useState(false);
 
   // Helper function to detect markdown content
   const hasMarkdownContent = (content) => {
@@ -359,6 +364,18 @@ const ChatInterface = ({ user, onLogout }) => {
     return <SettingsModal onClose={() => setShowSettings(false)} />;
   }
 
+  // Add subscription choice modal before the return statement
+  if (showSubscriptionChoice) {
+    return (
+      <SubscriptionChoice 
+        onSubscribe={() => window.location.href = '#/subscription'}
+        onUseAPI={() => window.location.href = '#/settings'}
+        onClose={() => setShowSubscriptionChoice(false)}
+        user={user}
+      />
+    );
+  }
+
   return (
     <div className="chat-interface" style={{ 
       width: '100vw',
@@ -414,6 +431,10 @@ const ChatInterface = ({ user, onLogout }) => {
             {getConnectionIcon()}
             <span>{getConnectionStatusText()}</span>
             {isExecuting && <span>• Working...</span>}
+            <RequestCounter 
+              subscriptionState={subscription} 
+              onUpgradeClick={() => setShowSubscriptionChoice(true)}
+            />
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -480,8 +501,8 @@ const ChatInterface = ({ user, onLogout }) => {
                 top: '100%',
                 right: 0,
                 marginTop: '4px',
-                backgroundColor: 'white',
-                border: '1px solid #e1e8ed',
+                backgroundColor: '#FFDCDCFF',
+                border: '1px solid #757575FF',
                 borderRadius: '8px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                 minWidth: '160px',
