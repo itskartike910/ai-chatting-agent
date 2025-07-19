@@ -8,6 +8,7 @@ import SubscriptionPage from './components/SubscriptionPage';
 import SettingsModal from './components/SettingsModal';
 import ProfilePage from './components/ProfilePage';
 import './App.css';
+import ChatHistoryPage from './components/ChatHistoryPage';
 
 function AppContent() {
   const { isLoggedIn, user, loading, login, signup, logout } = useAuth();
@@ -149,6 +150,17 @@ function AppContent() {
               subscription={subscription}
               onLogout={logout}
             />
+          )
+        } 
+      />
+      
+      <Route 
+        path="/history" 
+        element={
+          !isLoggedIn ? (
+            <Navigate to="/auth" replace />
+          ) : (
+            <ChatHistoryPage />
           )
         } 
       />

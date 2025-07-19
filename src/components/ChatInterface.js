@@ -5,11 +5,13 @@ import MessageList from './MessageList';
 import ChatInput from './ChatInput';
 import TaskStatus from './TaskStatus';
 import { useChat } from '../hooks/useChat';
+import { useLocation } from 'react-router-dom';
 import { 
   FaEdit, 
   FaUser, 
   FaWifi,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaHistory
 } from 'react-icons/fa';
 import RequestCounter from './RequestCounter';
 import SubscriptionChoice from './SubscriptionChoice';
@@ -17,8 +19,14 @@ import { useNavigate } from 'react-router-dom';
 
 const ChatInterface = ({ user, subscription, onLogout }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get chat ID from URL params
+  const urlParams = new URLSearchParams(location.search);
+  const historyId = urlParams.get('history');
+  
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const { messages, addMessage, clearMessages } = useChat();
+  const { messages, addMessage, clearMessages, loading, saveCurrentChat } = useChat(historyId);
   const [isExecuting, setIsExecuting] = useState(false);
   const [taskStatus, setTaskStatus] = useState(null);
   const portRef = useRef(null);
@@ -258,18 +266,18 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   }, []);
 
   const handleSendMessage = async (message) => {
-    // Check if user has API quota before sending
-    if (!subscription.usingPersonalAPI && subscription.remaining_requests <= 0) {
-      setShowSubscriptionChoice(true);
-      return;
-    }
-
     // Add user message immediately
     addMessage({
       type: 'user',
       content: message,
       timestamp: Date.now()
     });
+
+    // Check if user has API quota before sending
+    if (!subscription.usingPersonalAPI && subscription.remaining_requests <= 0) {
+      setShowSubscriptionChoice(true);
+      return;
+    }
 
     try {
       if (!subscription.usingPersonalAPI) {
@@ -281,6 +289,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           timestamp: Date.now(),
           isMarkdown: hasMarkdownContent(response.response || response.content)
         });
+
+        setTimeout(() => {
+          saveCurrentChat();
+        }, 100);
         
         return;
       }
@@ -345,11 +357,13 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     }
   };
 
-  const handleNewChat = () => {
-    // Clear local messages first
-    clearMessages();
+  const handleNewChat = async () => {
+    await clearMessages(); 
+    
     setTaskStatus(null);
     setIsExecuting(false);
+    
+    navigate('/chat', { replace: true });
     
     // Send new_chat message to background to clear backend state
     if (portRef.current && connectionStatus === 'connected') {
@@ -472,7 +486,26 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           >
             <FaEdit />
           </button>
-          {/* User Menu */}
+          
+          <button 
+            onClick={() => navigate('/history')}
+            style={{ 
+              padding: '6px 8px', 
+              backgroundColor: 'rgba(255, 220, 220, 0.2)',
+              border: '1px solid rgba(255, 220, 220, 0.3)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              color: '#FFDCDCFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="Chat History"
+          >
+            <FaHistory />
+          </button>
+          
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => navigate('/profile')}
