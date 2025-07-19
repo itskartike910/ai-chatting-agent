@@ -36,6 +36,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add state for subscription choice modal
   const [showSubscriptionChoice, setShowSubscriptionChoice] = useState(false);
 
+  // Add state for message input
+  const [messageInput, setMessageInput] = useState('');
+
+  // Add function to handle template clicks
+  const handleTemplateClick = (templateCommand) => {
+    setMessageInput(templateCommand);
+  };
+
   // Helper function to detect markdown content
   const hasMarkdownContent = (content) => {
     if (!content || typeof content !== 'string') return false;
@@ -539,7 +547,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         flexDirection: 'column',
         minHeight: 0 
       }}>
-        <MessageList messages={messages} />
+        <MessageList 
+          messages={messages} 
+          onTemplateClick={handleTemplateClick}
+        />
       </div>
 
       {/* Fixed Input at Bottom - Pass stop handler and execution state */}
@@ -553,6 +564,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             ? (isExecuting ? "Processing..." : "Ask me anything...")
             : "Connecting..."
         }
+        value={messageInput}
+        onChange={setMessageInput}
       />
       
       {/* Add subscription choice as overlay */}

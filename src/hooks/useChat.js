@@ -81,9 +81,9 @@ export const useChat = (chatId = null) => {
 
   const clearMessages = useCallback(async () => {
     // Save current chat if it has meaningful content BEFORE clearing
-    if (messages.length >= 2) {
+    if (messages.length >= 1) {
       const userMessages = messages.filter(msg => msg.type === 'user' || msg.type === 'assistant');
-      if (userMessages.length >= 2) {
+      if (userMessages.length >= 1) {
         if (currentChatId) {
           await updateChatHistory(currentChatId, messages);
         } else {

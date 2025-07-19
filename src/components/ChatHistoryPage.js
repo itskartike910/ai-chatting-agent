@@ -304,7 +304,14 @@ const ChatHistoryPage = () => {
                         </div>
                       </div>
                     </div>
-                    
+                    <div
+                      style={{
+                        width: '2px',
+                        height: '30px',
+                        backgroundColor: 'rgba(255, 220, 220, 0.4)',
+                        margin: '0 0 0 0'
+                      }}
+                    />
                     <button
                       onClick={(e) => handleDelete(chat.id, e)}
                       disabled={isDeleting}
