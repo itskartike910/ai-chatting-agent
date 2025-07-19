@@ -368,7 +368,7 @@ const MessageList = ({ messages, onTemplateClick }) => {
       marginTop: '10px',
       padding: '0 16px'
     }}>
-      <h4 style={{ color: '#AADEFFFF', marginBottom: '-5px', fontSize: '15px', fontWeight: '750' }}>🤖 Welcome to AI Chat Agent!</h4>
+      <h4 style={{ color: '#AADEFFFF', marginBottom: '-5px', fontSize: '15px', fontWeight: '750' }}>🤖 Welcome to Social Shopping Agent!</h4>
       <p style={{ marginBottom: '12px', fontSize: '13px', color: '#ABDFFFEA', fontWeight: '600' }}>Ask me to help you with tasks or start a conversation.</p>
       {/* <div style={{ 
         textAlign: 'left', 

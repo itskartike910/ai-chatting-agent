@@ -455,7 +455,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             lineHeight: '20px', 
             textAlign: 'left'
           }}>
-            AI CHAT AGENT
+            SOCIAL SHOPPING AGENT
           </h3>
           <div style={{ 
             fontSize: '12px', 

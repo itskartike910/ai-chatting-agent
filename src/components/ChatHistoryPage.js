@@ -307,9 +307,9 @@ const ChatHistoryPage = () => {
                     <div
                       style={{
                         width: '2px',
-                        height: '30px',
+                        height: '35px',
                         backgroundColor: 'rgba(255, 220, 220, 0.4)',
-                        margin: '0 0 0 0'
+                        margin: '0 6px'
                       }}
                     />
                     <button

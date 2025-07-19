@@ -229,7 +229,7 @@ const AuthPage = ({ onLogin }) => {
           <FaRobot className="robot-icon" />
         </div>
         <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '700' }}>
-          AI CHAT AGENT
+          SOCIAL SHOPPING AGENT
         </h2>
         <p style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
           Your intelligent web automation companion
@@ -252,7 +252,7 @@ const AuthPage = ({ onLogin }) => {
             color: '#FFDCDCFF',
             margin: 0
           }}>
-            {isLogin ? 'Sign in to continue using AI Chat Agent' : 'Join thousands of users automating their web tasks'}
+            {isLogin ? 'Sign in to continue using Social Shopping Agent' : 'Join thousands of users automating their web tasks'}
           </p>
         </div>
 
