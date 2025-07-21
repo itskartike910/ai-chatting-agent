@@ -274,21 +274,23 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   }, []);
 
   const handleSendMessage = async (message) => {
-    // Add user message immediately
+    const shouldShowSubscription = !subscription.usingPersonalAPI && 
+                                   !subscription.hasPersonalKeys && 
+                                   subscription.remaining_requests <= 0;
+
+    if (shouldShowSubscription) {
+      setShowSubscriptionChoice(true);
+      return; 
+    }
+
     addMessage({
       type: 'user',
       content: message,
       timestamp: Date.now()
     });
 
-    // Check if user has API quota before sending
-    if (!subscription.usingPersonalAPI && subscription.remaining_requests <= 0) {
-      setShowSubscriptionChoice(true);
-      return;
-    }
-
     try {
-      if (!subscription.usingPersonalAPI) {
+      if (!subscription.usingPersonalAPI && subscription.remaining_requests > 0) {
         const response = await subscription.makeAIRequest(message);
         
         addMessage({
@@ -306,8 +308,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       }
     } catch (error) {
       if (error.message === 'TRIAL_EXPIRED') {
-        setShowSubscriptionChoice(true);
-        return;
+        if (!subscription.hasPersonalKeys) {
+          setShowSubscriptionChoice(true);
+          return;
+        }
       } else if (error.message === 'USE_PERSONAL_API') {
         
       } else {
@@ -580,6 +584,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             navigate('/settings');
           }}
           onClose={() => setShowSubscriptionChoice(false)}
+          onRefreshSubscription={() => subscription.loadSubscriptionData()}
           user={user}
         />
       )}

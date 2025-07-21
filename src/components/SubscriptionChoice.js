@@ -1,7 +1,7 @@
 import React from 'react';
 import { FaStar, FaKey, FaTimes } from 'react-icons/fa';
 
-const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, user }) => {
+const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, onRefreshSubscription, user }) => {
   const containerStyle = {
     position: 'fixed',
     top: 0,
@@ -39,6 +39,13 @@ const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, user }) => {
     justifyContent: 'center',
     gap: '8px',
     transition: 'all 0.3s'
+  };
+
+  const handleUseAPI = () => {
+    onUseAPI();
+    setTimeout(() => {
+      onRefreshSubscription?.();
+    }, 1000);
   };
 
   return (
@@ -80,7 +87,7 @@ const SubscriptionChoice = ({ onSubscribe, onUseAPI, onClose, user }) => {
         </button>
 
         <button
-          onClick={onUseAPI}
+          onClick={handleUseAPI}
           style={{
             ...buttonStyle,
             backgroundColor: 'transparent',

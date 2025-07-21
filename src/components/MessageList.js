@@ -4,13 +4,24 @@ import remarkGfm from 'remark-gfm';
 
 const MessageList = ({ messages, onTemplateClick }) => {
   const messagesEndRef = useRef(null);
+  const containerRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const scrollToTop = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  };
+
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length === 0) {
+      scrollToTop();
+    } else {
+      scrollToBottom();
+    }
   }, [messages]);
 
   const getMessageStyle = (type) => {
@@ -406,15 +417,18 @@ const MessageList = ({ messages, onTemplateClick }) => {
   );
 
   return (
-    <div style={{ 
-      flex: 1, 
-      overflowY: 'auto', 
-      display: 'flex', 
-      flexDirection: 'column',
-      backgroundColor: '#002550FF', 
-      WebkitOverflowScrolling: 'touch',
-      scrollBehavior: 'smooth'
-    }}>
+    <div 
+      ref={containerRef}
+      style={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        display: 'flex', 
+        flexDirection: 'column',
+        backgroundColor: '#002550FF', 
+        WebkitOverflowScrolling: 'touch',
+        scrollBehavior: 'smooth'
+      }}
+    >
       {messages.length === 0 && (
         <>
           <WelcomeMessage />
