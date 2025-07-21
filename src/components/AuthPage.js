@@ -52,11 +52,25 @@ const AuthPage = ({ onLogin }) => {
       const result = await onLogin(credentials);
       
       if (!result.success) {
+        // Display the actual API error message
         throw new Error(result.error || 'Authentication failed');
       }
     } catch (err) {
-      setError(err.message);
-    } finally {
+      // Clean up error messages for better user experience
+      let displayError = err.message;
+      
+      // Handle specific API error patterns
+      if (displayError.includes('Incorrect email or password')) {
+        displayError = 'Incorrect email or password. Please try again.';
+      } else if (displayError.includes('User already exists')) {
+        displayError = 'An account with this email already exists. Please sign in instead.';
+      } else if (displayError.includes('Invalid email format')) {
+        displayError = 'Please enter a valid email address.';
+      } else if (displayError.includes('Network error')) {
+        displayError = 'Connection failed. Please check your internet and try again.';
+      }
+      
+      setError(displayError);
       setLoading(false);
     }
   };
@@ -409,15 +423,20 @@ const AuthPage = ({ onLogin }) => {
 
           {error && (
             <div style={{
-              backgroundColor: '#fef2f2',
+              backgroundColor: '#fee2e2',
               border: '1px solid #fca5a5',
               borderRadius: '8px',
               padding: '12px',
               marginBottom: '16px',
               fontSize: '14px',
-              color: '#dc2626'
+              color: '#dc2626',
+              textAlign: 'left',
+              lineHeight: '1.4'
             }}>
-              {error}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <span style={{ fontSize: '16px', flexShrink: 0 }}>⚠️</span>
+                <span>{error}</span>
+              </div>
             </div>
           )}
 

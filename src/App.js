@@ -14,8 +14,8 @@ function AppContent() {
   const { isLoggedIn, user, loading, login, signup, logout } = useAuth();
   const subscription = useSubscription(user);
 
-  // Loading state
-  if (loading) {
+  // Only show loading state during initial auth check, not during login/signup
+  if (loading && !user && !isLoggedIn) {
     return (
       <div style={{
         position: 'fixed', 

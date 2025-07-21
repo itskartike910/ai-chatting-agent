@@ -49,7 +49,33 @@ class APIService {
     try {
       const response = await fetch(url, config);
       
+      // Always try to get the response body for error details
+      let responseData = {};
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          responseData = await response.json();
+        } catch (parseError) {
+          console.warn('Failed to parse response JSON:', parseError);
+        }
+      } else {
+        // If not JSON, try to get text
+        try {
+          const text = await response.text();
+          responseData = { message: text };
+        } catch (textError) {
+          console.warn('Failed to get response text:', textError);
+        }
+      }
+
       if (response.status === 401) {
+        // For login/signup endpoints, don't clear auth data immediately
+        if (endpoint === '/auth/login' || endpoint === '/auth/signup') {
+          const errorMessage = responseData.detail || responseData.message || 'Incorrect email or password';
+          throw new Error(errorMessage);
+        }
+        
         await this.clearAuthData();
         throw new Error('Authentication failed. Please log in again.');
       }
@@ -63,13 +89,39 @@ class APIService {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}`);
+        // Extract the most specific error message available
+        let errorMessage = 'An error occurred';
+        
+        if (responseData.detail) {
+          errorMessage = responseData.detail;
+        } else if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.error) {
+          errorMessage = responseData.error;
+        } else {
+          errorMessage = `HTTP ${response.status}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
-      return await response.json();
+      return responseData;
     } catch (error) {
       console.error(`API Error (${endpoint}):`, error);
+      
+      // If it's already our custom error, just throw it
+      if (error.message.includes('TRIAL_EXPIRED') || 
+          error.message.includes('RATE_LIMITED') ||
+          error.message.includes('Incorrect email or password') ||
+          error.message.includes('detail')) {
+        throw error;
+      }
+      
+      // For network errors or other issues
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Network error. Please check your connection.');
+      }
+      
       throw error;
     }
   }

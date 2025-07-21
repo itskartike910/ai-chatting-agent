@@ -53,7 +53,7 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick }) => {
           ? 'Using your personal API key'
           : subscriptionState.remaining_requests <= 0 
             ? 'Click to upgrade or add API keys'
-            : `${subscriptionState.requests_used} requests used this month`
+            : `${subscriptionState.requests_used} requests`
       }
     >
       {getIcon()}

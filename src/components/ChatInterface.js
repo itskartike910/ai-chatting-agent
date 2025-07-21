@@ -447,15 +447,16 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         borderBottom: '1px solid #8A8A8AFF',
         background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
         flexShrink: 0,
-        height: '48px',
+        minHeight: '50px',
+        maxHeight: '75px',
         boxSizing: 'border-box'
       }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 style={{ 
             margin: 0, 
             color: '#FFDCDCFF', 
-            fontSize: '16px', 
-            fontWeight: '800',
+            fontSize: '15px', 
+            fontWeight: '750',
             lineHeight: '20px', 
             textAlign: 'left'
           }}>

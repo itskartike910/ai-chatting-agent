@@ -67,7 +67,7 @@ export const useAuth = () => {
   };
 
   const login = async (credentials) => {
-    setAuthState(prev => ({ ...prev, loading: true, error: null }));
+    setAuthState(prev => ({ ...prev, error: null }));
     
     try {
       await apiService.login(credentials);
@@ -82,17 +82,20 @@ export const useAuth = () => {
       
       return { success: true, user };
     } catch (error) {
+      console.error('Login error:', error);
+      
       setAuthState(prev => ({
         ...prev,
         loading: false,
         error: error.message
       }));
+      
       return { success: false, error: error.message };
     }
   };
 
   const signup = async (userData) => {
-    setAuthState(prev => ({ ...prev, loading: true, error: null }));
+    setAuthState(prev => ({ ...prev, error: null }));
     
     try {
       await apiService.signup(userData);
@@ -103,11 +106,14 @@ export const useAuth = () => {
       
       return loginResult;
     } catch (error) {
+      console.error('Signup error:', error);
+      
       setAuthState(prev => ({
         ...prev,
         loading: false,
         error: error.message
       }));
+      
       return { success: false, error: error.message };
     }
   };
