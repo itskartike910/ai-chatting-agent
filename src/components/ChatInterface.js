@@ -273,6 +273,15 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    // Save chat when component unmounts if it has content
+    return () => {
+      if (messages.length > 0) {
+        saveCurrentChat();
+      }
+    };
+  }, [messages, saveCurrentChat]);
+
   const handleSendMessage = async (message) => {
     const shouldShowSubscription = !subscription.usingPersonalAPI && 
                                    !subscription.hasPersonalKeys && 
@@ -370,24 +379,23 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   };
 
   const handleNewChat = async () => {
-    await clearMessages(); 
-    
-    setTaskStatus(null);
-    setIsExecuting(false);
-    
-    navigate('/chat', { replace: true });
-    
-    // Send new_chat message to background to clear backend state
-    if (portRef.current && connectionStatus === 'connected') {
-      try {
-        console.log('Sending new_chat message to background');
-        portRef.current.postMessage({
-          type: 'new_chat'
-        });
-      } catch (error) {
-        console.error('Error sending new_chat message:', error);
-      }
+    // Save current chat before clearing if it has content
+    if (messages.length > 0) {
+      await saveCurrentChat();
     }
+    
+    // Clear only current chat state
+    clearMessages();
+    
+    // Send new_chat message to background
+    if (portRef.current) {
+      portRef.current.postMessage({ type: 'new_chat' });
+    }
+    
+    // Reset UI state
+    setMessageInput('');
+    setIsExecuting(false);
+    setTaskStatus(null);
   };
 
   const getConnectionStatusColor = () => {

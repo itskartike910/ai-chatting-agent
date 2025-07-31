@@ -64,7 +64,7 @@ class ProceduralMemoryManager {
     };
   }
 
-  // NEW – lightweight context compressor
+  // lightweight context compressor
   compressForPrompt(maxTokens = 1200) {
     const ctx = this.getContext();
     const json = JSON.stringify(ctx);
@@ -135,7 +135,7 @@ class BackgroundTaskManager {
                 isExecuting: false,
                 activeTaskId: null,
                 taskStartTime: null,
-                sessionId: null // Add this line
+                sessionId: null
               });
               
               console.log(`✅ BackgroundTaskManager completed: ${taskId}`);
@@ -159,7 +159,7 @@ class BackgroundTaskManager {
         isExecuting: false,
         activeTaskId: null,
         taskStartTime: null,
-        sessionId: null // Add this line
+        sessionId: null
       });
       
       const task = this.runningTasks.get(taskId);
@@ -468,17 +468,6 @@ class UniversalActionRegistry {
     }
   }
 
-  getAvailableActions() {
-    const actionsInfo = {};
-    this.actions.forEach((action, name) => {
-      actionsInfo[name] = {
-        description: action.description,
-        schema: action.schema
-      };
-    });
-    return actionsInfo;
-  }
-
   validateAndFixUrl(url) {
     if (!url || typeof url !== 'string') {
       console.error('Invalid URL provided:', url);
@@ -516,42 +505,6 @@ class BrowserContextManager {
     this.activeTabId = null;
   }
 
-  async ensureTab(url) {
-    try {
-      const currentTab = await this.getCurrentActiveTab();
-      
-      if (!currentTab || this.isRestrictedPage(currentTab.url)) {
-        console.log('Creating new tab for restricted page');
-        const newTab = await chrome.tabs.create({ url: url, active: true });
-        this.activeTabId = newTab.id;
-        await this.waitForReady(newTab.id);
-        return {
-          success: true,
-          extractedContent: `Navigated to ${url}`,
-          includeInMemory: true
-        };
-      }
-
-      console.log('Working with current tab:', currentTab.url);
-      this.activeTabId = currentTab.id;
-      
-      return {
-        success: true,
-        extractedContent: `Working with current page: ${currentTab.url}`,
-        includeInMemory: true
-      };
-      
-    } catch (error) {
-      console.error('Tab management error:', error);
-      return {
-        success: false,
-        error: error.message,
-        extractedContent: `Navigation error: ${error.message}`,
-        includeInMemory: true
-      };
-    }
-  }
-
   async waitForReady(tabId, timeout = 10000) {
     return new Promise((resolve) => {
       const startTime = Date.now();
@@ -583,38 +536,6 @@ class BrowserContextManager {
       return tabs[0];
     } catch (error) {
       return null;
-    }
-  }
-
-  isRestrictedPage(url) {
-    if (!url) return true;
-    
-    const restrictedPages = [
-      'chrome-native://',
-      'chrome-extension://',
-      'chrome://',
-      'about:',
-      'about:blank',      
-      'moz-extension://'
-    ];
-    
-    return restrictedPages.some(prefix => url.startsWith(prefix));
-  }
-
-  async closeExcessTabs() {
-    try {
-      const tabs = await chrome.tabs.query({});
-      if (tabs.length > 5) {
-        for (let i = 5; i < tabs.length; i++) {
-          try {
-            await chrome.tabs.remove(tabs[i].id);
-          } catch (e) {
-            // Ignore errors
-          }
-        }
-      }
-    } catch (error) {
-      console.log('Could not close excess tabs:', error);
     }
   }
 }
@@ -806,7 +727,7 @@ class MultiAgentExecutor {
             // Call ValidatorAgent after each batch
             const validation = await this.validator.validate(userTask, this.executionHistory, currentState);
 
-            if (validation.is_valid && validation.confidence > 0.7 && validation.answer && (validation.done || validation.is_valid)) {
+            if (validation.is_valid && validation.confidence >= 0.7 && validation.answer && validation.answer.trim() !== '' && !validation.answer.includes('incomplete')) {
               taskCompleted = true;
               finalResult = {
                 success: true,
@@ -815,11 +736,32 @@ class MultiAgentExecutor {
                 steps: this.currentStep,
                 confidence: validation.confidence
               };
+              
+              // Broadcast task completion observation
+              connectionManager.broadcast({
+                type: 'status_update',
+                message: `🎯 Task Completed: ${validation.answer}`,
+                details: validation.reason || ''
+              });
               break;
+            } else if (validation.confidence < 0.5) {
+              // If confidence is very low, continue with more actions
+              console.log(`🔄 Validation confidence too low (${validation.confidence}), continuing task...`);
             }
 
             // If not complete, call PlannerAgent for next batch
-            const plan = await this.planner.plan(userTask, currentState, this.executionHistory);
+            const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
+              this.buildEnhancedContextWithHistory(), this.failedElements);
+            
+            // Broadcast planner's observation and strategy
+            if (plan && plan.observation) {
+              connectionManager.broadcast({
+                type: 'status_update',
+                message: `🧠 Observation: ${plan.observation}\n📋 Strategy: ${plan.strategy}`,
+                details: plan.reasoning || ''
+              });
+            }
+            
             if (plan.done) {
               taskCompleted = true;
               finalResult = {
@@ -844,7 +786,8 @@ class MultiAgentExecutor {
               continue;
             }
             // If navigator can't recover, replan
-            const plan = await this.planner.plan(userTask, currentState, this.executionHistory);
+            const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
+            this.buildEnhancedContextWithHistory(), this.failedElements);
             this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions || []);
             this.currentBatchPlan = plan;
             continue;
@@ -864,7 +807,7 @@ class MultiAgentExecutor {
         if (initialPlan && this.currentStep === 1) {
           plan = initialPlan;
         } else {
-          plan = await this.planner.plan(userTask, currentState, this.executionHistory, enhancedContext);
+          plan = await this.planner.plan(userTask, currentState, this.executionHistory, enhancedContext, this.failedElements);
         }
 
         if (plan && plan.observation) {
@@ -914,12 +857,32 @@ class MultiAgentExecutor {
         const finalState = await this.getCurrentState();
         const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
         
+        if (validation.is_valid && validation.confidence > 0.7 && validation.answer && validation.answer.trim() !== '') {
+          finalResult = {
+            success: true,
+            response: `✅ ${validation.answer}`,
+            reason: validation.reason,
+            steps: this.currentStep,
+            confidence: validation.confidence
+          };
+        } else {
+          finalResult = {
+            success: false,
+            response: `⚠️ Task incomplete after ${this.currentStep} steps. ${validation.reason || 'Maximum steps reached'}`,
+            reason: validation.reason || 'Task could not be completed within step limit',
+            steps: this.currentStep,
+            confidence: validation.confidence || 0.3
+          };
+        }
+      }
+
+      if (!finalResult) {
         finalResult = {
-          success: validation.is_valid,
-          response: validation.answer,
-          reason: validation.reason,
+          success: false,
+          response: `⚠️ Task incomplete after ${this.currentStep} steps. No final result was set.`,
+          reason: 'Task execution completed without a definitive result',
           steps: this.currentStep,
-          confidence: validation.confidence
+          confidence: 0.2
         };
       }
 
@@ -1020,11 +983,34 @@ class MultiAgentExecutor {
           action: action.name
         });
         
+        if (action.name === 'click' && action.parameters?.index !== undefined) {
+          const elementIndex = action.parameters.index;
+          
+          // Mark element as failed if action failed
+          if (!actionResult.success) {
+            this.failedElements.add(elementIndex);
+            console.log(`🚫 Marking element ${elementIndex} as failed due to click failure`);
+          }
+        }
+        
         // Check for page state change after each action
         const currentState = await this.getCurrentState();
-        if (currentState.pageInfo?.url !== this.lastPageState?.pageInfo?.url ||
-            currentState.interactiveElements?.length !== this.lastPageState?.interactiveElements?.length) {
-          console.log(' Page state changed - triggering replanning');
+        const urlChanged = currentState.pageInfo?.url !== this.lastPageState?.pageInfo?.url;
+        const elementCountChanged = Math.abs((currentState.interactiveElements?.length || 0) - 
+                                           (this.lastPageState?.interactiveElements?.length || 0)) > 5;
+        const titleChanged = currentState.pageInfo?.title !== this.lastPageState?.pageInfo?.title;
+        
+        const pageChanged = urlChanged || elementCountChanged || titleChanged;
+        
+        if (action.name === 'click' && action.parameters?.index !== undefined && 
+            actionResult.success && !pageChanged) {
+          const elementIndex = action.parameters.index;
+          this.failedElements.add(elementIndex);
+          console.log(`⚠️ Element ${elementIndex} clicked successfully but no significant page change - marking as potentially ineffective`);
+        }
+        
+        if (pageChanged) {
+          console.log('🔄 Page state changed - triggering replanning');
           this.actionQueue = [];
           break;
         }
@@ -1041,6 +1027,12 @@ class MultiAgentExecutor {
         
       } catch (error) {
         console.error(`❌ Action execution error:`, error);
+        
+        if (action.name === 'click' && action.parameters?.index !== undefined) {
+          this.failedElements.add(action.parameters.index);
+          console.log(`🚫 Marking element ${action.parameters.index} as failed due to execution error`);
+        }
+        
         results.executedActions.push({
           action: action.name,
           success: false,
@@ -1052,6 +1044,7 @@ class MultiAgentExecutor {
         const failedActions = results.executedActions.filter(a => !a.success).length;
         if (failedActions >= 2) {
           results.criticalFailure = true;
+          console.log(`🚨 Critical failure detected: ${failedActions} actions failed in batch`);
           break;
         }
       }
@@ -1142,28 +1135,28 @@ class MultiAgentExecutor {
               };
               this.lastPageState = chromeState;
               resolve(chromeState);
-              return;  // skip heavy processing & LLM usage
+              return;
             }
             
-            // Process the pageState regardless of format
+            // Process elements and create enhanced state
+            const processedElements = this.processElementsDirectly(pageState.elements || []);
+            
             const processedState = {
               pageInfo: {
                 url: pageState.url || 'unknown',
-                title: pageState.title || 'Unknown Page',
-                domain: this.extractDomain(pageState.url)
+                title: pageState.title || 'unknown',
+                domain: this.extractDomain(pageState.url),
+                platform: this.detectPlatform(pageState.url)
               },
-              
-              // Enhanced page context from API
               pageContext: {
                 platform: this.detectPlatform(pageState.url),
-                pageType: pageState.pageContext?.pageType || this.determinePageType(pageState.url),
+                pageType: this.determinePageType(pageState.url),
                 hasLoginForm: pageState.pageContext?.hasLoginForm || false,
                 hasUserMenu: pageState.pageContext?.hasUserMenu || false,
                 isLoggedIn: pageState.pageContext?.isLoggedIn || false,
-                capabilities: pageState.capabilities || {}
+                capabilities: pageState.capabilities || {},
+                isChromeNative: false
               },
-              
-              // Viewport information for mobile optimization
               viewportInfo: {
                 width: pageState.viewport?.width || 0,
                 height: pageState.viewport?.height || 0,
@@ -1173,20 +1166,12 @@ class MultiAgentExecutor {
                 deviceType: pageState.viewport?.deviceType || 'mobile',
                 aspectRatio: pageState.viewport?.aspectRatio || 0.75
               },
-              
-              interactiveElements: this.processElementsDirectly(pageState.elements || []),
-              
-              // Element categorization for better planning
+              interactiveElements: processedElements,
               elementCategories: pageState.elementCategories || {},
-              
-              // Legacy compatibility
-              loginStatus: { 
-                isLoggedIn: pageState.pageContext?.isLoggedIn || false
-              },
-              
-              extractedContent: `Enhanced Wootz page state: ${(pageState.elements || []).length} elements`
+              loginStatus: { isLoggedIn: pageState.pageContext?.isLoggedIn || false },
+              extractedContent: pageState.extractedContent || '',
             };
-            
+
             console.log(`📊 Enhanced Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
             console.log(`📱 Viewport: ${processedState.viewportInfo.deviceType} ${processedState.viewportInfo.width}x${processedState.viewportInfo.height}`);
             console.log(`🏷️ Categories:`, processedState.elementCategories);
@@ -1204,7 +1189,6 @@ class MultiAgentExecutor {
           }
         });
       });
-      
     } catch (error) {
       console.log('Could not get Wootz page state:', error);
       const defaultState = this.getDefaultState();
@@ -1213,7 +1197,7 @@ class MultiAgentExecutor {
     }
   }
 
-  // SIMPLIFIED: Process elements directly without any filtering since API already sends filtered data
+  // Process elements directly without any filtering since API already sends filtered data
   processElementsDirectly(elements) {
     if (!elements || !Array.isArray(elements)) {
       console.log('🔍 Elements not array or null:', elements);
@@ -1236,28 +1220,40 @@ class MultiAgentExecutor {
         selector: el.selector || '',
         
         // Enhanced categorization (directly from API)
-        category: el.category || 'unknown', 
-        purpose: el.purpose || 'general', 
+        category: el.category || 'unknown',
+        purpose: el.purpose || 'general',
         
-        // Content (directly from API) - handle both textContent and text
-        text: el.textContent || el.text || '',
+        // Content (directly from API)
+        textContent: el.textContent || '',
+        text: el.text || '', // Keep both for compatibility
         
         // Interaction properties (directly from API)
         isVisible: el.isVisible !== false,
         isInteractive: el.isInteractive !== false,
         
         // Enhanced attributes (directly from API)
-        attributes: el.attributes || {},
+        attributes: {
+          id: el.attributes?.id || '',
+          class: el.attributes?.class || '',
+          type: el.attributes?.type || '',
+          name: el.attributes?.name || '',
+          'data-testid': el.attributes?.['data-testid'] || '',
+          ...el.attributes // Include any other attributes
+        },
         
         // Position and size (directly from API)
-        bounds: el.bounds || {},
+        bounds: {
+          x: el.bounds?.x || 0,
+          y: el.bounds?.y || 0,
+          width: el.bounds?.width || 0,
+          height: el.bounds?.height || 0
+        },
         
         // Legacy compatibility fields for older code
         ariaLabel: el.attributes?.['aria-label'] || '',
         elementType: this.mapCategoryToElementType(el.category, el.tagName),
         isLoginElement: el.purpose === 'authentication' || el.category === 'form',
         isPostElement: el.purpose === 'post' || el.purpose === 'compose',
-        // selector: this.generateSelectorFromAttributes(el.attributes),
         
         // Store original for debugging
         originalElement: el
@@ -1269,38 +1265,6 @@ class MultiAgentExecutor {
       console.log(`📊 Sample processed element:`, processed[0]);
     }
     return processed;
-  }
-
-  identifySearchElements(elements) {
-    const searchKeywords = [
-      'search', 'find', 'look', '🔍', 'magnifying', 
-      'query', 'explore', 'discover', 'browse'
-    ];
-    
-    return elements.filter(el => {
-      const text = (el.text || '').toLowerCase();
-      const ariaLabel = (el.attributes?.['aria-label'] || '').toLowerCase(); 
-      const placeholder = (el.attributes?.placeholder || '').toLowerCase();
-      const className = (el.attributes?.class || '').toLowerCase();
-      
-      // Check if element contains search-related terms
-      const hasSearchTerms = searchKeywords.some(keyword => 
-        text.includes(keyword) || 
-        ariaLabel.includes(keyword) || 
-        placeholder.includes(keyword) ||
-        className.includes(keyword)
-      );
-      
-      // Additional checks for search interface elements
-      const isSearchElement = (
-        hasSearchTerms ||
-        el.tagName === 'INPUT' ||
-        (el.tagName === 'BUTTON' && text.length < 20) ||
-        (el.tagName === 'DIV' && el.isInteractive && hasSearchTerms)
-      );
-      
-      return isSearchElement;
-    });
   }
 
   // Map API categories to legacy element types for compatibility
@@ -1325,19 +1289,6 @@ class MultiAgentExecutor {
         if (tag === 'a') return 'link';
         return 'other';
     }
-  }
-
-  // Generate better selectors from enhanced attributes
-  generateSelectorFromAttributes(attributes) {
-    if (!attributes) return 'unknown';
-    
-    // Priority order for selector generation
-    if (attributes.id) return `#${attributes.id}`;
-    if (attributes['data-testid']) return `[data-testid="${attributes['data-testid']}"]`;
-    if (attributes.name) return `[name="${attributes.name}"]`;
-    if (attributes.class) return `.${attributes.class.split(' ')[0]}`;
-    
-    return 'element';
   }
 
   extractDomain(url) {
@@ -1497,81 +1448,6 @@ class MultiAgentExecutor {
   cancel() {
     console.log('🛑 Cancelling universal multi-agent execution');
     this.cancelled = true;
-  }
-
-  // Check if we should replan based on action result
-  shouldReplan(actionResult) {
-    const replanTriggers = this.currentBatchPlan?.replan_trigger || '';
-    
-    if (!actionResult.success) {
-      console.log(`🔄 Action failed: ${actionResult.error}`);
-      
-      // If typing failed, don't try the same approach
-      if (actionResult.action === 'type' && actionResult.error?.includes('Action execution failed')) {
-        // If typing failed repeatedly, try click-first approach
-        const recentFailures = this.executionHistory.slice(-3).filter(h => 
-          !h.success && h.plan?.includes('type')
-        );
-        
-        if (recentFailures.length >= 2) {
-          console.log('🔄 Multiple typing failures - switching to click-first strategy');
-          return true;
-        }
-      }
-      
-      // If element not found, replan immediately
-      if (actionResult.error?.includes('not found')) {
-        const elementNotFoundCount = this.executionHistory.slice(-5).filter(h => 
-          !h.success && h.results?.[0]?.result?.error?.includes('not found')
-        ).length;
-        
-        if (elementNotFoundCount >= 3) {
-          console.log('🔄 Multiple element not found - need better targeting strategy');
-          return true;
-        }
-        
-        return true; 
-      }
-    }
-    
-    // Check existing triggers with enhanced logic
-    if (replanTriggers.includes('context_changed') && this.hasContextChanged(actionResult)) {
-      return true;
-    }
-    
-    if (replanTriggers.includes('workflow_complete') && actionResult.result?.isDone) {
-      return false; // Don't replan if workflow is complete
-    }
-    
-    // Check if we're stuck in a loop
-    if (this.isStuckInLoop()) {
-      console.log('🔄 Loop detected - forcing replan with different strategy');
-      return true;
-    }
-    
-    return false;
-  }
-
-  // ADD helper methods for pattern detection
-  hasContextChanged(actionResult) {
-    return actionResult.result?.navigationCompleted || 
-           actionResult.action === 'navigate' ||
-           (actionResult.result?.extractedContent || '').includes('navigated');
-  }
-
-  isStuckInLoop() {
-    if (this.executionHistory.length < 3) return false;
-    
-    const recent = this.executionHistory.slice(-3);
-    const actionPattern = recent.map(h => h.results?.[0]?.action || 'unknown').join('->');
-    const repeatedPattern = /(.+)->\1/.test(actionPattern);
-    
-    if (repeatedPattern) {
-      console.log(`🔄 Loop pattern detected: ${actionPattern}`);
-      return true;
-    }
-    
-    return false;
   }
 
   formatRecentActions(recentMessages = []) {
@@ -2386,9 +2262,14 @@ class BackgroundScriptAgent {
           this.activeTasks.delete(currentActiveTask);
         }
         
-        // Clear execution state completely (but preserve config)
-        await chrome.storage.local.clear(); // Only clear local storage
-        // DON'T clear sync storage as it contains user config
+        // Only clear current chat state, not chat histories
+        await chrome.storage.local.set({
+          isExecuting: false,
+          activeTaskId: null,
+          taskStartTime: null,
+          sessionId: null,
+          chatHistory: [] // Only clear current chat
+        });
         
         // Clear messages and start new session
         this.connectionManager.clearMessages();
@@ -2555,29 +2436,6 @@ class BackgroundScriptAgent {
     
     // For any other error, show the actual error message
     return `❌ Error: ${errorMessage}`;
-  }
-
-  async handleSimpleChat(task) {
-    try {
-      const response = await this.llmService.call([
-        { 
-          role: 'user', 
-          content: `You are a helpful AI assistant specializing in universal web automation. Respond to: "${task}"` 
-        }
-      ], { maxTokens: 300 });
-
-      return {
-        success: true,
-        response: response,
-        message: response
-      };
-    } catch (error) {
-      return {
-        success: true,
-        response: `I understand you said: "${task}"\n\nI'm your universal AI web automation assistant! I can help with any website - YouTube, social media, shopping, research, and more. What would you like me to help you with?`,
-        message: 'Fallback chat response'
-      };
-    }
   }
 
   async getConfig() {

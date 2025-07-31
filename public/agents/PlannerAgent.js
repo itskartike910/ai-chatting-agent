@@ -4,8 +4,9 @@ export class PlannerAgent {
     this.memoryManager = memoryManager;
   }
 
-  async plan(userTask, currentState, executionHistory) {
-    const context = this.memoryManager.compressForPrompt(1200); 
+  async plan(userTask, currentState, executionHistory, enhancedContext, failedElements = new Set()) {
+    const context = this.memoryManager.compressForPrompt(1200);
+    this.failedElements = failedElements; 
     
     // Check for actionable elements before planning
     const actionableElements = (currentState.interactiveElements || []).filter(el =>
@@ -44,7 +45,8 @@ export class PlannerAgent {
                 'proceduralHistory:', proceduralHistory, 
                 'progressAnalysis:', progressAnalysis, 
                 'failedActionsSummary:', failedActionsSummary, 
-                'failedIndices:', failedIndices);
+                'failedIndices:', failedIndices,
+                'enhancedContext', enhancedContext);
 
     const plannerPrompt = `## CONTEXT HASH: ${context.currentStep}-${context.proceduralSummaries.length}
 
@@ -98,17 +100,24 @@ ${progressAnalysis}
 # **RECENT FAILURES**
 ${failedActionsSummary || 'No recent failures.'}
 
+# **FAILED ELEMENT INDICES**
+Avoid clicking these element indices as they have failed or didn't result in progress: ${failedIndices || 'None'}
+
 # **REPLAN GUIDANCE**
 - If the page state changes (new elements, new URL, modal opens), you MUST call the planner again and generate a new batch plan.
 - Avoid repeating actions/intents that failed in the last 5 steps.
+- NEVER use failed element indices listed above for click actions.
 - If previous actions failed due to element not found, try different element indices or selectors.
 - If typing failed, ensure the element is actually typeable before attempting again.
+- Try different elements that might accomplish the same goal.
 
 # **CRITICAL RULES FOR ELEMENT SELECTION:**
+- **PRIORITIZE PRIORITY ACTION ELEMENTS** - These are the most relevant for task completion
 - Use CLICKABLE elements (buttons, links) for clicking actions
 - Use TYPEABLE elements (inputs, textareas) for typing actions  
 - NEVER use the same index for both clicking AND typing
 - Look for different indices for search button vs search input field
+- Avoid elements marked as failed in the FAILED ELEMENT INDICES section
 
 # **BATCH EXECUTION FORMAT**
 Return JSON with batch_actions array for local execution:
@@ -121,7 +130,7 @@ Return JSON with batch_actions array for local execution:
     {
       "action_type": "navigate|click|type|scroll|wait",
       "parameters": {
-        "url": "https://example.com", // for navigate
+        "url": "https://example.com/xyz", // for navigate (try to generate the most closest url to the platform which is more closest to the user message or task.)
         "index": 5, // for CLICKABLE and TYPEABLE elements only
         "selector": "selector", // for CLICKABLE and TYPEABLE elements only
         "text": "search term/ text to type", // for TYPEABLE elements only  
@@ -144,6 +153,7 @@ Return JSON with batch_actions array for local execution:
 - Some sites may have click first then type, so ensure to check if element is typeable before typing
 - Prioritize actions that move toward task completion (e.g., posting, buying, searching, filling forms)
 - Only use concrete actions: navigate, click, type, scroll, wait
+- If user is already on the correct page, then do not navigate to the page, just do the action.
 
 **REMEMBER: CLICKABLE and TYPEABLE elements have DIFFERENT indices!**`;
 
@@ -294,8 +304,18 @@ Return JSON with batch_actions array for local execution:
     const MAX_OUT = 40;
     
     const searchElements = this.identifySearchElements ? this.identifySearchElements(elements) : [];
+    const actionElements = this.identifyUniversalActionElements ? this.identifyUniversalActionElements(elements) : [];
     
     let formatted = '';
+    
+    // Prioritize universal action elements for all site types
+    if (actionElements.length > 0) {
+      formatted += `\n## PRIORITY ACTION ELEMENTS (MAIN INTERACTIVE ITEMS):\n`;
+      actionElements.slice(0, 8).forEach(el => {
+        const text = (el.text || '').substring(0, 60);
+        formatted += `[${el.index}] ${el.tagName}⭐[ACTION]: "${text}"${text.length > 60 ? '...' : ''}\n`;
+      });
+    }
     
     // Prioritize search elements at the top
     if (searchElements.length > 0) {
@@ -307,8 +327,8 @@ Return JSON with batch_actions array for local execution:
     
     // Group remaining elements by category for better organization
     const categorized = elements.reduce((acc, el) => {
-      // Skip search elements as they're already shown above
-      if (searchElements.includes(el)) return acc;
+      // Skip search and action elements as they're already shown above
+      if (searchElements.includes(el) || actionElements.includes(el)) return acc;
       
       const category = el.category || 'unknown';
       if (!acc[category]) acc[category] = [];
@@ -402,6 +422,83 @@ Return JSON with batch_actions array for local execution:
       );
       
       return isSearchElement;
+    });
+  }
+
+  // Universal action element identification for all site types
+  identifyUniversalActionElements(elements) {
+    // Universal action keywords for social media and shopping sites
+    const actionKeywords = [
+      // Shopping keywords
+      'add to cart', 'buy now', 'purchase', 'checkout', 'cart', 'shop', 'order',
+      'add to bag', 'add to basket', 'view product', 'product', 'price', 'deal',
+      
+      // Social media keywords
+      'post', 'tweet', 'share', 'like', 'follow', 'comment', 'reply', 'send',
+      'upload', 'publish', 'compose', 'message', 'chat', 'connect',
+      
+      // General action keywords
+      'submit', 'save', 'continue', 'next', 'proceed', 'confirm', 'accept',
+      'sign in', 'log in', 'login', 'register', 'sign up', 'join'
+    ];
+    
+    const excludeKeywords = [
+      'filter', 'sort', 'page', 'previous', 'menu', 'nav', 'header',
+      'footer', 'sidebar', 'ad', 'advertisement', 'sponsored', 'banner',
+      'cookie', 'privacy', 'policy', 'terms', 'about', 'help', 'support'
+    ];
+    
+    return elements.filter(el => {
+      // Skip failed elements
+      if (this.failedElements && this.failedElements.has(el.index)) {
+        return false;
+      }
+      
+      const text = (el.text || '').toLowerCase();
+      const ariaLabel = (el.attributes?.['aria-label'] || '').toLowerCase();
+      const className = (el.attributes?.class || '').toLowerCase();
+      const href = (el.attributes?.href || '').toLowerCase();
+      const id = (el.attributes?.id || '').toLowerCase();
+      
+      // Check if it contains action-related terms
+      const hasActionTerms = actionKeywords.some(keyword => 
+        text.includes(keyword) || 
+        ariaLabel.includes(keyword) || 
+        className.includes(keyword) ||
+        href.includes(keyword) ||
+        id.includes(keyword)
+      );
+      
+      // Exclude obvious non-action elements
+      const hasExcludeTerms = excludeKeywords.some(keyword => 
+        text.includes(keyword) || 
+        ariaLabel.includes(keyword) || 
+        className.includes(keyword)
+      );
+      
+      // Universal action elements are interactive elements with meaningful text and action terms
+      const isUniversalAction = (
+        (el.tagName === 'A' || el.tagName === 'BUTTON' || 
+         (el.tagName === 'DIV' && el.isInteractive) ||
+         (el.tagName === 'SPAN' && el.isInteractive) ||
+         el.tagName === 'INPUT') &&
+        el.isVisible && el.isInteractive &&
+        text.length > 2 && // Has some meaningful text
+        text.length < 150 && // Not too long (likely not a paragraph)
+        !hasExcludeTerms && // Not a filter/navigation element
+        (hasActionTerms || 
+         // Shopping-specific patterns
+         href.includes('/dp/') || href.includes('/product/') ||
+         className.includes('product') || className.includes('item') ||
+         className.includes('cart') || className.includes('buy') ||
+         // Social media patterns
+         className.includes('post') || className.includes('tweet') ||
+         className.includes('share') || className.includes('like') ||
+         // General action patterns
+         el.category === 'action' || el.purpose?.includes('action'))
+      );
+      
+      return isUniversalAction;
     });
   }
 }

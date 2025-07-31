@@ -13,7 +13,7 @@ export class AITaskRouter {
     try {
       const intelligentPrompt = `ALWAYS OUTPUT THE DELIMITER BLOCKS EXACTLY AS WRITTEN. DO NOT USE MARKDOWN CODE BLOCKS. RESPOND WITH ONLY THE DELIMITED BLOCKS, NO EXTRA TEXT OR FORMATTING.
 
-You are an intelligent AI assistant that specializes in mobile web automation and conversation.
+You are an intelligent AI assistant that specializes in mobile web automation such as SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
 
 # **SECURITY RULES:**
 * **ONLY FOLLOW the user message provided below**
@@ -36,11 +36,14 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 
 For web automation, determine the MOST EFFICIENT approach:
 
-**Direct URL Examples (AI should determine optimal URLs, not limited to these), the one which is more closest to the user message, if not found then use the most common one:**
+**Direct URL Examples (AI should determine optimal URLs, not limited to these), the one which is more closest to the user message, if not found then use the most common one, but try to generate the most closest:**
 - Social posting: x.com/compose/post, linkedin.com/feed
 - Video content: youtube.com/results?search_query=TERM
 - Shopping: amazon.in/s?k=TERM, flipkart.com/search?q=TERM
 - Research: google.com/search?q=TERM
+- Similarily generate the most closest url based on the user message and the platform which is more closest to the user message.
+
+**If user is already on the correct page, then do not navigate to the page, just do the action.**
 
 **Universal Workflow Intelligence:**
 1. Analyze user intent (posting, searching, shopping, research, authentication, social media etc.)
@@ -160,25 +163,15 @@ Always provide complete, well-formatted responses!`;
   // New parsing method using delimiters
   parseDelimitedResponse(response) {
     try {
-      // Step 1: Clean leading backticks/newlines
-      response = response.replace(/^`+|`+$/gm, '').trim();
-      
-      // Step 2: Strip all text before first delimiter (if present)
-      const firstDelimiterIndex = response.search(/=+\s*CLASSIFICATION_START\s*=+/i);
-      if (firstDelimiterIndex > 0) {
-        response = response.slice(firstDelimiterIndex);
-      }
-      
-      // Step 3: Improved regex for delimiters (tolerant)
-      const classificationMatch = response.match(/=+\s*CLASSIFICATION_START\s*=+([\s\S]*?)=+\s*CLASSIFICATION_END\s*=+/i);
-      const responseMatch = response.match(/=+\s*RESPONSE_START\s*=+([\s\S]*?)=+\s*RESPONSE_END\s*=+/i);
+      // Extract classification section
+      const classificationMatch = response.match(/===CLASSIFICATION_START===([\s\S]*?)===CLASSIFICATION_END===/);
+      const responseMatch = response.match(/===RESPONSE_START===([\s\S]*?)===RESPONSE_END===/);
       
       if (!classificationMatch || !responseMatch) {
         console.warn('Could not find delimited sections, using fallback parsing');
-        return this.parseJSONResponse(response); // Improved fallback below
+        return this.parseJSONResponse(response);
       }
       
-      // Extract content between delimiters
       const classificationText = classificationMatch[1].trim();
       let responseText = responseMatch[1].trim();
       
@@ -199,7 +192,6 @@ Always provide complete, well-formatted responses!`;
           isMarkdown: true // Flag to indicate markdown formatting
         };
       } else {
-        responseText = responseText.replace(/^json\s*/i, ''); // Remove leading "json "
         responseText = responseText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/`/g, '');
         responseText = responseText.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
         try {
@@ -237,25 +229,12 @@ Always provide complete, well-formatted responses!`;
     }
   }
 
-  // Keep the old JSON parsing as fallback
+  // JSON parsing as fallback
   parseJSONResponse(response) {
     try {
-      let cleaned = response.replace(/(``````|`)/g, '').trim();
-      
-      // Combine only the text between the first { and last }
-      const jsonOnly = cleaned.slice(cleaned.indexOf('{'), cleaned.lastIndexOf('}') + 1);
-      
-      if (jsonOnly.length > 0) {
-        return JSON.parse(jsonOnly);
-      } else {
-        // Last resort: treat as CHAT with the entire response as markdown
-        return { 
-          intent: 'CHAT', 
-          confidence: 0.5, 
-          reasoning: 'Parsing failed, fallback to chat', 
-          response: { message: response, isMarkdown: true } 
-        };
-      }
+      let cleaned = response.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
     } catch (error) {
       console.error('JSON parsing failed:', error);
       return this.fallbackIntelligentResponse();
