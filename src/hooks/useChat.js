@@ -12,7 +12,7 @@ export const useChat = (chatId = null) => {
     if (chatId) {
       loadChatFromHistory(chatId);
     } else {
-      setLoading(false);
+      loadCurrentSessionMessages();
     }
   }, [chatId]);
 
@@ -44,6 +44,23 @@ export const useChat = (chatId = null) => {
     }
   }, []);
 
+  // Load current session messages (for active tasks)
+  const loadCurrentSessionMessages = useCallback(async () => {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        const result = await chrome.storage.local.get(['currentSessionMessages']);
+        if (result.currentSessionMessages && Array.isArray(result.currentSessionMessages)) {
+          setMessages(result.currentSessionMessages);
+          console.log('Loaded current session:', result.currentSessionMessages.length, 'messages');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading current session messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const addMessage = useCallback((message) => {
     const newMessage = {
       ...message,
@@ -55,6 +72,11 @@ export const useChat = (chatId = null) => {
       const updated = [...prev, newMessage];
       const limited = updated.slice(-100);
       
+      // Save current session messages to storage for persistence during active tasks
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.set({ currentSessionMessages: limited }).catch(console.error);
+      }
+      
       return limited;
     });
   }, []);
@@ -65,7 +87,8 @@ export const useChat = (chatId = null) => {
   
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        await chrome.storage.local.remove(['chatHistory']);
+        // Clear both old and new session storage
+        await chrome.storage.local.remove(['chatHistory', 'currentSessionMessages']);
       }
     } catch (error) {
       console.error('Error clearing current chat:', error);
@@ -73,11 +96,18 @@ export const useChat = (chatId = null) => {
   }, []);
 
   const updateMessage = useCallback((messageId, updates) => {
-    setMessages(prev => 
-      prev.map(msg => 
+    setMessages(prev => {
+      const updated = prev.map(msg => 
         msg.id === messageId ? { ...msg, ...updates } : msg
-      )
-    );
+      );
+      
+      // Update session storage
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.set({ currentSessionMessages: updated }).catch(console.error);
+      }
+      
+      return updated;
+    });
   }, []);
 
   // Manual save function (called only when explicitly needed)
@@ -92,6 +122,11 @@ export const useChat = (chatId = null) => {
           if (newChatId) {
             setCurrentChatId(newChatId);
           }
+        }
+        
+        // Clear current session after saving to history
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+          chrome.storage.local.remove(['currentSessionMessages']).catch(console.error);
         }
       }
     }
