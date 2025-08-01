@@ -12,7 +12,7 @@ export const useChat = (chatId = null) => {
     if (chatId) {
       loadChatFromHistory(chatId);
     } else {
-      loadChatHistory();
+      setLoading(false);
     }
   }, [chatId]);
 
@@ -44,21 +44,6 @@ export const useChat = (chatId = null) => {
     }
   }, []);
 
-  const loadChatHistory = useCallback(async () => {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get(['chatHistory']);
-        if (result.chatHistory && Array.isArray(result.chatHistory)) {
-          setMessages(result.chatHistory);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading chat history:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   const addMessage = useCallback((message) => {
     const newMessage = {
       ...message,
@@ -70,29 +55,11 @@ export const useChat = (chatId = null) => {
       const updated = [...prev, newMessage];
       const limited = updated.slice(-100);
       
-      // Save to current session storage only
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.set({ chatHistory: limited }).catch(console.error);
-      }
-      
       return limited;
     });
   }, []);
 
   const clearMessages = useCallback(async () => {
-    // Save current chat if it has meaningful content BEFORE clearing
-    if (messages.length >= 1) {
-      const userMessages = messages.filter(msg => msg.type === 'user' || msg.type === 'assistant');
-      if (userMessages.length >= 1) {
-        if (currentChatId) {
-          await updateChatHistory(currentChatId, messages);
-        } else {
-          await saveChatHistory(messages);
-        }
-      }
-    }
-
-    // Clear current chat state
     setMessages([]);
     setCurrentChatId(null);
   
@@ -103,7 +70,7 @@ export const useChat = (chatId = null) => {
     } catch (error) {
       console.error('Error clearing current chat:', error);
     }
-  }, [messages, currentChatId, updateChatHistory, saveChatHistory]);
+  }, []);
 
   const updateMessage = useCallback((messageId, updates) => {
     setMessages(prev => 
@@ -113,7 +80,7 @@ export const useChat = (chatId = null) => {
     );
   }, []);
 
-  // Manual save function (called when needed, not automatically)
+  // Manual save function (called only when explicitly needed)
   const saveCurrentChat = useCallback(async () => {
     if (messages.length >= 2) {
       const userMessages = messages.filter(msg => msg.type === 'user' || msg.type === 'assistant');

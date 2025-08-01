@@ -43,13 +43,15 @@ For web automation, determine the MOST EFFICIENT approach:
 - Research: google.com/search?q=TERM
 - Similarily generate the most closest url based on the user message and the platform which is more closest to the user message.
 
-**If user is already on the correct page, then do not navigate to the page, just do the action.**
+**If user is already on the correct page for their task, skip navigation and proceed directly to the next required action.**
 
 **Universal Workflow Intelligence:**
 1. Analyze user intent (posting, searching, shopping, research, authentication, social media etc.)
-2. Determine most direct starting point
-3. Plan authentication workflow if needed
-4. Design universal element interaction strategy
+2. Check if current URL matches required destination
+3. If on correct page, skip navigation and plan next action
+4. If not on correct page, determine most direct starting point
+5. Plan authentication workflow if needed
+6. Design universal element interaction strategy
 
 # **IMPORTANT: Must wrap classification output and automation plan in the exact delimiters:**
 ===CLASSIFICATION_START===
@@ -76,7 +78,7 @@ For WEB_AUTOMATION: JSON with universal approach:
     "observation": "Universal analysis adaptable to any similar site",
     "done": false,
     "strategy": "Universal workflow that works across platforms",
-    "next_action": "navigate",
+    "next_action": "navigate|click|type|scroll|wait", 
     "direct_url": "https://most-closest-url-for-users-task",
     "reasoning": "Why this universal approach will work",
     "completion_criteria": "Universal success indicators",

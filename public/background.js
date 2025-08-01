@@ -244,6 +244,7 @@ class UniversalActionRegistry {
           const newTab = await chrome.tabs.create({ url: url, active: true });
           this.browserContext.activeTabId = newTab.id;
           await this.browserContext.waitForReady(newTab.id);
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
           return {
             success: true,
@@ -642,26 +643,26 @@ class MultiAgentExecutor {
 
   async execute(userTask, connectionManager, initialPlan = null) {
     this.currentStep = 0;
-    this.executionHistory = [];
     this.cancelled = false;
+    this.executionHistory = [];
     this.actionQueue = [];
     this.currentBatchPlan = null;
     this.failedElements = new Set();
-    
+    this.lastPageState = null;
+
     console.log(`🚀 Universal Multi-agent execution: ${userTask}`);
     console.log(`🧹 State cleaned - Starting fresh`);
     
     // Store current task for completion detection
     this.currentUserTask = userTask;
     
-    try {
-      let taskCompleted = false;
-      let finalResult = null;
+    let taskCompleted = false;
+    let finalResult = null;
 
-      console.log(`🚀 Universal Multi-agent execution: ${userTask}`);
+    try {
       connectionManager.broadcast({
-        type: 'task_start',
-        message: `🚀 Starting universal task: ${userTask}`
+        type: 'execution_start',
+        message: `🚀 Starting task: ${userTask}`
       });
 
       while (!taskCompleted && this.currentStep < this.maxSteps && !this.cancelled) {
@@ -670,8 +671,8 @@ class MultiAgentExecutor {
         console.log(`🔄 Step ${this.currentStep}/${this.maxSteps}`);
         connectionManager.broadcast({
           type: 'status_update',
-          message: `🔄 Step ${this.currentStep}/${this.maxSteps}: Analyzing page...`,
-          isStatus: true
+          step: this.currentStep,
+          message: `🔄 Step ${this.currentStep}: Planning next actions...`
         });
 
         if (this.cancelled) {
@@ -721,10 +722,10 @@ class MultiAgentExecutor {
             message: `📋 Batch completed: ${batchResults.executedActions.length} actions executed`
           });
           
-          // Call ValidatorAgent after each batch
-          if (batchResults.anySuccess) {
+          // Only validate if the current batch plan says we should
+          if (batchResults.anySuccess && this.currentBatchPlan?.shouldValidate) {
+            console.log('🔍 Running validation as requested by planner...');
             const currentState = await this.getCurrentState();
-            // Call ValidatorAgent after each batch
             const validation = await this.validator.validate(userTask, this.executionHistory, currentState);
 
             if (validation.is_valid && validation.confidence >= 0.7 && validation.answer && validation.answer.trim() !== '' && !validation.answer.includes('incomplete')) {
@@ -744,12 +745,16 @@ class MultiAgentExecutor {
                 details: validation.reason || ''
               });
               break;
-            } else if (validation.confidence < 0.5) {
-              // If confidence is very low, continue with more actions
-              console.log(`🔄 Validation confidence too low (${validation.confidence}), continuing task...`);
+            } else {
+              console.log(`🔄 Validation shows task not complete (confidence: ${validation.confidence}), continuing...`);
             }
+          } else if (batchResults.anySuccess) {
+            console.log('📋 Batch completed successfully, continuing without validation...');
+          }
 
-            // If not complete, call PlannerAgent for next batch
+          // If not complete, call PlannerAgent for next batch
+          if (!taskCompleted) {
+            const currentState = await this.getCurrentState();
             const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
               this.buildEnhancedContextWithHistory(), this.failedElements);
             
@@ -771,28 +776,33 @@ class MultiAgentExecutor {
               };
               break;
             }
+            
             this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions || []);
-            this.currentBatchPlan = plan;
-            continue;
+            this.currentBatchPlan = plan; 
           }
 
-          // Call NavigatorAgent when batch fails
+          // Handle critical failures (no recovery needed for now)
           if (batchResults.criticalFailure) {
+            connectionManager.broadcast({
+              type: 'status_update',
+              message: '⚠️ Multiple action failures detected. Attempting navigator recovery...',
+              details: 'Trying alternative approach'
+            });
+            
             const currentState = await this.getCurrentState();
-            // Use NavigatorAgent to try to recover
-            const navResult = await this.navigator.navigate(this.currentBatchPlan, currentState);
-            if (navResult && navResult.action) {
-              this.actionQueue = [navResult.action];
-              continue;
+            const recoveryAction = await this.navigator.navigate(this.currentBatchPlan, currentState);
+            
+            if (recoveryAction && recoveryAction.action) {
+              this.actionQueue = [recoveryAction.action];
+            } else {
+              // If navigator can't recover, replan
+              const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
+              this.buildEnhancedContextWithHistory(), this.failedElements);
+              this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions || []);
+              this.currentBatchPlan = plan;
             }
-            // If navigator can't recover, replan
-            const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
-            this.buildEnhancedContextWithHistory(), this.failedElements);
-            this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions || []);
-            this.currentBatchPlan = plan;
-            continue;
           }
-          
+
           continue;
         }
 
@@ -823,7 +833,7 @@ class MultiAgentExecutor {
           taskCompleted = true;
           finalResult = {
             success: true,
-            response: `✅ Task completed by AI: ${plan.completion_reason || plan.reasoning}`,
+            response: `✅ ${plan.completion_criteria || plan.reasoning}`,
             steps: this.currentStep
           };
           break;
@@ -844,16 +854,17 @@ class MultiAgentExecutor {
               intent: a.parameters?.intent || `${a.action_type} action`
             }))
           });
-          
-          continue;
+        } else {
+          console.log('⚠️ No valid batch actions received from planner');
+          break;
         }
 
         await this.delay(1000);
       }
 
-      // Final validation if max steps reached
+      // Final validation only if max steps reached and no explicit validation happened
       if (!taskCompleted && this.currentStep >= this.maxSteps) {
-        console.log('🔍 Max steps reached - running AI validator');
+        console.log('🔍 Max steps reached - running final validation');
         const finalState = await this.getCurrentState();
         const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
         
@@ -903,11 +914,14 @@ class MultiAgentExecutor {
 
     } catch (error) {
       console.error('❌ Universal multi-agent execution error:', error);
+      
       const errorResult = {
         success: false,
         response: `❌ Execution error: ${error.message}`,
+        reason: 'System error during task execution',
         message: error.message,
-        steps: this.currentStep
+        steps: this.currentStep || 0,
+        confidence: 0.1
       };
 
       connectionManager.broadcast({
@@ -1000,7 +1014,26 @@ class MultiAgentExecutor {
                                            (this.lastPageState?.interactiveElements?.length || 0)) > 5;
         const titleChanged = currentState.pageInfo?.title !== this.lastPageState?.pageInfo?.title;
         
-        const pageChanged = urlChanged || elementCountChanged || titleChanged;
+        // NEW: Detect modal/dropdown openings by checking for new element types
+        const hasNewModals = (currentState.interactiveElements || []).some(el => 
+          el.attributes?.class?.includes('modal') || 
+          el.attributes?.class?.includes('dropdown') ||
+          el.attributes?.class?.includes('menu') ||
+          el.attributes?.role === 'dialog' ||
+          el.attributes?.role === 'menu'
+        );
+
+        const previousModals = (this.lastPageState?.interactiveElements || []).some(el => 
+          el.attributes?.class?.includes('modal') || 
+          el.attributes?.class?.includes('dropdown') ||
+          el.attributes?.class?.includes('menu') ||
+          el.attributes?.role === 'dialog' ||
+          el.attributes?.role === 'menu'
+        );
+
+        const modalStateChanged = hasNewModals !== previousModals;
+
+        const pageChanged = urlChanged || elementCountChanged || titleChanged || modalStateChanged;
         
         if (action.name === 'click' && action.parameters?.index !== undefined && 
             actionResult.success && !pageChanged) {
@@ -1536,7 +1569,7 @@ class MultiAgentExecutor {
 
   determineExecutionPhase() {
     if (this.currentStep <= 3) return "INITIAL_EXPLORATION";
-    if (this.currentStep <= 8) return "ACTIVE_EXECUTION";
+    if (this.currentStep <= 10) return "ACTIVE_EXECUTION";
     if (this.currentStep <= 15) return "REFINEMENT";
     return "FINAL_ATTEMPTS";
   }

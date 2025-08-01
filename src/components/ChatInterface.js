@@ -273,15 +273,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // Save chat when component unmounts if it has content
-    return () => {
-      if (messages.length > 0) {
-        saveCurrentChat();
-      }
-    };
-  }, [messages, saveCurrentChat]);
-
   const handleSendMessage = async (message) => {
     const shouldShowSubscription = !subscription.usingPersonalAPI && 
                                    !subscription.hasPersonalKeys && 
@@ -309,9 +300,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           isMarkdown: hasMarkdownContent(response.response || response.content)
         });
 
-        setTimeout(() => {
-          saveCurrentChat();
-        }, 100);
+        // Remove automatic saving after message to prevent duplicates
+        // setTimeout(() => {
+        //   saveCurrentChat();
+        // }, 100);
         
         return;
       }
@@ -379,12 +371,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   };
 
   const handleNewChat = async () => {
-    // Save current chat before clearing if it has content
-    if (messages.length > 0) {
-      await saveCurrentChat();
+    if (messages.length >= 2) {
+      const userMessages = messages.filter(msg => msg.type === 'user' || msg.type === 'assistant');
+      if (userMessages.length >= 2) {
+        await saveCurrentChat();
+      }
     }
     
-    // Clear only current chat state
+    // Clear current chat state
     clearMessages();
     
     // Send new_chat message to background
