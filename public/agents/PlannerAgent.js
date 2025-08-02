@@ -96,7 +96,7 @@ ${failedIndices ? '⚠️ These elements have been tried and are NOT working. Fi
 
 # **AVAILABLE MOBILE ELEMENTS (Current Page Only, 50 elements)**
 **IMPORTANT: Elements below already exclude failed indices. Use only these elements.**
-${this.formatEnhancedElements(currentState.interactiveElements?.slice(0, 50) || [], userTask)}
+${this.formatEnhancedElements(currentState.interactiveElements?.slice(0, 50) || [])}
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**
 Current Step: ${context.currentStep}/25 (Increased limit for complex tasks)
@@ -353,29 +353,15 @@ Return JSON with batch_actions array for local execution:
   }
 
   // Enhanced element formatting showing categories and purposes
-  formatEnhancedElements(elements, userTask = '') {
+  formatEnhancedElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
     const MAX_OUT = 50;
     
-    // First filter out navigation/sidebar elements to focus on content
-    const contentElements = this.filterContentElements(elements);
-    console.log(`🎯 Filtered from ${elements.length} to ${contentElements.length} content elements`);
-    
-    const searchElements = this.identifySearchElements ? this.identifySearchElements(contentElements) : [];
-    const actionElements = this.identifyUniversalActionElements ? this.identifyUniversalActionElements(contentElements) : [];
-    const productElements = this.identifyProductResults ? this.identifyProductResults(contentElements, userTask) : [];
+    const searchElements = this.identifySearchElements ? this.identifySearchElements(elements) : [];
+    const actionElements = this.identifyUniversalActionElements ? this.identifyUniversalActionElements(elements) : [];
     
     let formatted = '';
-    
-    if (productElements.length > 0) {
-      formatted += `\n## 🛒 PRODUCT SEARCH RESULTS (SHOPPING TASK - PRIORITIZE THESE):\n`;
-      productElements.slice(0, 5).forEach(el => {
-        const text = (el.text || '').substring(0, 100);
-        const href = el.attributes?.href || '';
-        formatted += `[${el.index}] ${el.tagName}🛍️[PRODUCT]: "${text}"${text.length > 100 ? '...' : ''}${href ? ` (href: ${href.substring(0, 50)})` : ''}\n`;
-      });
-    }
     
     // Prioritize universal action elements for all site types
     if (actionElements.length > 0) {
@@ -394,10 +380,10 @@ Return JSON with batch_actions array for local execution:
       });
     }
     
-    // Group remaining content elements by category for better organization
-    const categorized = contentElements.reduce((acc, el) => {
-      // Skip search, action, and product elements as they're already shown above
-      if (searchElements.includes(el) || actionElements.includes(el) || productElements.includes(el)) return acc;
+    // Group remaining elements by category for better organization
+    const categorized = elements.reduce((acc, el) => {
+      // Skip search and action elements as they're already shown above
+      if (searchElements.includes(el) || actionElements.includes(el)) return acc;
       
       const category = el.category || 'unknown';
       if (!acc[category]) acc[category] = [];
@@ -419,10 +405,8 @@ Return JSON with batch_actions array for local execution:
       });
     });
 
-    if (contentElements.length > MAX_OUT) {
-      formatted += `\n...and ${contentElements.length - MAX_OUT} more content elements (${elements.length - contentElements.length} navigation elements filtered out).\n`;
-    } else if (elements.length > contentElements.length) {
-      formatted += `\n(${elements.length - contentElements.length} navigation/sidebar elements filtered out for clarity)\n`;
+    if (elements.length > MAX_OUT) {
+      formatted += `\n...and ${elements.length - MAX_OUT} more elements.\n`;
     }
     
     return formatted;
@@ -495,94 +479,6 @@ Return JSON with batch_actions array for local execution:
       );
       
       return isSearchElement;
-    });
-  }
-
-  filterContentElements(elements) {
-    const navigationKeywords = [
-      'nav', 'menu', 'header', 'footer', 'sidebar', 'hamburger', 'toggle',
-      'sign in', 'sign up', 'login', 'register', 'account', 'profile', 'help',
-      'customer service', 'support', 'about', 'contact', 'privacy', 'terms',
-      'cookie', 'advertisement', 'ad', 'sponsored', 'banner', 'popup'
-    ];
-    
-    const sidebarSelectors = [
-      'nav', 'header', 'footer', 'aside', '.nav', '.menu', '.header', '.footer',
-      '.sidebar', '.top-nav', '.main-nav', '.site-nav', '#nav', '#menu', '#header'
-    ];
-    
-    return elements.filter(el => {
-      // Skip elements that are clearly navigation/sidebar
-      const text = (el.text || '').toLowerCase();
-      const className = (el.attributes?.class || '').toLowerCase();
-      const id = (el.attributes?.id || '').toLowerCase();
-      const xpath = (el.xpath || '').toLowerCase();
-      
-      // Check for navigation keywords in text
-      const hasNavKeywords = navigationKeywords.some(keyword => 
-        text.includes(keyword) || className.includes(keyword) || id.includes(keyword)
-      );
-      
-      // Check for navigation selectors in xpath
-      const isInNavigation = sidebarSelectors.some(selector => 
-        xpath.includes(selector) || className.includes(selector.replace('.', '').replace('#', ''))
-      );
-      
-      // Skip very small elements (likely icons/buttons)
-      const bounds = el.bounds || {};
-      const isVerySmall = (bounds.width && bounds.width < 50) || (bounds.height && bounds.height < 20);
-      
-      // Skip elements that are not visible or interactive
-      if (!el.isVisible || !el.isInteractive) return false;
-      
-      // Keep elements that don't match navigation patterns
-      return !hasNavKeywords && !isInNavigation && !isVerySmall;
-    });
-  }
-
-  // NEW: Identify product search results for shopping tasks
-  identifyProductResults(elements, userTask) {
-    const isShoppingTask = userTask.toLowerCase().includes('shop') || 
-                          userTask.toLowerCase().includes('buy') || 
-                          userTask.toLowerCase().includes('cart') ||
-                          userTask.toLowerCase().includes('product');
-    
-    if (!isShoppingTask) return [];
-    
-    const productKeywords = [
-      'product', 'item', 'price', '₹', '$', 'rating', 'star', 'review',
-      'delivery', 'shipping', 'stock', 'available', 'bestseller', 'deal'
-    ];
-    
-    return elements.filter(el => {
-      const text = (el.text || '').toLowerCase();
-      const className = (el.attributes?.class || '').toLowerCase(); 
-      const href = (el.attributes?.href || '').toLowerCase();
-      
-      // Look for product-related patterns
-      const hasProductTerms = productKeywords.some(keyword => 
-        text.includes(keyword) || className.includes(keyword)
-      );
-      
-      // Check for product URL patterns (Amazon, Flipkart, etc.)
-      const isProductLink = href.includes('/dp/') || href.includes('/product/') || 
-                           href.includes('/p/') || href.includes('/item/');
-      
-      // Look for elements with price patterns
-      const hasPrice = /[$₹]\s*\d+|price|mrp|cost/i.test(text);
-      
-      // Check for product card-like elements
-      const isProductCard = className.includes('product') || 
-                           className.includes('item') || 
-                           className.includes('result') ||
-                           className.includes('card');
-      
-      // Look for meaningful content length (product titles are usually 20+ chars)
-      const hasMeaningfulContent = text.length > 20 && text.length < 200;
-      
-      return el.isVisible && el.isInteractive && 
-             (hasProductTerms || isProductLink || hasPrice || isProductCard) &&
-             hasMeaningfulContent;
     });
   }
 

@@ -1972,9 +1972,9 @@ class MultiLLMService {
         'validator': 'gpt-4o-mini'
       },
       'gemini': {
-        'navigator': 'gemini-1.5-pro',
-        'planner': 'gemini-1.5-pro',
-        'validator': 'gemini-1.5-flash'
+        'navigator': 'gemini-2.0-flash-exp',
+        'planner': 'gemini-2.0-flash-exp',
+        'validator': 'gemini-2.0-flash-exp'
       }
     };
     
@@ -1984,15 +1984,19 @@ class MultiLLMService {
   isModelValidForProvider(model, provider) {
     const modelProviderMap = {
       'claude-3-5-sonnet-20241022': 'anthropic',
+      'claude-3-5-haiku-20241022': 'anthropic',
       'claude-3-sonnet-20240229': 'anthropic', 
       'claude-3-haiku-20240307': 'anthropic',
       'claude-3-opus-20240229': 'anthropic',
+      'o1-preview': 'openai',
+      'o1-mini': 'openai',
       'gpt-4o': 'openai',
       'gpt-4o-mini': 'openai',
       'gpt-4-turbo': 'openai',
       'gpt-4': 'openai',
       'gpt-3.5-turbo': 'openai',
       'gemini-2.0-flash-exp': 'gemini',
+      'gemini-2.0-flash': 'gemini',
       'gemini-1.5-pro': 'gemini',
       'gemini-1.5-flash': 'gemini',
       'gemini-pro': 'gemini'

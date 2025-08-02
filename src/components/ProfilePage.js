@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FaUser, 
@@ -20,6 +20,18 @@ import {
 const ProfilePage = ({ user, subscription, onLogout }) => {
   const navigate = useNavigate();
   const [isToggling, setIsToggling] = useState(false);
+  
+  // Refresh subscription data when component gains focus (returning from settings)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (subscription.loadSubscriptionData) {
+        subscription.loadSubscriptionData();
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [subscription]);
 
   const handleBack = () => {
     navigate('/chat');

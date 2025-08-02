@@ -34,6 +34,14 @@ You are an intelligent task completion validator with PROGRESSIVE VALIDATION cap
 # **ORIGINAL TASK**
 "${originalTask}"
 
+# **SPECIAL VALIDATION RULES FOR SOCIAL MEDIA POSTING:**
+If the task involves posting on X/Twitter:
+- **CRITICAL**: URL redirect from compose page to home/timeline IS proof of successful posting
+- **Pattern**: https://x.com/compose/post → https://x.com/home = SUCCESSFUL POST
+- **Do NOT require**: Visual confirmation of post in timeline
+- **Do NOT require**: "Post published" message
+- **Evidence needed**: ONLY the URL redirect pattern above
+
 # **TASK STATE TRACKING**
 Current Step: ${context.currentStep}
 Task Components Completed: ${context.taskState?.completedComponents?.length || 0}
@@ -49,6 +57,26 @@ ${executionHistory.map((h, i) => {
   const error = h.results?.[0]?.result?.error || '';
   return `Step ${stepNum}: ${action} - ${navigation} - ${status}${error ? ` (${error})` : ''}`;
 }).join('\n')}
+
+# **URL CHANGE ANALYSIS FOR POSTING DETECTION**
+${(() => {
+  const urlChanges = [];
+  for (let i = 0; i < executionHistory.length; i++) {
+    const currentUrl = executionHistory[i]?.results?.[0]?.result?.state?.pageInfo?.url;
+    const prevUrl = i > 0 ? executionHistory[i-1]?.results?.[0]?.result?.state?.pageInfo?.url : null;
+    if (currentUrl && prevUrl && currentUrl !== prevUrl) {
+      urlChanges.push(`Step ${i+1}: ${prevUrl} → ${currentUrl}`);
+    }
+  }
+  if (urlChanges.length === 0) return 'No significant URL changes detected in execution history';
+  
+  const hasPostingRedirect = urlChanges.some(change => 
+    change.includes('compose') && change.includes('home')
+  );
+  
+  return urlChanges.join('\n') + 
+    (hasPostingRedirect ? '\n🎯 **POSTING REDIRECT DETECTED**: compose → home pattern found = SUCCESSFUL POST' : '');
+})()}
 
 # **CURRENT PAGE STATE**
 - URL: ${finalState.pageInfo?.url}
@@ -80,11 +108,29 @@ Break down the original task into logical components and assess each:
 - **0.7-0.8**: Most components completed, nearing success
 - **0.9-1.0**: Task fully completed with clear evidence
 
-## **VALIDATION CRITERIA:**
-- **is_valid: true** when confidence >= 0.9 AND all critical components done
-- **is_valid: false** when confidence < 0.9 OR missing critical components  
-- **progress_percentage**: 0-100 based on completed components
+## **STRICT VALIDATION CRITERIA:**
+- **is_valid: true** ONLY when:
+  * confidence >= 0.9 AND
+  * ALL critical components are completed AND
+  * Clear evidence of successful task completion AND
+  * For video tasks: video is actually playing/opened AND
+  * For search tasks: relevant results are visible AND
+  * For navigation tasks: correct page/content is loaded AND
+  * For X/Twitter posting tasks: URL redirect from compose to home/timeline detected
+  * For other posting tasks: post is successfully published
+- **is_valid: false** when ANY of the above is missing
+- **progress_percentage**: 0-100 based on completed components (be conservative)
 - **next_required_action**: What needs to happen next (if not complete)
+
+## **EVIDENCE REQUIREMENTS:**
+- **Navigation Tasks**: URL change, page title change, or new content visible
+- **Search Tasks**: Search results page loaded with relevant results
+- **Video Tasks**: Video player visible and playing, or clear indication video opened
+- **Social Media Tasks**: 
+  * **For Posting**: URL redirect from compose page to home/timeline OR post visible in timeline OR "post published" confirmation
+  * **For Viewing**: Content visible on timeline or profile
+- **Shopping Tasks**: Product listings visible or item added to cart confirmation
+- **Login Tasks**: Successfully logged in (user profile/dashboard visible)
 
 # **SPECIAL CASES:**
 1. **Login Required**: If page requires login but task doesn't mention login
@@ -157,6 +203,38 @@ Break down the original task into logical components and assess each:
   "next_required_action": "",
   "answer": "✅ Successfully searched for iPhone on Amazon - found multiple iPhone models with prices ranging from $199 to $1199"
 }
+
+# **X/TWITTER POSTING TASK VALIDATION EXAMPLES:**
+
+**Task: "Post a tweet about AI automation benefits"**
+
+**SCENARIO 1: Content typed but not posted (80% progress):**
+{
+  "is_valid": false,
+  "confidence": 0.8,
+  "progress_percentage": 80,
+  "completed_components": ["navigation", "composer_access", "content_input"],
+  "missing_components": ["post_publish"],
+  "reason": "Tweet content typed but not yet posted - still on compose page",
+  "evidence": "Current URL is https://x.com/compose/post with tweet content visible",
+  "next_required_action": "Click the Post/Tweet button to publish the tweet",
+  "answer": ""
+}
+
+**SCENARIO 2: Successfully posted - URL REDIRECT (100% complete):**
+{
+  "is_valid": true,
+  "confidence": 0.95,
+  "progress_percentage": 100,
+  "completed_components": ["navigation", "composer_access", "content_input", "post_publish"],
+  "missing_components": [],
+  "reason": "Tweet successfully posted - URL redirected from compose to home page indicating successful posting",
+  "evidence": "URL changed from https://x.com/compose/post to https://x.com/home - this redirect IS confirmation of successful posting on X/Twitter",
+  "next_required_action": "",
+  "answer": "✅ Successfully posted tweet about AI automation benefits on X/Twitter"
+}
+
+**CRITICAL FOR X/TWITTER POSTING:** URL redirect from compose page (x.com/compose/post) to home page (x.com/home) IS definitive proof of successful posting. Do not require additional evidence when this redirect occurs.
 
 **IMPORTANT: Use progressive validation to provide better feedback on task progress!**`;
 

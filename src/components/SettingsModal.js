@@ -1,3 +1,4 @@
+/* global chrome */
 import React, { useState, useEffect } from 'react';
 import { useConfig } from '../hooks/useConfig';
 import { useNavigate } from 'react-router-dom';
@@ -43,6 +44,22 @@ const SettingsModal = () => {
       // Update config
       await updateConfig(localConfig);
       
+      // If API keys were saved, automatically set user preference to use personal API
+      const hasApiKeys = !!(
+        localConfig.anthropicApiKey || 
+        localConfig.openaiApiKey || 
+        localConfig.geminiApiKey
+      );
+      
+      if (hasApiKeys && typeof chrome !== 'undefined' && chrome.storage) {
+        try {
+          await chrome.storage.local.set({ userPreferPersonalAPI: true });
+          console.log('✅ Automatically enabled personal API preference');
+        } catch (storageError) {
+          console.warn('Could not set API preference:', storageError);
+        }
+      }
+      
       // Show success briefly
       if (saveButton) {
         saveButton.textContent = '✅ Saved!';
@@ -74,13 +91,16 @@ const SettingsModal = () => {
       case 'anthropic':
         return [
           { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Latest)', recommended: true },
+          { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Latest Fast)' },
           { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
           { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (Fast)' },
           { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus (Most Capable)' }
         ];
       case 'openai':
         return [
-          { value: 'gpt-4o', label: 'GPT-4o (Latest)', recommended: true },
+          { value: 'o1-preview', label: 'o1-preview (Latest Reasoning)'},
+          { value: 'o1-mini', label: 'o1-mini (Fast Reasoning)' },
+          { value: 'gpt-4o', label: 'GPT-4o (Latest)' , recommended: true},
           { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast)' },
           { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
           { value: 'gpt-4', label: 'GPT-4' },
@@ -88,7 +108,9 @@ const SettingsModal = () => {
         ];
       case 'gemini':
         return [
-          { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Latest)', recommended: true },
+          { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Experimental (Latest)', recommended: true },
+          { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+          { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
           { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
           { value: 'gemini-pro', label: 'Gemini Pro' }
         ];
