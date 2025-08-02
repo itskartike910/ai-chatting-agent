@@ -36,7 +36,7 @@ export class PlannerAgent {
       .map(h => `Step ${h.step}: ${h.action} - ${h.navigation || ''} (${h.results?.[0]?.result?.error || 'unknown error'})`)
       .join('\n');
     
-    const failedIndices = Array.from(this.failedElements || new Set()).join(', ');
+    const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
     
     console.log('[PlannerAgent] userTask:', userTask, 
                 'currentState:', currentState, 
@@ -46,7 +46,7 @@ export class PlannerAgent {
                 'proceduralHistory:', proceduralHistory, 
                 'progressAnalysis:', progressAnalysis, 
                 'failedActionsSummary:', failedActionsSummary, 
-                'failedIndices:', failedIndices,
+                'failedIndices:', failedIndicesForLLM,
                 'enhancedContext', enhancedContext);
 
     const plannerPrompt = `## CONTEXT HASH: ${context.currentStep}-${context.proceduralSummaries.length}
@@ -69,8 +69,8 @@ Create strategic BATCH PLANS with 2-7 sequential actions that can execute WITHOU
 "${userTask}"
 
 # **FAILED ELEMENT INDICES - STRICTLY FORBIDDEN**
-NEVER use these indices: ${failedIndices || 'None'}
-${failedIndices ? '⚠️ These elements have been tried and are NOT working. Find different elements!' : ''}
+NEVER use these indices: ${failedIndicesForLLM || 'None'}
+${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT working. Find different elements!' : ''}
 
 # **ENHANCED MOBILE PAGE STATE**
 - URL: ${currentState.pageInfo?.url || 'unknown'}
@@ -96,7 +96,7 @@ ${failedIndices ? '⚠️ These elements have been tried and are NOT working. Fi
 
 # **AVAILABLE MOBILE ELEMENTS (Current Page Only, 50 elements)**
 **IMPORTANT: Elements below already exclude failed indices. Use only these elements.**
-${this.formatEnhancedElements(currentState.interactiveElements?.slice(0, 50) || [])}
+${this.formatEnhancedElements(currentState.interactiveElements?.slice(0, 100) || [])}
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**
 Current Step: ${context.currentStep}/25 (Increased limit for complex tasks)
@@ -148,7 +148,7 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
 
 ## **ELEMENT SELECTION RULES:**
 - **MANDATORY: Only use element indices from the list above**
-- **FORBIDDEN: Never use indices: ${failedIndices || 'None'}**
+- **FORBIDDEN: Never use indices: ${failedIndicesForLLM || 'None'}**
 - If no suitable elements exist, use scroll/wait to find new ones
 - Look for alternative elements that accomplish the same goal
 - **PRIORITIZE PRIORITY ACTION ELEMENTS** - These are the most relevant for task completion
