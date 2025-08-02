@@ -475,7 +475,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           }}>
             {getConnectionIcon()}
             <span>{getConnectionStatusText()}</span>
-            {isExecuting && <span>• Working...</span>}
+            {/* {isExecuting && <span>• Working...</span>} */}
             <RequestCounter 
               subscriptionState={subscription} 
               onUpgradeClick={() => setShowSubscriptionChoice(true)}

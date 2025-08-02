@@ -6,7 +6,7 @@ export class NavigatorAgent {
   }
 
   async navigate(plan, currentState) {
-    const context = this.memoryManager.compressForPrompt(1200);  
+    const context = this.memoryManager.compressForPrompt(4000);
     
     // Enhanced context analysis for navigation
     const recentActions = this.formatRecentActions(context.recentMessages);
@@ -26,17 +26,26 @@ export class NavigatorAgent {
                 'sequenceGuidance:', sequenceGuidance,
                 'failedActionsNav:', failedActionsNav);
     
-    const navigatorPrompt = `## CTX: ${context.currentStep}-${context.proceduralSummaries.length}
+    const navigatorPrompt = `## ENHANCED NAVIGATION CONTEXT: ${context.currentStep}-${context.proceduralSummaries.length}
 
-Execute planned action using mobile elements efficiently.
+Execute planned action using mobile elements with enhanced context awareness and task progress tracking.
+
+# **TASK CONTEXT & PROGRESS**
+Current Step: ${context.currentStep}/25
+Task Components Completed: ${context.taskState?.completedComponents?.length || 0}
+Task History: ${context.taskHistory?.map(h => h.component).join(' → ') || 'Starting navigation'}
 
 # **PLAN TO EXECUTE**
 Strategy: ${plan.strategy}
 Action: ${plan.next_action}
 
-# **CURRENT STATE**
+# **ENHANCED CURRENT STATE**
 URL: ${currentState.pageInfo?.url}
+Page Title: ${currentState.pageInfo?.title || 'unknown'}
+Platform: ${currentState.pageInfo?.platform || 'unknown'}
+Page Type: ${currentState.pageContext?.pageType || 'unknown'}
 Elements: ${currentState.interactiveElements?.length || 0}
+Is Logged In: ${currentState.pageContext?.isLoggedIn || false}
 
 # **TOP ELEMENTS**
 ${this.formatElementsWithDetails(currentState.interactiveElements?.slice(0, 40) || [])}
@@ -75,7 +84,7 @@ navigate(url), click(index), type(index,text), scroll(direction,amount), wait(du
     try {
       const response = await this.llmService.call([
         { role: 'user', content: navigatorPrompt }
-      ], { maxTokens: 800 }, 'navigator');
+      ], { maxTokens: 1200 }, 'navigator');
       
       console.log('[NavigatorAgent] LLM response:', response);
       

@@ -27,10 +27,13 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 # **USER MESSAGE**
 "${userMessage}"
 
-# **CURRENT CONTEXT**
+# **ENHANCED CURRENT CONTEXT**
 - URL: ${currentContext.url || 'unknown'}
 - Platform: ${this.detectPlatformFromUrl(currentContext.url)}
 - Elements: ${currentContext.elementsCount || 0}
+- Page Title: ${currentContext.title || 'unknown'}
+- Device Type: ${currentContext.deviceType || 'mobile'}
+- Previous Tasks: ${currentContext.taskHistory ? currentContext.taskHistory.length : 0} completed components
 
 # **INTELLIGENT AUTOMATION STRATEGY**
 
@@ -73,17 +76,20 @@ REASONING: Brief explanation of classification
 
 ===RESPONSE_START===
 For CHAT: Provide helpful markdown response
-For WEB_AUTOMATION: JSON with universal approach:
+For WEB_AUTOMATION: JSON with enhanced task understanding:
 {
-    "observation": "Universal analysis adaptable to any similar site",
+    "observation": "Detailed analysis of current page state and task requirements",
     "done": false,
-    "strategy": "Universal workflow that works across platforms",
+    "strategy": "Step-by-step approach with clear completion criteria",
     "next_action": "navigate|click|type|scroll|wait", 
     "direct_url": "https://most-closest-url-for-users-task",
-    "reasoning": "Why this universal approach will work",
-    "completion_criteria": "Universal success indicators",
-    "workflow_type": "social_media|shopping|search|authentication",
-    "requires_auth": true|false
+    "reasoning": "Why this approach will achieve the user's goal efficiently",
+    "completion_criteria": "Specific indicators that show task is 100% complete",
+    "workflow_type": "social_media|shopping|search|authentication|content_extraction",
+    "requires_auth": true|false,
+    "task_components": ["component1", "component2", "component3"],
+    "expected_steps": 3,
+    "success_indicators": ["indicator1", "indicator2"]
 }
 ===RESPONSE_END===
 
@@ -117,7 +123,7 @@ Always provide complete, well-formatted responses!`;
 
       const response = await this.llmService.call([
         { role: 'user', content: intelligentPrompt }
-      ], { maxTokens: 1000 });
+      ], { maxTokens: 1500 });
 
       console.log('[AITaskRouter] LLM response:', response);
       

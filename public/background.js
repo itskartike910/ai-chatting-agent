@@ -10,9 +10,11 @@ class ProceduralMemoryManager {
   constructor() {
     this.messages = [];
     this.proceduralSummaries = [];
-    this.maxMessages = 30;     
-    this.maxSummaries = 5;      
+    this.maxMessages = 50;  
+    this.maxSummaries = 10;     
     this.stepCounter = 0;
+    this.taskHistory = [];     
+    this.currentTaskState = null; 
   }
 
   addMessage(message) {
@@ -64,16 +66,20 @@ class ProceduralMemoryManager {
     };
   }
 
-  // lightweight context compressor
-  compressForPrompt(maxTokens = 1200) {
+  // Enhanced context compressor with increased limits
+  compressForPrompt(maxTokens = 4000) {
     const ctx = this.getContext();
     const json = JSON.stringify(ctx);
     if (json.length > maxTokens * 4 && ctx.proceduralSummaries.length) {
       ctx.proceduralSummaries.shift();
     }
-    while (JSON.stringify(ctx).length > maxTokens * 4 && ctx.recentMessages.length > 5) {
+    while (JSON.stringify(ctx).length > maxTokens * 4 && ctx.recentMessages.length > 10) {
       ctx.recentMessages.shift();
     }
+    
+    ctx.taskState = this.currentTaskState;
+    ctx.taskHistory = this.taskHistory.slice(-5); 
+    
     return ctx;
   }
 
@@ -81,6 +87,70 @@ class ProceduralMemoryManager {
     this.messages = [];
     this.proceduralSummaries = [];
     this.stepCounter = 0;
+    this.taskHistory = [];
+    this.currentTaskState = null;
+  }
+
+  setCurrentTask(task) {
+    this.currentTaskState = {
+      originalTask: task,
+      components: this.decomposeTask(task),
+      completedComponents: [],
+      startTime: Date.now()
+    };
+  }
+
+  markComponentCompleted(component, evidence) {
+    if (this.currentTaskState) {
+      this.currentTaskState.completedComponents.push({
+        component: component,
+        evidence: evidence,
+        timestamp: Date.now(),
+        step: this.stepCounter
+      });
+      this.taskHistory.push({
+        component: component,
+        evidence: evidence,
+        timestamp: Date.now()
+      });
+    }
+  }
+
+  decomposeTask(task) {
+    const taskLower = task.toLowerCase();
+    const components = [];
+    
+    // Navigation component
+    if (taskLower.includes('go to') || taskLower.includes('open') || taskLower.includes('visit')) {
+      components.push('navigate_to_site');
+    }
+    
+    // Search component
+    if (taskLower.includes('search') || taskLower.includes('find') || taskLower.includes('look for')) {
+      components.push('perform_search');
+    }
+    
+    // Click/interaction component
+    if (taskLower.includes('click') || taskLower.includes('select') || taskLower.includes('choose')) {
+      components.push('interact_with_element');
+    }
+    
+    // Data extraction component
+    if (taskLower.includes('get') || taskLower.includes('extract') || taskLower.includes('show')) {
+      components.push('extract_information');
+    }
+    
+    // Social media components
+    if (taskLower.includes('post') || taskLower.includes('tweet') || taskLower.includes('share')) {
+      components.push('create_post');
+    }
+    
+    // Shopping components
+    if (taskLower.includes('buy') || taskLower.includes('purchase') || taskLower.includes('cart')) {
+      components.push('shopping_action');
+    }
+    
+    return components.length > 0 ? components : ['complete_task'];
   }
 }
 
@@ -630,7 +700,7 @@ class MultiAgentExecutor {
     this.determinePageType = helpers.determinePageType;
     this.detectPlatform = helpers.detectPlatform;
     
-    this.maxSteps = 20;
+    this.maxSteps = 20; 
     this.executionHistory = [];
     this.currentStep = 0;
     this.cancelled = false;
@@ -649,12 +719,23 @@ class MultiAgentExecutor {
     this.currentBatchPlan = null;
     this.failedElements = new Set();
     this.lastPageState = null;
+    this.lastValidationResult = null; 
 
     console.log(`🚀 Universal Multi-agent execution: ${userTask}`);
     console.log(`🧹 State cleaned - Starting fresh`);
     
     // Store current task for completion detection
     this.currentUserTask = userTask;
+    
+    // Initialize enhanced task tracking in memory manager
+    this.memoryManager.setCurrentTask(userTask);
+    
+    // Broadcast initial task setup
+    connectionManager.broadcast({
+      type: 'status_update',
+      message: `🎯 Task Started: "${userTask}"`,
+      details: `Task components identified: ${this.memoryManager.currentTaskState?.components?.join(', ') || 'analyzing...'}`
+    });
     
     let taskCompleted = false;
     let finalResult = null;
@@ -722,31 +803,82 @@ class MultiAgentExecutor {
             message: `📋 Batch completed: ${batchResults.executedActions.length} actions executed`
           });
           
-          // Only validate if the current batch plan says we should
-          if (batchResults.anySuccess && this.currentBatchPlan?.shouldValidate) {
-            console.log('🔍 Running validation as requested by planner...');
+          // Enhanced validation with progressive checking and smart triggers
+          const shouldRunValidation = batchResults.anySuccess && (
+            this.currentBatchPlan?.shouldValidate || 
+            this.currentStep >= 10 || // Validate every 10 steps to check progress
+            this.currentStep % 5 === 0 || // Validate every 5 steps
+            this.executionHistory.filter(h => h.success).length >= 3 // Validate after 3 successful actions
+          );
+          
+          if (shouldRunValidation) {
+            console.log('🔍 Running progressive validation as requested by planner...');
             const currentState = await this.getCurrentState();
             const validation = await this.validator.validate(userTask, this.executionHistory, currentState);
+            
+            // Store validation result for use in next planning cycle
+            this.lastValidationResult = validation;
 
-            if (validation.is_valid && validation.confidence >= 0.7 && validation.answer && validation.answer.trim() !== '' && !validation.answer.includes('incomplete')) {
+            console.log('📊 Validation result:', {
+              is_valid: validation.is_valid,
+              confidence: validation.confidence,
+              progress: validation.progress_percentage,
+              completed: validation.completed_components,
+              missing: validation.missing_components
+            });
+
+            // Mark completed components in memory manager
+            if (validation.completed_components && validation.completed_components.length > 0) {
+              validation.completed_components.forEach(component => {
+                this.memoryManager.markComponentCompleted(component, validation.evidence || 'Validation confirmed completion');
+              });
+            }
+
+            // Progressive completion criteria (more lenient but accurate)
+            if (validation.is_valid && 
+                validation.confidence >= 0.85 && 
+                validation.progress_percentage >= 90 &&
+                validation.answer && 
+                validation.answer.trim() !== '' && 
+                !validation.answer.includes('incomplete') &&
+                validation.missing_components && 
+                validation.missing_components.length === 0) {
+              
               taskCompleted = true;
               finalResult = {
                 success: true,
                 response: `✅ ${validation.answer}`,
                 reason: validation.reason,
                 steps: this.currentStep,
-                confidence: validation.confidence
+                confidence: validation.confidence,
+                progress_percentage: validation.progress_percentage,
+                completed_components: validation.completed_components
               };
               
               // Broadcast task completion observation
               connectionManager.broadcast({
                 type: 'status_update',
-                message: `🎯 Task Completed: ${validation.answer}`,
-                details: validation.reason || ''
+                message: `🎯 Task Completed (${validation.progress_percentage}%): ${validation.answer}`,
+                details: `${validation.reason} | Completed: ${validation.completed_components?.join(', ') || 'all components'}`
               });
               break;
             } else {
-              console.log(`🔄 Validation shows task not complete (confidence: ${validation.confidence}), continuing...`);
+              // Provide detailed progress feedback
+              const progressMsg = `🔄 Task Progress: ${validation.progress_percentage || 0}% complete`;
+              const componentMsg = validation.completed_components?.length > 0 
+                ? ` | Completed: ${validation.completed_components.join(', ')}`
+                : '';
+              const nextMsg = validation.next_required_action 
+                ? ` | Next: ${validation.next_required_action}`
+                : '';
+              
+              console.log(`${progressMsg}${componentMsg}${nextMsg}`);
+              
+              connectionManager.broadcast({
+                type: 'status_update',
+                message: `${progressMsg}${componentMsg}`,
+                details: validation.reason || 'Continuing task execution...'
+              });
             }
           } else if (batchResults.anySuccess) {
             console.log('📋 Batch completed successfully, continuing without validation...');
@@ -755,8 +887,21 @@ class MultiAgentExecutor {
           // If not complete, call PlannerAgent for next batch
           if (!taskCompleted) {
             const currentState = await this.getCurrentState();
+            const enhancedContext = this.buildEnhancedContextWithHistory();
+            
+            // Add validation results to context for planner
+            if (this.lastValidationResult) {
+              enhancedContext.lastValidation = {
+                progress_percentage: this.lastValidationResult.progress_percentage || 0,
+                completed_components: this.lastValidationResult.completed_components || [],
+                missing_components: this.lastValidationResult.missing_components || [],
+                next_required_action: this.lastValidationResult.next_required_action || '',
+                confidence: this.lastValidationResult.confidence || 0
+              };
+            }
+            
             const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
-              this.buildEnhancedContextWithHistory(), this.failedElements);
+              enhancedContext, this.failedElements);
             
             // Broadcast planner's observation and strategy
             if (plan && plan.observation) {
@@ -817,6 +962,17 @@ class MultiAgentExecutor {
         if (initialPlan && this.currentStep === 1) {
           plan = initialPlan;
         } else {
+          // Add any recent validation results to context for better planning
+          if (this.lastValidationResult) {
+            enhancedContext.lastValidation = {
+              progress_percentage: this.lastValidationResult.progress_percentage || 0,
+              completed_components: this.lastValidationResult.completed_components || [],
+              missing_components: this.lastValidationResult.missing_components || [],
+              next_required_action: this.lastValidationResult.next_required_action || '',
+              confidence: this.lastValidationResult.confidence || 0
+            };
+          }
+          
           plan = await this.planner.plan(userTask, currentState, this.executionHistory, enhancedContext, this.failedElements);
         }
 
@@ -862,27 +1018,57 @@ class MultiAgentExecutor {
         await this.delay(1000);
       }
 
-      // Final validation only if max steps reached and no explicit validation happened
+      // Enhanced final validation with progressive assessment
       if (!taskCompleted && this.currentStep >= this.maxSteps) {
-        console.log('🔍 Max steps reached - running final validation');
+        console.log('🔍 Max steps reached - running enhanced final validation');
         const finalState = await this.getCurrentState();
         const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
         
-        if (validation.is_valid && validation.confidence > 0.7 && validation.answer && validation.answer.trim() !== '') {
+        console.log('📊 Final validation result:', {
+          is_valid: validation.is_valid,
+          confidence: validation.confidence,
+          progress: validation.progress_percentage,
+          completed: validation.completed_components,
+          missing: validation.missing_components
+        });
+        
+        // More lenient final validation - accept partial completion if substantial progress
+        if (validation.is_valid && 
+            validation.confidence >= 0.8 && 
+            validation.progress_percentage >= 80 &&
+            validation.answer && 
+            validation.answer.trim() !== '') {
           finalResult = {
             success: true,
             response: `✅ ${validation.answer}`,
             reason: validation.reason,
             steps: this.currentStep,
-            confidence: validation.confidence
+            confidence: validation.confidence,
+            progress_percentage: validation.progress_percentage,
+            completed_components: validation.completed_components
           };
-        } else {
+        } else if (validation.progress_percentage >= 50) {
+          // Partial success for significant progress
           finalResult = {
             success: false,
-            response: `⚠️ Task incomplete after ${this.currentStep} steps. ${validation.reason || 'Maximum steps reached'}`,
+            response: `🔄 Task partially completed (${validation.progress_percentage}%) after ${this.currentStep} steps. ${validation.reason || 'Maximum steps reached'}`,
             reason: validation.reason || 'Task could not be completed within step limit',
             steps: this.currentStep,
-            confidence: validation.confidence || 0.3
+            confidence: validation.confidence || 0.3,
+            progress_percentage: validation.progress_percentage,
+            completed_components: validation.completed_components || []
+          };
+        } else {
+          // Minimal progress - task incomplete
+          finalResult = {
+            success: false,
+            response: `❌ Task incomplete after ${this.currentStep} steps. Progress: ${validation.progress_percentage || 0}%. ${validation.reason || 'Maximum steps reached with insufficient progress'}`,
+            reason: validation.reason || 'Task could not be completed within step limit',
+            steps: this.currentStep,
+            confidence: validation.confidence || 0.2,
+            progress_percentage: validation.progress_percentage || 0,
+            completed_components: validation.completed_components || [],
+            next_required_action: validation.next_required_action || 'Task needs to be restarted or refined'
           };
         }
       }
@@ -915,18 +1101,24 @@ class MultiAgentExecutor {
     } catch (error) {
       console.error('❌ Universal multi-agent execution error:', error);
       
+      // Use enhanced error formatting for better user experience
+      const userFriendlyError = this.formatErrorForUser(error);
+      
       const errorResult = {
         success: false,
-        response: `❌ Execution error: ${error.message}`,
+        response: userFriendlyError,
         reason: 'System error during task execution',
         message: error.message,
         steps: this.currentStep || 0,
-        confidence: 0.1
+        confidence: 0.1,
+        originalError: error.message
       };
 
       connectionManager.broadcast({
         type: 'task_error',
-        result: errorResult
+        result: errorResult,
+        error: userFriendlyError,
+        originalError: error.message
       });
 
       return errorResult;
@@ -2442,33 +2634,100 @@ class BackgroundScriptAgent {
     }
   }
 
-  // Add better error formatting
+  // Enhanced error formatting with demo responses
   formatErrorForUser(error) {
     const errorMessage = error.message || 'Unknown error';
     
     // Handle API-specific errors with more detail
     if (errorMessage.includes('429')) {
-      return `⚠️ Rate limit exceeded. Please wait a moment and try again.\nDetails: ${errorMessage}`;
+      return `⚠️ **Rate Limit Exceeded**
+
+The AI service is currently receiving too many requests. This is temporary.
+
+**What you can do:**
+• Wait 1-2 minutes and try again
+• Try a simpler task to reduce processing time
+• Check if you have multiple agents running
+
+**Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
-      return `🚫 AI service temporarily unavailable. Please try again in a few minutes.\nDetails: ${errorMessage}`;
+      return `🚫 **AI Service Temporarily Unavailable**
+
+The AI provider is experiencing technical difficulties.
+
+**What you can do:**
+• Try again in 5-10 minutes
+• Switch to a different AI provider in settings
+• Check the service status page
+
+**Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('401') || errorMessage.includes('authentication') || errorMessage.includes('API key')) {
-      return `🔑 Authentication failed. Please check your API key in settings.\nDetails: ${errorMessage}`;
+      return `🔑 **Authentication Failed**
+
+Your API key is invalid or missing.
+
+**What you can do:**
+• Go to Settings and check your API key
+• Make sure the key is copied correctly (no extra spaces)
+• Verify the key is active on your AI provider's dashboard
+
+**Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
-      return `🚫 Access denied. Please check your API key permissions.\nDetails: ${errorMessage}`;
+      return `🚫 **Access Denied**
+
+Your API key doesn't have the required permissions.
+
+**What you can do:**
+• Check your AI provider's billing/usage limits
+• Ensure your API key has proper permissions
+• Contact your AI provider if you're within limits
+
+**Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
-      return `❌ Invalid request. Please try rephrasing your task.\nDetails: ${errorMessage}`;
+      return `❌ **Invalid Request**
+
+The request couldn't be processed due to formatting issues.
+
+**What you can do:**
+• Try rephrasing your task more clearly
+• Use simple commands like "search for X on Y"
+• Avoid special characters in your request
+
+**Technical Details:** ${errorMessage}`;
     }
     
-    // For any other error, show the actual error message
-    return `❌ Error: ${errorMessage}`;
+    if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
+      return `⏱️ **Network Timeout**
+
+The request took too long to process.
+
+**What you can do:**
+• Check your internet connection
+• Try the task again (it may work now)
+• Break complex tasks into smaller steps
+
+**Technical Details:** ${errorMessage}`;
+    }
+    
+    // For any other error, show enhanced message with demo
+    return `❌ **Unexpected Error**
+
+Something went wrong while processing your request.
+
+**What you can do:**
+• Try your request again
+• Simplify the task if it's complex
+• Check the browser console for more details
+
+**Technical Details:** ${errorMessage}`;
   }
 
   async getConfig() {
