@@ -7,6 +7,8 @@ import AuthPage from './components/AuthPage';
 import SubscriptionPage from './components/SubscriptionPage';
 import SettingsModal from './components/SettingsModal';
 import ProfilePage from './components/ProfilePage';
+import IntegrationHub from './components/IntegrationHub';
+import LabubuRoute from './components/LabubuRoute';
 import './App.css';
 import ChatHistoryPage from './components/ChatHistoryPage';
 
@@ -83,6 +85,18 @@ function AppContent() {
 
   return (
     <Routes>
+      {/* Integration Hub - Main Landing Page */}
+      <Route 
+        path="/" 
+        element={<IntegrationHub />} 
+      />
+      
+      {/* Labubu Route */}
+      <Route 
+        path="/labubu" 
+        element={<LabubuRoute />} 
+      />
+      
       <Route 
         path="/auth" 
         element={
@@ -163,11 +177,6 @@ function AppContent() {
             <ChatHistoryPage />
           )
         } 
-      />
-      
-      <Route 
-        path="/" 
-        element={<Navigate to={isLoggedIn ? "/chat" : "/auth"} replace />} 
       />
     </Routes>
   );
