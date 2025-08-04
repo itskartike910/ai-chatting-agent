@@ -5,6 +5,7 @@ import { ValidatorAgent } from './agents/ValidatorAgent.js';
 import { AITaskRouter } from './agents/AITaskRouter.js';
 
 console.log('AI Universal Agent Background Script Loading...');
+const API_BASE_URL = "";
 
 class ProceduralMemoryManager {
   constructor() {
@@ -2244,7 +2245,7 @@ class MultiLLMService {
         temperature: options.temperature || 0.5
       };
 
-      const response = await fetch(`https://gemini-api-112339282815.us-central1.run.app/gemini/generate`, {
+      const response = await fetch(`${API_BASE_URL}/gemini/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
