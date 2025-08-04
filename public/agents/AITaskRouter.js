@@ -8,7 +8,8 @@ export class AITaskRouter {
     this.userMessage = userMessage;
     
     console.log('[AITaskRouter] userMessage:', userMessage,
-                'currentContext:', currentContext);
+                'currentContext:', currentContext
+              );
 
     try {
       const intelligentPrompt = `ALWAYS OUTPUT THE DELIMITER BLOCKS EXACTLY AS WRITTEN. DO NOT USE MARKDOWN CODE BLOCKS. RESPOND WITH ONLY THE DELIMITED BLOCKS, NO EXTRA TEXT OR FORMATTING.
@@ -30,7 +31,8 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 # **ENHANCED CURRENT CONTEXT**
 - URL: ${currentContext.url || 'unknown'}
 - Platform: ${this.detectPlatformFromUrl(currentContext.url)}
-- Elements: ${currentContext.elementsCount || 0}
+- Elements Count: ${currentContext.elementsCount || 0}
+- Elements (First 100): ${currentContext.interactiveElements?.slice(0, 100) || []}
 - Page Title: ${currentContext.title || 'unknown'}
 - Device Type: ${currentContext.deviceType || 'mobile'}
 - Previous Tasks: ${currentContext.taskHistory ? currentContext.taskHistory.length : 0} completed components
@@ -83,6 +85,8 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
     "strategy": "Step-by-step approach with clear completion criteria",
     "next_action": "navigate|click|type|scroll|wait", 
     "direct_url": "https://most-closest-url-for-users-task",
+    "index": "index of the element to click or type on if the user is already on the correct page",
+    "selector": "selector of the element to click or type on if the user is already on the correct page",
     "reasoning": "Why this approach will achieve the user's goal efficiently",
     "completion_criteria": "Specific indicators that show task is 100% complete",
     "workflow_type": "social_media|shopping|search|authentication|content_extraction",

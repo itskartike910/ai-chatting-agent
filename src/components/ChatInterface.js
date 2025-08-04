@@ -289,42 +289,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       timestamp: Date.now()
     });
 
-    try {
-      if (!subscription.usingPersonalAPI && subscription.remaining_requests > 0) {
-        const response = await subscription.makeAIRequest(message);
-        
-        addMessage({
-          type: 'assistant',
-          content: response.response || response.content || 'No response generated',
-          timestamp: Date.now(),
-          isMarkdown: hasMarkdownContent(response.response || response.content)
-        });
-
-        // Remove automatic saving after message to prevent duplicates
-        // setTimeout(() => {
-        //   saveCurrentChat();
-        // }, 100);
-        
-        return;
-      }
-    } catch (error) {
-      if (error.message === 'TRIAL_EXPIRED') {
-        if (!subscription.hasPersonalKeys) {
-          setShowSubscriptionChoice(true);
-          return;
-        }
-      } else if (error.message === 'USE_PERSONAL_API') {
-        
-      } else {
-        addMessage({
-          type: 'error',
-          content: `❌ API Error: ${error.message}`,
-          timestamp: Date.now()
-        });
-        return;
-      }
-    }
-
     // Fallback to background script (existing logic)
     if (portRef.current && connectionStatus === 'connected' && !isExecuting) {
       try {

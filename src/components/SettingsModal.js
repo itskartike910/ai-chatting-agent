@@ -90,6 +90,7 @@ const SettingsModal = () => {
     switch (provider) {
       case 'anthropic':
         return [
+          { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet (Latest, Reasoning)'},
           { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Latest)', recommended: true },
           { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Latest Fast)' },
           { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
@@ -108,11 +109,11 @@ const SettingsModal = () => {
         ];
       case 'gemini':
         return [
-          { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Experimental (Latest)', recommended: true },
+          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Latest)', recommended: true },
+          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Latest, Reasoning)' },
           { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
           { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
-          { value: 'gemini-pro', label: 'Gemini Pro' }
+          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' }
         ];
       default:
         return [];
@@ -411,6 +412,24 @@ const SettingsModal = () => {
           
           <div style={{ marginBottom: '12px' }}>
             <label style={labelStyle}>
+              <FaClipboardList style={{ marginRight: '6px' }} />
+              Planner (strategy):
+            </label>
+            <select
+              value={localConfig.plannerModel || getAvailableModels(localConfig.aiProvider || 'anthropic')[0]?.value}
+              onChange={(e) => setLocalConfig({...localConfig, plannerModel: e.target.value})}
+              style={selectStyle}
+            >
+              {getAvailableModels(localConfig.aiProvider || 'anthropic').map(model => (
+                <option key={model.value} value={model.value}>
+                  {model.label} {model.recommended ? '⭐' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div style={{ marginBottom: '12px' }}>
+            <label style={labelStyle}>
               <FaCompass style={{ marginRight: '6px' }} />
               Navigator (actions):
             </label>
@@ -423,24 +442,6 @@ const SettingsModal = () => {
                 }
                 setLocalConfig(newConfig);
               }}
-              style={selectStyle}
-            >
-              {getAvailableModels(localConfig.aiProvider || 'anthropic').map(model => (
-                <option key={model.value} value={model.value}>
-                  {model.label} {model.recommended ? '⭐' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ marginBottom: '12px' }}>
-            <label style={labelStyle}>
-              <FaClipboardList style={{ marginRight: '6px' }} />
-              Planner (strategy):
-            </label>
-            <select
-              value={localConfig.plannerModel || getAvailableModels(localConfig.aiProvider || 'anthropic')[0]?.value}
-              onChange={(e) => setLocalConfig({...localConfig, plannerModel: e.target.value})}
               style={selectStyle}
             >
               {getAvailableModels(localConfig.aiProvider || 'anthropic').map(model => (
