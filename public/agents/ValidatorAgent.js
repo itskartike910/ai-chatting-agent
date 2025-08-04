@@ -82,7 +82,7 @@ ${(() => {
 - URL: ${finalState.pageInfo?.url}
 - Title: ${finalState.pageInfo?.title}
 - Domain: ${this.extractDomain(finalState.pageInfo?.url)}
-- Platform: ${finalState.pageInfo?.platform || 'unknown'}
+- Platform: 'Android'
 - Page Type: ${finalState.pageContext?.pageType || 'unknown'}
 - Available Elements: ${finalState.interactiveElements?.length || 0}
 - Has Login: ${finalState.pageContext?.isLoggedIn || false}

@@ -48,7 +48,7 @@ Elements: ${currentState.interactiveElements?.length || 0}
 Is Logged In: ${currentState.pageContext?.isLoggedIn || false}
 
 # **TOP ELEMENTS**
-${this.formatElementsWithDetails(currentState.interactiveElements?.slice(0, 40) || [])}
+${currentState.interactiveElements?.slice(0, 40) || []}
 
 # **SEQUENCE GUIDANCE**
 ${sequenceGuidance}

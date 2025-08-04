@@ -786,7 +786,7 @@ class MultiAgentExecutor {
             });
           }
           
-          continue; // Execute this batch immediately
+          // continue; // Execute this batch immediately
         }
 
         // 1. Execute batch actions if available

@@ -80,23 +80,12 @@ ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT worki
 
 # **PAGE CONTEXT**
 - Page Type: ${currentState.pageContext?.pageType || 'unknown'}
-- Platform: ${currentState.pageInfo?.platform || 'unknown'}
-- Has Login Form: ${currentState.pageContext?.hasLoginForm || false}
-- Is Logged In: ${currentState.pageContext?.isLoggedIn || false}
 
 # **ELEMENT ANALYSIS**
 - Total Elements: ${currentState.interactiveElements?.length || 0}
-- Clickable: ${(currentState.interactiveElements || []).filter(e => e.isClickable).length}
-- Typeable: ${(currentState.interactiveElements || []).filter(e => e.isTypeable).length}
 
-# **PAGE CAPABILITIES**
-- Can Login: ${currentState.pageContext?.capabilities?.canLogin || false}
-- Can Search: ${currentState.pageContext?.capabilities?.canSearch || false}
-- Has Forms: ${currentState.pageContext?.capabilities?.hasForms || false}
-
-# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 50 elements)**
-**IMPORTANT: Elements below already exclude failed indices. Use only these elements.**
-${this.formatEnhancedElements(currentState.interactiveElements?.slice(0, 100) || [])}
+# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 100 elements)**
+${currentState.interactiveElements?.slice(0, 100) || []}
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**
 Current Step: ${context.currentStep}/25 (Increased limit for complex tasks)
@@ -139,16 +128,18 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
 
 ## **ACTIONABLE STEP DIVISION:**
 - Break complex tasks into current-page-actionable chunks
-- Example: "Search for iPhone on Amazon" = 
+- Example 1: "Search for iPhone on Amazon and add to cart the first one" = 
   1. Navigate to Amazon (if not there)
   2. Find search box and search button on current page
   3. Type "iPhone" in search box
   4. Click search button
+  5. Click the first item in the search results (make sure your are clicking on the item element not the other elements like 1st index element)
+  6. Click the add to cart button (scroll down if the add to cart button is not visible)
 - Each step uses only currently visible elements
 
 ## **ELEMENT SELECTION RULES:**
 - **MANDATORY: Only use element indices from the list above**
-- **FORBIDDEN: Never use indices: ${failedIndicesForLLM || 'None'}**
+- **FORBIDDEN: Never use these indices again: ${failedIndicesForLLM || 'None'}**
 - If no suitable elements exist, use scroll/wait to find new ones
 - Look for alternative elements that accomplish the same goal
 - **PRIORITIZE PRIORITY ACTION ELEMENTS** - These are the most relevant for task completion
@@ -199,7 +190,7 @@ Return JSON with batch_actions array for local execution:
   * Task is progressing but not complete
   * Example: After navigating to a site but before completing the action
 
-# **BATCH RULES:**
+# **CRITICAL BATCH RULES:**
 - Generate 2-7 sequential actions for local execution using ONLY current page elements
 - Use DIFFERENT indices for clicking vs typing (click button ≠ type in input)
 - For search: find search input (TYPEABLE), then find search button (CLICKABLE)
@@ -209,6 +200,7 @@ Return JSON with batch_actions array for local execution:
 - Prioritize actions that move toward task completion
 - Only use concrete actions: navigate, click, type, scroll, wait
 - If user is already on the correct page, then do not navigate to the page, just do the action.
+- Clicking on first item doesn't mean you click on the first index element, instead you need to click on the item element.
 
 **REMEMBER: Plan ONLY for current page elements. Set shouldValidate=true ONLY for final task completion!**`;
 
@@ -356,7 +348,7 @@ Return JSON with batch_actions array for local execution:
   formatEnhancedElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
     
-    const MAX_OUT = 50;
+    const MAX_OUT = 100;
     
     const searchElements = this.identifySearchElements ? this.identifySearchElements(elements) : [];
     const actionElements = this.identifyUniversalActionElements ? this.identifyUniversalActionElements(elements) : [];
