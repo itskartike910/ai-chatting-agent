@@ -233,7 +233,14 @@ const SettingsModal = () => {
   };
 
   return (
-    <div style={containerStyle}>
+    <div className="settings-container" style={containerStyle}>
+      {/* Background Animation */}
+      <div className="background-animation">
+        <div className="floating-orb settings-orb-1"></div>
+        <div className="floating-orb settings-orb-2"></div>
+        <div className="floating-orb settings-orb-3"></div>
+      </div>
+
       {/* Custom CSS for placeholder styling */}
       <style>
         {`
@@ -254,9 +261,9 @@ const SettingsModal = () => {
       </style>
 
       {/* Header */}
-      <div style={headerStyle}>
+      <div className="settings-header" style={headerStyle}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h3 style={{ 
+          <h3 className="settings-title" style={{ 
             margin: 0, 
             color: '#FFDCDCFF', 
             fontSize: '18px', 
@@ -270,7 +277,7 @@ const SettingsModal = () => {
             <FaCog />
             SETTINGS
           </h3>
-          <p style={{ 
+          <p className="settings-subtitle" style={{ 
             margin: 0, 
             color: 'rgba(255, 220, 220, 0.8)', 
             fontSize: '12px',
@@ -282,6 +289,7 @@ const SettingsModal = () => {
         </div>
         <button 
           onClick={handleClose} 
+          className="settings-button"
           style={{ 
             padding: '6px 8px', 
             backgroundColor: 'rgba(255, 220, 220, 0.2)',
@@ -300,9 +308,9 @@ const SettingsModal = () => {
       </div>
 
       {/* Scrollable Content */}
-      <div style={contentStyle}>
+      <div className="settings-content" style={contentStyle}>
         {/* AI Provider Section */}
-        <div style={sectionStyle}>
+        <div className="settings-provider-section" style={sectionStyle}>
           <h4 style={{ 
             color: '#FFDCDCFF', 
             fontSize: '16px', 

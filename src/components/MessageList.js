@@ -431,13 +431,17 @@ const MessageList = ({ messages, onTemplateClick }) => {
     >
       {messages.length === 0 && (
         <>
-          <WelcomeMessage />
-          <TemplateCommands />
+          <div className="welcome-message">
+            <WelcomeMessage />
+          </div>
+          <div className="template-commands">
+            <TemplateCommands />
+          </div>
         </>
       )}
       
       {messages.map((message, index) => (
-        <div key={index} style={getMessageStyle(message.type)}>
+        <div key={index} className={`message-item message-${message.type}`} style={getMessageStyle(message.type)}>
           {/* Render content with proper markdown support */}
           <div style={{ textAlign: 'left', width: '100%' }}>
             {message.isMarkdown ? (

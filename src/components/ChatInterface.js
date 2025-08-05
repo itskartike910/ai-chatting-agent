@@ -404,8 +404,15 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       WebkitTouchCallout: 'none',
       touchAction: 'manipulation'
     }}>
+      {/* Background Animation */}
+      <div className="background-animation">
+        <div className="floating-orb chat-orb-1"></div>
+        <div className="floating-orb chat-orb-2"></div>
+        <div className="floating-orb chat-orb-3"></div>
+      </div>
+
       {/* Fixed Header - Updated with consistent styling */}
-      <div className="header" style={{ 
+      <div className="chat-header" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
@@ -418,7 +425,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         boxSizing: 'border-box'
       }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <h3 style={{ 
+          <h3 className="chat-title" style={{ 
             margin: 0, 
             color: '#FFDCDCFF', 
             fontSize: '15px', 
@@ -428,7 +435,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           }}>
             SOCIAL SHOPPING AGENT
           </h3>
-          <div style={{ 
+          <div className="chat-status" style={{ 
             fontSize: '12px', 
             color: getConnectionStatusColor(),
             marginTop: '1px',
@@ -446,9 +453,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+        <div className="chat-header-buttons" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button 
             onClick={handleNewChat}
+            className="chat-header-button"
             style={{ 
               padding: '6px 8px', 
               backgroundColor: 'rgba(255, 220, 220, 0.2)',
@@ -468,6 +476,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           
           <button 
             onClick={() => navigate('/history')}
+            className="chat-header-button"
             style={{ 
               padding: '6px 8px', 
               backgroundColor: 'rgba(255, 220, 220, 0.2)',
@@ -488,6 +497,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => navigate('/profile')}
+              className="chat-header-button"
               style={{ 
                 padding: '6px 8px',
                 backgroundColor: 'rgba(255, 220, 220, 0.2)',
@@ -512,7 +522,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       {isExecuting && taskStatus && <TaskStatus status={taskStatus} />}
 
       {/* Scrollable Messages Area */}
-      <div style={{ 
+      <div className="messages-container" style={{ 
         flex: 1, 
         display: 'flex', 
         flexDirection: 'column',
@@ -525,19 +535,21 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       </div>
 
       {/* Fixed Input at Bottom - Pass stop handler and execution state */}
-      <ChatInput 
-        onSendMessage={handleSendMessage}
-        onStopExecution={handleStopExecution}
-        isExecuting={isExecuting}
-        disabled={connectionStatus !== 'connected'}
-        placeholder={
-          connectionStatus === 'connected' 
-            ? (isExecuting ? "Processing..." : "Ask me anything...")
-            : "Connecting..."
-        }
-        value={messageInput}
-        onChange={setMessageInput}
-      />
+      <div className="chat-input-container">
+        <ChatInput 
+          onSendMessage={handleSendMessage}
+          onStopExecution={handleStopExecution}
+          isExecuting={isExecuting}
+          disabled={connectionStatus !== 'connected'}
+          placeholder={
+            connectionStatus === 'connected' 
+              ? (isExecuting ? "Processing..." : "Ask me anything...")
+              : "Connecting..."
+          }
+          value={messageInput}
+          onChange={setMessageInput}
+        />
+      </div>
       
       {/* Add subscription choice as overlay */}
       {showSubscriptionChoice && (

@@ -5,7 +5,7 @@ import { ValidatorAgent } from './agents/ValidatorAgent.js';
 import { AITaskRouter } from './agents/AITaskRouter.js';
 
 console.log('AI Universal Agent Background Script Loading...');
-const API_BASE_URL = "";
+const API_BASE_URL = "https://gemini-api-112339282815.us-central1.run.app";
 
 class ProceduralMemoryManager {
   constructor() {
