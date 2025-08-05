@@ -1,4 +1,4 @@
-/* Profile Page Animations */
+/* Profile Page Animations - Fast for frequent use */
 
 .profile-container {
   position: relative;
@@ -47,15 +47,15 @@
   animation-delay: 5s;
 }
 
-/* Header Animation */
+/* Header Animation - Fast */
 .profile-header {
-  animation: slideInDown 0.7s ease-out;
+  animation: slideInDown 0.2s ease-out;
   position: relative;
   z-index: 1;
 }
 
 .profile-back-button {
-  animation: slideInLeft 0.6s ease-out 0.2s both;
+  animation: slideInLeft 0.2s ease-out 0.05s both;
   transition: all 0.3s ease;
 }
 
@@ -65,15 +65,15 @@
 }
 
 .profile-title {
-  animation: slideInDown 0.7s ease-out 0.3s both;
+  animation: slideInDown 0.2s ease-out 0.08s both;
 }
 
 .profile-subtitle {
-  animation: slideInDown 0.7s ease-out 0.4s both;
+  animation: slideInDown 0.2s ease-out 0.1s both;
 }
 
 .profile-logout-button {
-  animation: slideInRight 0.6s ease-out 0.2s both;
+  animation: slideInRight 0.2s ease-out 0.05s both;
   transition: all 0.3s ease;
 }
 
@@ -82,16 +82,16 @@
   background: rgba(224, 36, 94, 0.3);
 }
 
-/* Content Animation */
+/* Content Animation - Fast */
 .profile-content {
-  animation: slideInUp 0.8s ease-out 0.4s both;
+  animation: slideInUp 0.2s ease-out 0.1s both;
   position: relative;
   z-index: 1;
 }
 
-/* User Info Section */
+/* User Info Section - Fast */
 .profile-user-info {
-  animation: fadeInScale 0.7s ease-out 0.6s both;
+  animation: fadeInScale 0.2s ease-out 0.15s both;
   transition: all 0.3s ease;
 }
 

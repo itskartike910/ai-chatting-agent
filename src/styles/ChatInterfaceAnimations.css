@@ -47,23 +47,23 @@
   animation-delay: 6s;
 }
 
-/* Header Animation */
+/* Header Animation - Fast for frequent use */
 .chat-header {
-  animation: slideInDown 0.6s ease-out;
+  animation: slideInDown 0.2s ease-out;
   position: relative;
   z-index: 1;
 }
 
 .chat-title {
-  animation: slideInDown 0.6s ease-out 0.2s both;
+  animation: slideInDown 0.2s ease-out 0.05s both;
 }
 
 .chat-status {
-  animation: slideInDown 0.6s ease-out 0.4s both;
+  animation: slideInDown 0.2s ease-out 0.1s both;
 }
 
 .chat-header-buttons {
-  animation: slideInRight 0.6s ease-out 0.3s both;
+  animation: slideInRight 0.2s ease-out 0.08s both;
 }
 
 .chat-header-button {
@@ -92,39 +92,39 @@
   background: rgba(255, 220, 220, 0.3);
 }
 
-/* Task Status Animation */
+/* Task Status Animation - Fast */
 .task-status {
-  animation: slideInDown 0.5s ease-out;
+  animation: slideInDown 0.2s ease-out;
 }
 
 .task-status-content {
   animation: pulse 2s ease-in-out infinite;
 }
 
-/* Messages Animation */
+/* Messages Animation - Fast */
 .messages-container {
   position: relative;
   z-index: 1;
 }
 
 .message-item {
-  animation: slideInUp 0.4s ease-out;
+  animation: slideInUp 0.2s ease-out;
 }
 
 .message-user {
-  animation: slideInRight 0.4s ease-out;
+  animation: slideInRight 0.2s ease-out;
 }
 
 .message-assistant {
-  animation: slideInLeft 0.4s ease-out;
+  animation: slideInLeft 0.2s ease-out;
 }
 
 .message-system {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .message-error {
-  animation: slideInLeft 0.4s ease-out;
+  animation: slideInLeft 0.2s ease-out;
 }
 
 /* Message Bubble Hover Effect */
@@ -138,9 +138,9 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Template Commands Animation */
+/* Template Commands Animation - Fast */
 .template-commands {
-  animation: slideInUp 0.6s ease-out 0.5s both;
+  animation: slideInUp 0.2s ease-out 0.1s both;
 }
 
 .template-command {
@@ -169,9 +169,9 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Chat Input Animation */
+/* Chat Input Animation - Fast */
 .chat-input-container {
-  animation: slideInUp 0.6s ease-out 0.3s both;
+  animation: slideInUp 0.2s ease-out 0.05s both;
   position: relative;
   z-index: 1;
 }
@@ -267,10 +267,6 @@
   animation: bounce 1.4s ease-in-out infinite;
 }
 
-.typing-dot:nth-child(1) { animation-delay: 0s; }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
 /* Request Counter Animation */
 .request-counter {
   transition: all 0.3s ease;
@@ -282,6 +278,40 @@
 
 .request-counter.low {
   animation: pulse 2s ease-in-out infinite;
+}
+
+/* Typing Loader Animation */
+.typing-indicator {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  background-color: rgb(212, 103, 0);
+  border-radius: 50%;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { 
+    transform: scale(1) translateY(0);
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1.2) translateY(-10px);
+    opacity: 1;
+  }
 }
 
 /* Responsive adjustments */

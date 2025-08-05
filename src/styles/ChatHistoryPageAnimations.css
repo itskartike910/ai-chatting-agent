@@ -16,45 +16,45 @@
   z-index: 0;
 }
 
-/* Header Animation */
+/* Header Animation - Fast */
 .chat-history-header {
-  animation: slideInDown 0.6s ease-out;
+  animation: slideInDown 0.2s ease-out;
   position: relative;
   z-index: 1;
 }
 
-/* Content Animation */
+/* Content Animation - Fast */
 .chat-history-content {
-  animation: slideInUp 0.7s ease-out 0.3s both;
+  animation: slideInUp 0.2s ease-out 0.05s both;
   position: relative;
   z-index: 1;
 }
 
-/* Chat Cards Animation */
+/* Chat Cards Animation - Fast */
 .chat-card {
-  animation: slideInLeft 0.5s ease-out both;
+  animation: slideInLeft 0.2s ease-out both;
   transition: all 0.3s ease;
 }
 
-.chat-card:nth-child(1) { animation-delay: 0.1s; }
-.chat-card:nth-child(2) { animation-delay: 0.2s; }
-.chat-card:nth-child(3) { animation-delay: 0.3s; }
-.chat-card:nth-child(4) { animation-delay: 0.4s; }
-.chat-card:nth-child(5) { animation-delay: 0.5s; }
-.chat-card:nth-child(6) { animation-delay: 0.6s; }
-.chat-card:nth-child(7) { animation-delay: 0.7s; }
-.chat-card:nth-child(8) { animation-delay: 0.8s; }
-.chat-card:nth-child(9) { animation-delay: 0.9s; }
-.chat-card:nth-child(10) { animation-delay: 1.0s; }
+.chat-card:nth-child(1) { animation-delay: 0.02s; }
+.chat-card:nth-child(2) { animation-delay: 0.04s; }
+.chat-card:nth-child(3) { animation-delay: 0.06s; }
+.chat-card:nth-child(4) { animation-delay: 0.08s; }
+.chat-card:nth-child(5) { animation-delay: 0.10s; }
+.chat-card:nth-child(6) { animation-delay: 0.12s; }
+.chat-card:nth-child(7) { animation-delay: 0.14s; }
+.chat-card:nth-child(8) { animation-delay: 0.16s; }
+.chat-card:nth-child(9) { animation-delay: 0.18s; }
+.chat-card:nth-child(10) { animation-delay: 0.20s; }
 
 .chat-card:hover {
   transform: translateX(-2px) translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* Empty State Animation */
+/* Empty State Animation - Fast */
 .chat-history-empty {
-  animation: fadeInScale 0.8s ease-out 0.5s both;
+  animation: fadeInScale 0.2s ease-out 0.1s both;
 }
 
 .empty-icon {

@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const MessageList = ({ messages, onTemplateClick }) => {
+const MessageList = ({ messages, onTemplateClick, isTyping }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -17,12 +17,12 @@ const MessageList = ({ messages, onTemplateClick }) => {
   };
 
   useEffect(() => {
-    if (messages.length === 0) {
+    if (messages.length === 0 && !isTyping) {
       scrollToTop();
     } else {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const getMessageStyle = (type) => {
     const baseStyle = {
@@ -490,6 +490,20 @@ const MessageList = ({ messages, onTemplateClick }) => {
           </div>
         </div>
       ))}
+      
+      {/* Typing Indicator */}
+      {isTyping && (
+        <div className="message-item message-assistant typing-indicator" style={getMessageStyle('assistant')}>
+          <div style={{ textAlign: 'left', width: '100%' }}>
+            <div className="typing-dots">
+              <div className="typing-dot"></div>
+              <div className="typing-dot"></div>
+              <div className="typing-dot"></div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div ref={messagesEndRef} />
     </div>
   );

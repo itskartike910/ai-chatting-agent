@@ -39,6 +39,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add state for message input
   const [messageInput, setMessageInput] = useState('');
 
+  // Add state for typing indicator
+  const [isTyping, setIsTyping] = useState(false);
+
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);
@@ -154,6 +157,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               
             case 'task_complete':
               setIsExecuting(false);
+              setIsTyping(false); // Hide typing indicator
               setTaskStatus({ status: 'completed', message: 'Task completed!' });
               
               const responseContent = message.result.response || message.result.message;
@@ -169,6 +173,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               
             case 'task_error':
               setIsExecuting(false);
+              setIsTyping(false); // Hide typing indicator
               setTaskStatus({ status: 'error', message: message.error });
               addMessage({
                 type: 'error',
@@ -179,6 +184,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
             case 'task_cancelled':
               setIsExecuting(false);
+              setIsTyping(false); // Hide typing indicator
               setTaskStatus({ status: 'cancelled', message: 'Task cancelled' });
               addMessage({
                 type: 'system',
@@ -188,6 +194,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               break;
 
             case 'error':
+              setIsTyping(false); // Hide typing indicator
               addMessage({
                 type: 'error',
                 content: `❌ ${message.error}`,
@@ -289,6 +296,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       timestamp: Date.now()
     });
 
+    // Show typing indicator
+    setIsTyping(true);
+
     // Fallback to background script (existing logic)
     if (portRef.current && connectionStatus === 'connected' && !isExecuting) {
       try {
@@ -299,6 +309,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         });
       } catch (error) {
         console.error('Error sending message:', error);
+        setIsTyping(false); // Hide typing indicator on error
         addMessage({
           type: 'error',
           content: '❌ Failed to send message. Connection lost.',
@@ -307,6 +318,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         setConnectionStatus('disconnected');
       }
     } else {
+      setIsTyping(false); // Hide typing indicator if can't send
       const statusMessage = isExecuting 
         ? '⏳ Please wait for current task to complete...'
         : '❌ Not connected to background service. Please wait...';
@@ -531,6 +543,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         <MessageList 
           messages={messages} 
           onTemplateClick={handleTemplateClick}
+          isTyping={isTyping}
         />
       </div>
 

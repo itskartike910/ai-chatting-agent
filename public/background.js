@@ -2753,10 +2753,47 @@ class BackgroundScriptAgent {
   // Enhanced error formatting with demo responses
   formatErrorForUser(error) {
     const errorMessage = error.message || 'Unknown error';
+    const timestamp = new Date().toLocaleTimeString();
+    
+    // Handle JSON parsing errors specifically
+    if (errorMessage.includes('JSON') || errorMessage.includes('parse') || errorMessage.includes('SyntaxError')) {
+      return `🔧 **Response Parsing Error** (${timestamp})
+
+The AI model's response couldn't be processed due to formatting issues.
+
+**What happened:**
+• The AI response was incomplete or malformed
+• This often occurs with complex tasks or when the model is overloaded
+
+**What you can do:**
+• Try again with a simpler, more specific task
+• Break complex requests into smaller steps
+• Wait a moment and retry the same task
+
+**Technical Details:** ${errorMessage}`;
+    }
+    
+    // Handle response truncation/incompleteness
+    if (errorMessage.includes('incomplete') || errorMessage.includes('truncated') || errorMessage.includes('cut off')) {
+      return `✂️ **Incomplete Response Error** (${timestamp})
+
+The AI model provided an incomplete response, likely due to length limits.
+
+**What happened:**
+• The response was cut off before completion
+• Complex tasks may exceed response limits
+
+**What you can do:**
+• Try breaking your task into smaller, simpler steps
+• Reduce the complexity of your request
+• Retry with more specific instructions
+
+**Technical Details:** ${errorMessage}`;
+    }
     
     // Handle API-specific errors with more detail
     if (errorMessage.includes('429')) {
-      return `⚠️ **Rate Limit Exceeded**
+      return `⚠️ **Rate Limit Exceeded** (${timestamp})
 
 The AI service is currently receiving too many requests. This is temporary.
 
@@ -2764,25 +2801,27 @@ The AI service is currently receiving too many requests. This is temporary.
 • Wait 1-2 minutes and try again
 • Try a simpler task to reduce processing time
 • Check if you have multiple agents running
+• Consider using your personal API key in Settings
 
 **Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
-      return `🚫 **AI Service Temporarily Unavailable**
+      return `🚫 **AI Service Temporarily Unavailable** (${timestamp})
 
 The AI provider is experiencing technical difficulties.
 
 **What you can do:**
 • Try again in 5-10 minutes
 • Switch to a different AI provider in settings
+• Use your personal API key for more reliability
 • Check the service status page
 
 **Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('401') || errorMessage.includes('authentication') || errorMessage.includes('API key')) {
-      return `🔑 **Authentication Failed**
+      return `🔑 **Authentication Failed** (${timestamp})
 
 Your API key is invalid or missing.
 
@@ -2790,12 +2829,13 @@ Your API key is invalid or missing.
 • Go to Settings and check your API key
 • Make sure the key is copied correctly (no extra spaces)
 • Verify the key is active on your AI provider's dashboard
+• Try using the free trial option instead
 
 **Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
-      return `🚫 **Access Denied**
+      return `🚫 **Access Denied** (${timestamp})
 
 Your API key doesn't have the required permissions.
 
@@ -2803,12 +2843,13 @@ Your API key doesn't have the required permissions.
 • Check your AI provider's billing/usage limits
 • Ensure your API key has proper permissions
 • Contact your AI provider if you're within limits
+• Try using the free trial option
 
 **Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
-      return `❌ **Invalid Request**
+      return `❌ **Invalid Request** (${timestamp})
 
 The request couldn't be processed due to formatting issues.
 
@@ -2816,12 +2857,13 @@ The request couldn't be processed due to formatting issues.
 • Try rephrasing your task more clearly
 • Use simple commands like "search for X on Y"
 • Avoid special characters in your request
+• Make sure your task is specific and actionable
 
 **Technical Details:** ${errorMessage}`;
     }
     
     if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
-      return `⏱️ **Network Timeout**
+      return `⏱️ **Network Timeout** (${timestamp})
 
 The request took too long to process.
 
@@ -2829,12 +2871,42 @@ The request took too long to process.
 • Check your internet connection
 • Try the task again (it may work now)
 • Break complex tasks into smaller steps
+• Ensure you're not behind a restrictive firewall
+
+**Technical Details:** ${errorMessage}`;
+    }
+    
+    // Handle model-specific errors (Gemini, GPT, Claude)
+    if (errorMessage.includes('quota') || errorMessage.includes('usage') || errorMessage.includes('limit')) {
+      return `📊 **Usage Limit Reached** (${timestamp})
+
+You've reached your API usage limit for this period.
+
+**What you can do:**
+• Wait for your quota to reset (usually monthly)
+• Upgrade your API plan with your provider
+• Switch to a different AI provider in Settings
+• Use the free trial option
+
+**Technical Details:** ${errorMessage}`;
+    }
+    
+    if (errorMessage.includes('model') || errorMessage.includes('unsupported') || errorMessage.includes('deprecated')) {
+      return `🤖 **Model Error** (${timestamp})
+
+The selected AI model is not available or supported.
+
+**What you can do:**
+• Try switching to a different model in Settings
+• Update your API configuration
+• Check if the model name is correct
+• Use the default model instead
 
 **Technical Details:** ${errorMessage}`;
     }
     
     // For any other error, show enhanced message with demo
-    return `❌ **Unexpected Error**
+    return `❌ **Unexpected Error** (${timestamp})
 
 Something went wrong while processing your request.
 
@@ -2842,6 +2914,7 @@ Something went wrong while processing your request.
 • Try your request again
 • Simplify the task if it's complex
 • Check the browser console for more details
+• Report this issue if it persists
 
 **Technical Details:** ${errorMessage}`;
   }
