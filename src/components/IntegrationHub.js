@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './IntegrationHub.css';
+import '../styles/IntegrationHub.css';
 
 const IntegrationHub = () => {
   const navigate = useNavigate();
@@ -34,8 +34,7 @@ const IntegrationHub = () => {
       <div className="hub-container">
         {/* Header */}
         <div className="hub-header">
-          <div className="logo-container">
-            <div className="main-logo">
+          <div className="logo-container">            <div className="main-logo">
               <span className="logo-icon">🤖</span>
             </div>
           </div>
@@ -86,8 +85,8 @@ const IntegrationHub = () => {
         {/* Footer */}
         <div className="hub-footer">
           <div className="feature-badges">
+            <span className="badge">Agent</span>
             <span className="badge">AI Powered</span>
-            <span className="badge">Secure</span>
             <span className="badge">Fast</span>
           </div>
         </div>
