@@ -1201,7 +1201,25 @@ class MultiAgentExecutor {
         }
         
         // Check for page state change after each action
-        const currentState = await this.getCurrentState();
+        let currentState = await this.getCurrentState();
+        
+        // If page has 0 elements after navigation/click, wait for it to load
+        if ((action.name === 'navigate' || action.name === 'click') && 
+            (currentState.interactiveElements?.length || 0) === 0) {
+          console.log(`🔄 Page loading after ${action.name} - waiting for page to fully load...`);
+          await this.delay(3000);
+          currentState = await this.getCurrentState();
+          console.log(`📊 After wait - Found ${currentState.interactiveElements?.length || 0} elements`);
+          
+          // If still 0 elements after wait, try one more time with longer delay
+          if ((currentState.interactiveElements?.length || 0) === 0) {
+            console.log(`🔄 Still loading - waiting additional 2 seconds...`);
+            await this.delay(2000);
+            currentState = await this.getCurrentState();
+            console.log(`📊 Final attempt - Found ${currentState.interactiveElements?.length || 0} elements`);
+          }
+        }
+        
         const urlChanged = currentState.pageInfo?.url !== this.lastPageState?.pageInfo?.url;
         const elementCountChanged = Math.abs((currentState.interactiveElements?.length || 0) - 
                                            (this.lastPageState?.interactiveElements?.length || 0)) > 5;

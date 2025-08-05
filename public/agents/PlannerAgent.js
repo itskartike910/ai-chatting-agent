@@ -14,6 +14,28 @@ export class PlannerAgent {
     );
 
     if (actionableElements.length === 0) {
+      // Check if this might be a loading issue rather than actual completion
+      const isLikelyLoading = currentState.pageInfo?.title === '' || 
+                             currentState.pageInfo?.url?.includes('loading') ||
+                             currentState.interactiveElements?.length === 0;
+      
+      if (isLikelyLoading) {
+        return {
+          observation: "Page appears to be loading. Waiting for elements to appear.",
+          done: false,
+          strategy: "Wait for page to fully load and elements to become available.",
+          batch_actions: [{
+            action_type: "wait",
+            parameters: {
+              duration: 3000,
+              intent: "Wait for page to load completely"
+            }
+          }],
+          shouldValidate: false,
+          completion_criteria: "Page is fully loaded with interactive elements."
+        };
+      }
+      
       return {
         observation: "No actionable elements found. Task cannot continue.",
         done: true,
@@ -56,7 +78,7 @@ You are an intelligent mobile web automation planner with BATCH EXECUTION capabi
 # **KNOWLEDGE CUTOFF & RESPONSE REQUIREMENTS**
 * **Knowledge Cutoff**: July 2025 - You have current data and knowledge up to July 2025
 * **CRITICAL**: ALWAYS provide COMPLETE responses - NEVER slice, trim, or truncate any section
-* **IMPORTANT**: Do not stop until all blocks are output. If your response risks exceeding output length, finish any incomplete block in your next response. DO NOT OMIT ANY SECTION.
+* **IMPORTANT**: Do not stop until all blocks are output. DO NOT OMIT ANY SECTION.
 * **DELIMITER REQUIREMENT**: Always output all required JSON delimiter blocks exactly as specified
 
 

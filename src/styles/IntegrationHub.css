@@ -205,7 +205,6 @@
   position: relative;
   background: rgba(255, 255, 255, 0.20);
   border: 2px solid transparent;
-  border-radius: 10px;
   padding: 8px 10px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -286,7 +285,7 @@
 }
 
 .button-arrow {
-  font-size: 12px;
+  font-size: 20px;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.6);
   transition: all 0.3s ease;
@@ -301,7 +300,7 @@
 
 /* Neon Border Animation - Enhanced Style */
 .social-agent-btn {
-  border: 3px solid;
+  border: 2px solid;
   border-image: linear-gradient(45deg, #FF6B9D, #4ECDC4, #45B7D1, #96CEB4) 1;
   animation: borderRotate 4s linear infinite;
 }
@@ -312,7 +311,7 @@
 }
 
 .labubu-btn {
-  border: 3px solid;
+  border: 2px solid;
   border-image: linear-gradient(45deg, #FFD700, #FF69B4, #9370DB, #00CED1) 1;
   animation: borderRotate 4s linear infinite reverse;
 }

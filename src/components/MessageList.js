@@ -91,22 +91,22 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
       id: 'general_chat',
       emoji: '💬',
       title: 'General Chat',
-      description: 'Explain how artificial intelligence works in simple terms',
-      command: 'Explain how artificial intelligence works in simple terms'
+      description: 'Explain how Artificial Intelligence works in simple terms',
+      command: 'Explain how Artificial Intelligence works in simple terms'
     },
     {
       id: 'social_media',
       emoji: '🐦',
       title: 'Social Media Task',
-      description: 'Post a tweet about the benefits of AI automation in daily life',
-      command: 'Post a tweet about the benefits of AI automation in daily life'
+      description: 'Search for AI Agents video on YouTube and play the first one',
+      command: 'Search for AI Agents video on YouTube and play the first one'
     },
     {
       id: 'shopping_task',
       emoji: '🛒',
       title: 'Shopping Task',
-      description: 'Find the cheapest Labubu figure on Amazon and compare prices',
-      command: 'Find the cheapest Labubu figure on Amazon and compare prices'
+      description: 'Find the Labubu Doll on Amazon and add to cart the first one',
+      command: 'Find the Labubu Doll on Amazon and add to cart the first one'
     }
   ];
 
