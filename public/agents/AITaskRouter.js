@@ -39,7 +39,7 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 - URL: ${currentContext.url || 'unknown'}
 - Platform: ${this.detectPlatformFromUrl(currentContext.url)}
 - Elements Count: ${currentContext.elementsCount || 0}
-- Elements (First 60): ${this.formatElementsForContext(currentContext.interactiveElements?.slice(0, 60) || [])}
+- Elements (First 40): ${this.formatElementsForContext(currentContext.interactiveElements?.slice(0, 40) || [])}
 - Page Title: ${currentContext.title || 'unknown'}
 - Device Type: ${currentContext.deviceType || 'mobile'}
 - Previous Tasks: ${currentContext.taskHistory ? currentContext.taskHistory.length : 0} completed components
