@@ -6,7 +6,7 @@ export class NavigatorAgent {
   }
 
   async navigate(plan, currentState) {
-    const context = this.memoryManager.compressForPrompt(4000);
+    const context = this.memoryManager.compressForPrompt(2000);
     
     // Enhanced context analysis for navigation
     const recentActions = this.formatRecentActions(context.recentMessages);
@@ -32,6 +32,7 @@ Execute planned action using mobile elements with enhanced context awareness and
 
 # **KNOWLEDGE CUTOFF & RESPONSE REQUIREMENTS**
 * **Knowledge Cutoff**: July 2025 - You have current data and knowledge up to July 2025
+* **REAL-TIME DATA**: You have access to real-time information from the internet and current page state
 * **CRITICAL**: ALWAYS provide COMPLETE responses - NEVER slice, trim, or truncate any section
 * **IMPORTANT**: Do not stop until all blocks are output. DO NOT OMIT ANY SECTION.
 * **DELIMITER REQUIREMENT**: Always output all required JSON delimiter blocks exactly as specified
@@ -53,8 +54,8 @@ Page Type: ${currentState.pageContext?.pageType || 'unknown'}
 Elements: ${currentState.interactiveElements?.length || 0}
 Is Logged In: ${currentState.pageContext?.isLoggedIn || false}
 
-# **TOP ELEMENTS**
-${currentState.interactiveElements?.slice(0, 40) || []}
+# **TOP ELEMENTS (Current Page Only, 40 elements)**
+${this.formatElementsForNavigation(currentState.interactiveElements?.slice(0, 40) || [])}
 
 # **SEQUENCE GUIDANCE**
 ${sequenceGuidance}
@@ -406,6 +407,33 @@ navigate(url), click(index), type(index,text), scroll(direction,amount), wait(du
       
       return description;
     }).join('\n');
+  }
+
+  // NEW: Optimized element formatting for navigation with essential details
+  formatElementsForNavigation(elements) {
+    if (!elements || elements.length === 0) return "No interactive elements found on this page.";
+    
+    return elements.map(el => {
+      // Limit text content to prevent token explosion
+      const textContent = (el.textContent || '').trim();
+      const limitedTextContent = textContent.length > 80 ? textContent.substring(0, 80) + '...' : textContent;
+      
+      const text = (el.text || '').trim();
+      const limitedText = text.length > 80 ? text.substring(0, 80) + '...' : text;
+      
+      return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
+    Category: ${el.category || 'unknown'}
+    Purpose: ${el.purpose || 'general'} 
+    Type: ${el.type || 'unknown'}
+    Selector: ${el.selector || 'none'}
+    XPath: ${el.xpath || 'none'}
+    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
+    TextContent: "${limitedTextContent}"
+    Text: "${limitedText}"
+    Attributes: ${JSON.stringify(el.attributes || {})}
+    Bounds: ${JSON.stringify(el.bounds || {})}
+}`;
+    }).join('\n\n');
   }
 
   formatAvailableActions() {

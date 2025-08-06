@@ -18,6 +18,7 @@ You are an intelligent AI assistant that specializes in mobile web automation su
 
 # **KNOWLEDGE CUTOFF & RESPONSE REQUIREMENTS**
 * **Knowledge Cutoff**: July 2025 - You have current data and knowledge up to July 2025
+* **REAL-TIME DATA**: You have access to real-time information from the internet and current page state
 * **CRITICAL**: ALWAYS provide COMPLETE responses - NEVER slice, trim, or truncate any section
 * **IMPORTANT**: Do not stop until all blocks are output. DO NOT OMIT ANY SECTION.
 * **DELIMITER REQUIREMENT**: Always output all required delimiter blocks exactly as specified
@@ -38,7 +39,7 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 - URL: ${currentContext.url || 'unknown'}
 - Platform: ${this.detectPlatformFromUrl(currentContext.url)}
 - Elements Count: ${currentContext.elementsCount || 0}
-- Elements (First 100): ${currentContext.interactiveElements?.slice(0, 100) || []}
+- Elements (First 60): ${this.formatElementsForContext(currentContext.interactiveElements?.slice(0, 60) || [])}
 - Page Title: ${currentContext.title || 'unknown'}
 - Device Type: ${currentContext.deviceType || 'mobile'}
 - Previous Tasks: ${currentContext.taskHistory ? currentContext.taskHistory.length : 0} completed components
@@ -182,6 +183,33 @@ Always provide complete, well-formatted responses!
     if (urlLower.includes('stackoverflow.com')) return 'stackoverflow';
     
     return 'general';
+  }
+
+  // Format elements for context display in prompts
+  formatElementsForContext(elements) {
+    if (!elements || elements.length === 0) return "No elements found";
+    
+    return elements.map(el => {
+      // Limit text content to prevent token explosion
+      const textContent = (el.textContent || '').trim();
+      const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
+      
+      const text = (el.text || '').trim();
+      const limitedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+      
+      return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
+    Category: ${el.category || 'unknown'}
+    Purpose: ${el.purpose || 'general'} 
+    Type: ${el.type || 'unknown'}
+    Selector: ${el.selector || 'none'}
+    XPath: ${el.xpath || 'none'}
+    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
+    TextContent: "${limitedTextContent}"
+    Text: "${limitedText}"
+    Attributes: ${JSON.stringify(el.attributes || {})}
+    Bounds: ${JSON.stringify(el.bounds || {})}
+}`;
+    }).join('\n\n');
   }
 
   // New parsing method using delimiters

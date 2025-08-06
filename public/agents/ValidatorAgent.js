@@ -5,7 +5,7 @@ export class ValidatorAgent {
   }
 
   async validate(originalTask, executionHistory, finalState) {
-    const context = this.memoryManager.compressForPrompt(4000); 
+    const context = this.memoryManager.compressForPrompt(2000); 
     
     console.log('[ValidatorAgent] originalTask:', originalTask, 
                 'executionHistory:', executionHistory, 
@@ -20,6 +20,7 @@ You are an intelligent task completion validator with PROGRESSIVE VALIDATION cap
 
 # **KNOWLEDGE CUTOFF & RESPONSE REQUIREMENTS**
 * **Knowledge Cutoff**: July 2025 - You have current data and knowledge up to July 2025
+* **REAL-TIME DATA**: You have access to real-time information from the internet and current page state
 * **CRITICAL**: ALWAYS provide COMPLETE responses - NEVER slice, trim, or truncate any section
 * **IMPORTANT**: Do not stop until all blocks are output. DO NOT OMIT ANY SECTION.
 * **DELIMITER REQUIREMENT**: Always output all required JSON delimiter blocks exactly as specified
@@ -40,13 +41,29 @@ You are an intelligent task completion validator with PROGRESSIVE VALIDATION cap
 # **ORIGINAL TASK**
 "${originalTask}"
 
-# **SPECIAL VALIDATION RULES FOR SOCIAL MEDIA POSTING:**
+# **ENHANCED URL PATTERN VALIDATION:**
+
+## **E-COMMERCE TASK VALIDATION:**
+For shopping tasks (find product, add to cart):
+- **SEARCH RESULTS PAGE**: URL contains search parameters (k=, q=, search=) = SEARCH COMPLETED
+- **PRODUCT DETAIL PAGE**: URL contains product identifiers:
+  * Amazon: /dp/, /gp/product/, /ASIN/
+  * Generic: /product/, /item/, /p/
+- **CART CONFIRMATION**: URL contains cart/bag/basket OR cart count increased
+- **ADD TO CART SUCCESS**: Page shows cart confirmation OR URL redirect to cart
+
+## **SOCIAL MEDIA POSTING:**
 If the task involves posting on X/Twitter:
 - **CRITICAL**: URL redirect from compose page to home/timeline IS proof of successful posting
 - **Pattern**: https://x.com/compose/post → https://x.com/home = SUCCESSFUL POST
 - **Do NOT require**: Visual confirmation of post in timeline
 - **Do NOT require**: "Post published" message
 - **Evidence needed**: ONLY the URL redirect pattern above
+
+## **PAGE NAVIGATION DETECTION:**
+- **Search → Product**: URL change from search results to product page = NAVIGATION SUCCESS
+- **Product → Cart**: URL change to cart page OR cart elements visible = ADD TO CART SUCCESS
+- **No Navigation**: Same URL with same element count = CLICK FAILED
 
 # **TASK STATE TRACKING**
 Current Step: ${context.currentStep}
@@ -74,7 +91,7 @@ ${executionHistory.map((h, i) => {
 - Available Elements: ${finalState.interactiveElements?.length || 0}
 - Has Login: ${finalState.pageContext?.isLoggedIn || false}
 
-# **VISIBLE PAGE ELEMENTS (first 40 for better context)**
+# **VISIBLE PAGE ELEMENTS (first 30 for better context)**
 ${this.formatElements(finalState.interactiveElements?.slice(0, 40) || [])}
 
 # **PROGRESSIVE VALIDATION RULES:**
@@ -326,9 +343,26 @@ Break down the original task into logical components and assess each:
     if (!elements || elements.length === 0) return "No elements found.";
     
     return elements.map(el => {
-      const text = (el.text || el.ariaLabel || '').substring(0, 40);
-      return `[${el.index}] ${el.tagName}: "${text}"`;
-    }).join('\n');
+      // Limit text content to prevent token explosion
+      const textContent = (el.textContent || '').trim();
+      const limitedTextContent = textContent.length > 80 ? textContent.substring(0, 80) + '...' : textContent;
+      
+      const text = (el.text || '').trim();
+      const limitedText = text.length > 80 ? text.substring(0, 80) + '...' : text;
+      
+      return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
+    Category: ${el.category || 'unknown'}
+    Purpose: ${el.purpose || 'general'} 
+    Type: ${el.type || 'unknown'}
+    Selector: ${el.selector || 'none'}
+    XPath: ${el.xpath || 'none'}
+    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
+    TextContent: "${limitedTextContent}"
+    Text: "${limitedText}"
+    Attributes: ${JSON.stringify(el.attributes || {})}
+    Bounds: ${JSON.stringify(el.bounds || {})}
+}`;
+    }).join('\n\n');
   }
 
   cleanJSONResponse(response) {

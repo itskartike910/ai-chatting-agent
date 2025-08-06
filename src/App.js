@@ -3,10 +3,10 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth';
 import { useSubscription } from './hooks/useSubscription';
 import ChatInterface from './components/ChatInterface';
-import AuthPage from './components/AuthPage';
-import SubscriptionPage from './components/SubscriptionPage';
+// import AuthPage from './components/AuthPage';
+// import SubscriptionPage from './components/SubscriptionPage';
 import SettingsModal from './components/SettingsModal';
-import ProfilePage from './components/ProfilePage';
+// import ProfilePage from './components/ProfilePage';
 // import IntegrationHub from './components/IntegrationHub';
 // import LabubuRoute from './components/LabubuRoute';
 import './App.css';

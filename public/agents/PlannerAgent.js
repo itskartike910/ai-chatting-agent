@@ -5,7 +5,7 @@ export class PlannerAgent {
   }
 
   async plan(userTask, currentState, executionHistory, enhancedContext, failedElements = new Set()) {
-    const context = this.memoryManager.compressForPrompt(4000);
+    const context = this.memoryManager.compressForPrompt(2000);
     this.failedElements = failedElements; 
     
     // Check for actionable elements before planning
@@ -59,6 +59,7 @@ export class PlannerAgent {
       .join('\n');
     
     const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
+    const elements = this.formatCompleteElements(currentState.interactiveElements?.slice(0, 80) || []);
     
     console.log('[PlannerAgent] userTask:', userTask, 
                 'currentState:', currentState, 
@@ -69,7 +70,8 @@ export class PlannerAgent {
                 'progressAnalysis:', progressAnalysis, 
                 'failedActionsSummary:', failedActionsSummary, 
                 'failedIndices:', failedIndicesForLLM,
-                'enhancedContext', enhancedContext);
+                'enhancedContext', enhancedContext,
+                'Formatted elements', elements);
 
     const plannerPrompt = `## CONTEXT HASH: ${context.currentStep}-${context.proceduralSummaries.length}
 
@@ -77,6 +79,7 @@ You are an intelligent mobile web automation planner with BATCH EXECUTION capabi
 
 # **KNOWLEDGE CUTOFF & RESPONSE REQUIREMENTS**
 * **Knowledge Cutoff**: July 2025 - You have current data and knowledge up to July 2025
+* **REAL-TIME DATA**: You have access to real-time information from the internet and current page state
 * **CRITICAL**: ALWAYS provide COMPLETE responses - NEVER slice, trim, or truncate any section
 * **IMPORTANT**: Do not stop until all blocks are output. DO NOT OMIT ANY SECTION.
 * **DELIMITER REQUIREMENT**: Always output all required JSON delimiter blocks exactly as specified
@@ -113,8 +116,8 @@ ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT worki
 # **ELEMENT ANALYSIS**
 - Total Elements: ${currentState.interactiveElements?.length || 0}
 
-# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 100 elements)**
-${currentState.interactiveElements?.slice(0, 100) || []}
+# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 80 elements)**
+${elements}
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**
 Current Step: ${context.currentStep}/25 (Increased limit for complex tasks)
@@ -363,6 +366,32 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
       const type = el.tagName?.toLowerCase() || 'element';
       return `[${el.index}] ${type}: "${text}"${text.length > 50 ? '...' : ''}`;
     }).join('\n');
+  }
+
+  // Complete element details formatting without filtering
+  formatCompleteElements(elements) {
+    if (!elements || elements.length === 0) return "No interactive elements found on this page.";
+    
+    return elements.map((el, index) => {
+      const textContent = (el.textContent || '').trim();
+      const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
+      
+      const text = (el.text || '').trim();
+      const limitedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+      
+      return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
+    Category: ${el.category || 'unknown'}
+    Purpose: ${el.purpose || 'general'} 
+    Type: ${el.type || 'unknown'}
+    Selector: ${el.selector || 'none'}
+    XPath: ${el.xpath || 'none'}
+    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
+    TextContent: "${limitedTextContent}"
+    Text: "${limitedText}"
+    Attributes: ${JSON.stringify(el.attributes || {})}
+    Bounds: ${JSON.stringify(el.bounds || {})}
+}`;
+    }).join('\n\n');
   }
 
   cleanJSONResponse(response) {
