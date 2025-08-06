@@ -2152,8 +2152,8 @@ class MultiLLMService {
       },
       body: JSON.stringify({
         model: model,
-        max_tokens: options.maxTokens || 1000,
-        temperature: options.temperature || 0.3,
+        max_tokens: options.maxTokens || 4000,
+        temperature: options.temperature || 0.4,
         messages: messages
       })
     });
@@ -2184,8 +2184,8 @@ class MultiLLMService {
       body: JSON.stringify({
         model: model,
         messages: messages,
-        max_tokens: options.maxTokens || 1000,
-        temperature: options.temperature || 0.3
+        max_tokens: options.maxTokens || 4000,
+        temperature: options.temperature || 0.4
       })
     });
 
@@ -2214,8 +2214,8 @@ class MultiLLMService {
     const requestBody = {
       contents: geminiMessages,
       generationConfig: {
-        maxOutputTokens: options.maxTokens || 4096,
-        temperature: options.temperature || 0.3
+        maxOutputTokens: options.maxTokens || 4000,
+        temperature: options.temperature || 0.4
       }
     };
 
@@ -2234,12 +2234,31 @@ class MultiLLMService {
     }
 
     const data = await response.json();
+    console.log('🔍 Raw Gemini response:', JSON.stringify(data, null, 2));
     
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid response from Gemini API');
+    // Handle empty or incomplete responses
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('Empty response from Gemini API');
     }
 
-    return data.candidates[0].content.parts[0].text;
+    const candidate = data.candidates[0];
+    
+    // Handle MAX_TOKENS case
+    if (candidate.finishReason === 'MAX_TOKENS') {
+      throw new Error('Response exceeded maximum token limit. Try breaking down the task into smaller steps.');
+    }
+
+    // Handle empty content
+    if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+      throw new Error('Incomplete response from Gemini API - missing content parts');
+    }
+
+    // Handle missing text
+    if (!candidate.content.parts[0].text) {
+      throw new Error('Incomplete response from Gemini API - missing text content');
+    }
+
+    return candidate.content.parts[0].text;
   }
 
   async callGeminiGenerate(messages, options = {}) {
@@ -2301,7 +2320,7 @@ class PersistentConnectionManager {
     this.currentSessionId = null; // Track current session
   }
 
-  addConnection(connectionId, port) {
+  async addConnection(connectionId, port) {
     console.log(`🔗 Adding connection: ${connectionId}`);
     
     // Ensure we have a current session
@@ -2317,58 +2336,121 @@ class PersistentConnectionManager {
       sessionId: this.currentSessionId
     });
 
-    // ONLY send messages from current session that haven't been sent to this specific connection
-    const lastSentId = this.lastSentMessageId.get(connectionId) || 0;
-    const newMessages = this.messageQueue.filter(msg => 
-      msg.id > lastSentId && 
-      msg.sessionId === this.currentSessionId && // Only current session messages
-      (msg.type === 'status_update' || 
-       msg.type === 'task_start' || 
-       msg.type === 'task_complete' || 
-       msg.type === 'task_error' ||
-       msg.type === 'task_cancelled')
-    );
+    try {
+      // Get stored messages and execution state
+      const storage = await chrome.storage.local.get([
+        'currentSessionMessages',
+        'isExecuting',
+        'activeTaskId',
+        'sessionId',
+        'disconnectedMessages'
+      ]);
 
-    // IMPORTANT: Only send messages if there's an active task in this session
-    const executionState = chrome.storage.local.get(['isExecuting', 'activeTaskId', 'sessionId']);
-    executionState.then(state => {
-      if (state.isExecuting && state.sessionId === this.currentSessionId && newMessages.length > 0) {
-        console.log(`📤 Sending ${newMessages.length} active session messages to ${connectionId}`);
-        newMessages.forEach(message => {
-          this.safePortMessage(port, message);
-        });
-        
-        const latestMessageId = Math.max(...newMessages.map(msg => msg.id));
-        this.lastSentMessageId.set(connectionId, latestMessageId);
-      } else {
-        console.log(`📝 No active task or messages for connection ${connectionId}`);
+      // Merge and deduplicate messages
+      let allMessages = [];
+      
+      // Add current session messages first (if any)
+      if (storage.currentSessionMessages?.length > 0) {
+        allMessages.push(...storage.currentSessionMessages);
+      }
+      
+      // Add disconnected messages (if any)
+      if (storage.disconnectedMessages?.length > 0) {
+        allMessages.push(...storage.disconnectedMessages);
       }
 
-      // Send current execution state from storage
-      if (state.isExecuting && state.sessionId === this.currentSessionId) {
+      // Remove duplicates and sort by timestamp
+      if (allMessages.length > 0) {
+        const uniqueMessages = allMessages
+          .filter((message, index, self) => 
+            index === self.findIndex((m) => m.id === message.id))
+          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+        console.log(`📤 Sending ${uniqueMessages.length} unique messages after deduplication`);
+        
+        // Store the deduplicated messages
+        await chrome.storage.local.set({ currentSessionMessages: uniqueMessages });
+        await chrome.storage.local.remove(['disconnectedMessages']);
+
+        // Send messages in order
+        uniqueMessages.forEach(message => {
+          this.safePortMessage(port, {
+            type: 'restore_message',
+            message
+          });
+        });
+      }
+
+      // Send current execution state if needed
+      if (storage.isExecuting && storage.sessionId === this.currentSessionId) {
         this.safePortMessage(port, {
           type: 'execution_state',
           isExecuting: true,
-          activeTaskId: state.activeTaskId,
+          activeTaskId: storage.activeTaskId,
           sessionId: this.currentSessionId
         });
       }
-    });
+
+      // Send connected status
+      this.safePortMessage(port, {
+        type: 'connected',
+        sessionId: this.currentSessionId
+      });
+
+    } catch (error) {
+      console.error('Error handling connection setup:', error);
+    }
   }
 
-  removeConnection(connectionId) {
+  async removeConnection(connectionId) {
     console.log(`🔌 Removing connection: ${connectionId}`);
-    this.connections.delete(connectionId);
-    // Keep the lastSentMessageId for potential reconnection within same session
+    
+    try {
+      // Get current session messages and execution state
+      const storage = await chrome.storage.local.get([
+        'currentSessionMessages',
+        'isExecuting',
+        'activeTaskId'
+      ]);
+      
+      const currentMessages = storage.currentSessionMessages || [];
+      
+      // Only store messages if there's an active task or there are messages
+      if ((storage.isExecuting && storage.activeTaskId) || currentMessages.length > 0) {
+        console.log(`📥 Storing ${currentMessages.length} messages for disconnected state`);
+        
+        // Store messages with timestamps for proper ordering
+        const timestampedMessages = currentMessages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp || Date.now(),
+          disconnectedAt: Date.now()
+        }));
+        
+        await chrome.storage.local.set({
+          disconnectedMessages: timestampedMessages
+        });
+        
+        // Clear current session messages to prevent duplicates
+        await chrome.storage.local.remove(['currentSessionMessages']);
+      }
+      
+      this.connections.delete(connectionId);
+      
+    } catch (error) {
+      console.error('Error handling connection removal:', error);
+      this.connections.delete(connectionId);
+    }
   }
 
-  broadcast(message) {
-    // Add unique ID and session ID to message
+  async broadcast(message) {
+    // Add unique ID, session ID, and timestamp
     message.id = Date.now() + Math.random();
     message.sessionId = this.currentSessionId;
+    message.timestamp = Date.now();
     
     let messageSent = false;
     
+    // Send to all connected ports
     this.connections.forEach((connection, connectionId) => {
       if (connection.connected && this.safePortMessage(connection.port, message)) {
         messageSent = true;
@@ -2376,16 +2458,57 @@ class PersistentConnectionManager {
       }
     });
 
-    // Add to queue for future connections (only current session)
-    this.messageQueue.push(message);
-    
-    // Keep only last 20 messages to prevent memory issues
-    if (this.messageQueue.length > 20) {
-      this.messageQueue = this.messageQueue.slice(-20);
-    }
+    try {
+      // Get current messages
+      const storage = await chrome.storage.local.get(['currentSessionMessages']);
+      let currentMessages = storage.currentSessionMessages || [];
+      
+      // For task_complete messages, ensure the content is properly extracted and stored
+      let messageToStore = { ...message };
+      
+      // Special handling for task_complete messages to ensure content is accessible
+      if (message.type === 'task_complete' && message.result) {
+        const responseContent = message.result.response || message.result.message;
+        if (responseContent) {
+          // Ensure the message has the content directly accessible for restoration
+          messageToStore.content = responseContent;
+          messageToStore.isMarkdown = message.result.isMarkdown || false;
+          console.log('📝 Storing task_complete message with extracted content:', responseContent.substring(0, 100) + '...');
+        } else {
+          console.warn('⚠️ task_complete message has no response content:', message.result);
+        }
+      }
+      
+      // Add new message
+      currentMessages.push(messageToStore);
+      
+      // Remove duplicates by ID and sort by timestamp
+      currentMessages = currentMessages
+        .filter((msg, index, self) => 
+          index === self.findIndex((m) => m.id === msg.id))
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      
+      // Keep only last 100 messages to prevent memory issues
+      if (currentMessages.length > 100) {
+        currentMessages = currentMessages.slice(-100);
+      }
+      
+      // Store updated messages
+      await chrome.storage.local.set({ currentSessionMessages: currentMessages });
+      
+      // Add to queue for future connections (only current session)
+      this.messageQueue.push(messageToStore);
+      
+      // Keep only last 20 messages in memory queue
+      if (this.messageQueue.length > 20) {
+        this.messageQueue = this.messageQueue.slice(-20);
+      }
 
-    if (!messageSent) {
-      console.log('📦 Queued for background persistence:', message.type);
+      if (!messageSent) {
+        console.log('📦 Message stored for background persistence:', message.type);
+      }
+    } catch (error) {
+      console.error('Error storing message:', error);
     }
   }
 
@@ -2772,6 +2895,42 @@ class BackgroundScriptAgent {
   formatErrorForUser(error) {
     const errorMessage = error.message || 'Unknown error';
     const timestamp = new Date().toLocaleTimeString();
+    
+    // Handle empty responses from Gemini
+    if (errorMessage.includes('Empty response') || errorMessage.includes('missing content parts')) {
+      return `🤖 **AI Model Error** (${timestamp})
+
+The AI model returned an empty or invalid response.
+
+**What happened:**
+• The model failed to generate a complete response
+• This can happen with complex tasks or when the model is overloaded
+• Original error: ${errorMessage}
+
+**What you can do:**
+• Try again - these errors are often temporary
+• Break your request into smaller, simpler steps
+• Try a different AI model in Settings
+• Consider using your personal API key for better reliability`;
+    }
+
+    // Handle MAX_TOKENS errors
+    if (errorMessage.includes('MAX_TOKENS') || errorMessage.includes('maximum token limit')) {
+      return `📝 **Response Too Long** (${timestamp})
+
+The AI model's response exceeded its length limit.
+
+**What happened:**
+• Your task requires a longer response than the model can provide
+• The model stopped mid-response to avoid exceeding limits
+• Original error: ${errorMessage}
+
+**What you can do:**
+• Break your task into smaller steps
+• Make your request more specific
+• Try a different model with higher limits
+• Use simpler instructions`;
+    }
     
     // Handle JSON parsing errors specifically
     if (errorMessage.includes('JSON') || errorMessage.includes('parse') || errorMessage.includes('SyntaxError')) {

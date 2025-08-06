@@ -238,7 +238,7 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
     try {
       const response = await this.llmService.call([
         { role: 'user', content: plannerPrompt }
-      ], { maxTokens: 1200 }, 'planner');
+      ], { maxTokens: 5000 }, 'planner');
       
       console.log('[PlannerAgent] LLM response:', response);
       

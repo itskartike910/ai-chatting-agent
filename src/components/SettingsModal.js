@@ -64,10 +64,10 @@ const SettingsModal = () => {
       if (saveButton) {
         saveButton.textContent = '✅ Saved!';
         setTimeout(() => {
-          navigate('/profile');
+          navigate('/chat');
         }, 500);
       } else {
-        navigate('/profile');
+        navigate('/chat');
       }
       
     } catch (error) {

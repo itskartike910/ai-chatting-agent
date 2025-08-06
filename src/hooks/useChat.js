@@ -9,12 +9,23 @@ export const useChat = (chatId = null) => {
   const { saveChatHistory, getChatHistory, updateChatHistory } = useChatHistory();
 
   useEffect(() => {
+    // Clear existing messages before loading new ones
+    setMessages([]);
+    
     if (chatId) {
       loadChatFromHistory(chatId);
     } else {
       loadCurrentSessionMessages();
     }
   }, [chatId]);
+
+  // Add cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clear messages when component unmounts
+      setMessages([]);
+    };
+  }, []);
 
   const loadChatFromHistory = useCallback(async (id) => {
     try {
@@ -50,8 +61,65 @@ export const useChat = (chatId = null) => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         const result = await chrome.storage.local.get(['currentSessionMessages']);
         if (result.currentSessionMessages && Array.isArray(result.currentSessionMessages)) {
-          setMessages(result.currentSessionMessages);
-          console.log('Loaded current session:', result.currentSessionMessages.length, 'messages');
+          // Remove duplicates by message ID and ensure all required fields are present
+          const uniqueMessages = result.currentSessionMessages
+            .filter((message, index, self) => 
+              index === self.findIndex((m) => m.id === message.id))
+            .filter(message => {
+              // Validate message structure
+              const isValid = message && 
+                            message.id && 
+                            message.type && 
+                            message.timestamp;
+              
+              // Special handling for task_complete messages that might have content in result
+              if (message.type === 'task_complete' && message.result) {
+                const responseContent = message.result.response || message.result.message;
+                if (responseContent && !message.content) {
+                  message.content = responseContent;
+                  message.isMarkdown = message.result.isMarkdown || false;
+                }
+              }
+              
+              // Ensure content exists (either directly or in result)
+              const hasContent = message.content !== undefined || 
+                               (message.result && (message.result.response || message.result.message));
+              
+              if (!isValid || !hasContent) {
+                console.warn('Filtered out invalid message:', message);
+                return false;
+              }
+              
+              return true;
+            })
+            .map(message => {
+              // Ensure all required fields are present with defaults
+              let content = message.content;
+              
+              // For task_complete messages, extract content from result if not directly available
+              if (message.type === 'task_complete' && message.result && !content) {
+                content = message.result.response || message.result.message;
+              }
+              
+              return {
+                ...message,
+                id: message.id,
+                type: message.type,
+                content: content || '',
+                timestamp: message.timestamp,
+                isMarkdown: message.isMarkdown || false
+              };
+            })
+            .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+          
+          setMessages(uniqueMessages);
+          console.log('Loaded current session:', uniqueMessages.length, 'unique messages');
+          
+          // Update storage with validated messages
+          if (uniqueMessages.length !== result.currentSessionMessages.length) {
+            console.log('Updated storage with validated messages');
+            await chrome.storage.local.set({ currentSessionMessages: uniqueMessages });
+          }
         }
       }
     } catch (error) {
@@ -62,19 +130,53 @@ export const useChat = (chatId = null) => {
   }, []);
 
   const addMessage = useCallback((message) => {
+    // If message already has an ID, use it; otherwise generate new one
+    const messageId = message.id || Date.now().toString(36) + Math.random().toString(36).substr(2);
+    const timestamp = message.timestamp || Date.now();
+    
+    // Extract content from complex message structures
+    let content = message.content;
+    let isMarkdown = message.isMarkdown || false;
+    
+    // For task_complete messages, extract content from result if not directly available
+    if (message.type === 'task_complete' && message.result && !content) {
+      content = message.result.response || message.result.message;
+      isMarkdown = message.result.isMarkdown || false;
+    }
+    
+    // Ensure all required fields are present with proper types
     const newMessage = {
       ...message,
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-      timestamp: message.timestamp || Date.now()
+      id: messageId,
+      type: message.type || 'system',
+      content: content || '',
+      timestamp: timestamp,
+      isMarkdown: isMarkdown
     };
     
+    // Validate message structure
+    if (!newMessage.type || !newMessage.content) {
+      console.error('Invalid message structure:', newMessage);
+      return;
+    }
+    
     setMessages(prev => {
+      // Check if message with same ID already exists
+      const messageExists = prev.some(m => m.id === messageId);
+      if (messageExists) {
+        console.log('Skipping duplicate message:', messageId);
+        return prev;
+      }
+      
       const updated = [...prev, newMessage];
-      const limited = updated.slice(-100);
+      const limited = updated.slice(-100); // Keep last 100 messages
       
       // Save current session messages to storage for persistence during active tasks
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.set({ currentSessionMessages: limited }).catch(console.error);
+        chrome.storage.local.set({ 
+          currentSessionMessages: limited,
+          lastMessageTimestamp: timestamp // Store last message timestamp
+        }).catch(console.error);
       }
       
       return limited;
@@ -87,8 +189,13 @@ export const useChat = (chatId = null) => {
   
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        // Clear both old and new session storage
-        await chrome.storage.local.remove(['chatHistory', 'currentSessionMessages']);
+        // Clear session messages and ensure no duplicates remain
+        await chrome.storage.local.remove(['currentSessionMessages']);
+        
+        // Also clear any stored disconnected messages to prevent duplicates
+        await chrome.storage.local.remove(['disconnectedMessages']);
+        
+        console.log('Cleared all message storage');
       }
     } catch (error) {
       console.error('Error clearing current chat:', error);

@@ -114,6 +114,47 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               portRef.current.postMessage({ type: 'get_status' });
               break;
 
+            case 'restore_message':
+              // Validate restored message structure
+              if (message.message && 
+                  message.message.type && 
+                  message.message.timestamp) {
+                
+                console.log('🔍 Restoring message:', message.message);
+                
+                // Ensure message has all required fields
+                const restoredMessage = {
+                  ...message.message,
+                  id: message.message.id || Date.now().toString(36) + Math.random().toString(36).substr(2),
+                  type: message.message.type,
+                  content: message.message.content || '',
+                  timestamp: message.message.timestamp,
+                  isMarkdown: message.message.isMarkdown || hasMarkdownContent(message.message.content)
+                };
+                
+                // Special handling for task_complete messages that might have nested result structure
+                if (message.message.type === 'task_complete' && message.message.result) {
+                  const responseContent = message.message.result.response || message.message.result.message;
+                  if (responseContent && responseContent !== restoredMessage.content) {
+                    console.log('🔄 Extracting content from task_complete result:', responseContent);
+                    restoredMessage.content = responseContent;
+                    restoredMessage.isMarkdown = message.message.result.isMarkdown || hasMarkdownContent(responseContent);
+                  }
+                }
+                
+                // Final validation before adding
+                if (!restoredMessage.content) {
+                  console.warn('⚠️ Restored message has no content:', restoredMessage);
+                  return;
+                }
+                
+                console.log('✅ Restoring message:', restoredMessage);
+                addMessage(restoredMessage);
+              } else {
+                console.warn('❌ Skipped invalid restored message:', message.message);
+              }
+              break;
+
             case 'status_response':
               // Handle execution state from background
               if (message.isExecuting) {

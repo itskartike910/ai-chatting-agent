@@ -93,7 +93,7 @@ navigate(url), click(index), type(index,text), scroll(direction,amount), wait(du
     try {
       const response = await this.llmService.call([
         { role: 'user', content: navigatorPrompt }
-      ], { maxTokens: 1200 }, 'navigator');
+      ], { maxTokens: 2000 }, 'navigator');
       
       console.log('[NavigatorAgent] LLM response:', response);
       

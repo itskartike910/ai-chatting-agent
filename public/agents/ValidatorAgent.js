@@ -64,25 +64,6 @@ ${executionHistory.map((h, i) => {
   return `Step ${stepNum}: ${action} - ${navigation} - ${status}${error ? ` (${error})` : ''}`;
 }).join('\n')}
 
-# **URL CHANGE ANALYSIS FOR POSTING DETECTION**
-${(() => {
-  const urlChanges = [];
-  for (let i = 0; i < executionHistory.length; i++) {
-    const currentUrl = executionHistory[i]?.results?.[0]?.result?.state?.pageInfo?.url;
-    const prevUrl = i > 0 ? executionHistory[i-1]?.results?.[0]?.result?.state?.pageInfo?.url : null;
-    if (currentUrl && prevUrl && currentUrl !== prevUrl) {
-      urlChanges.push(`Step ${i+1}: ${prevUrl} → ${currentUrl}`);
-    }
-  }
-  if (urlChanges.length === 0) return 'No significant URL changes detected in execution history';
-  
-  const hasPostingRedirect = urlChanges.some(change => 
-    change.includes('compose') && change.includes('home')
-  );
-  
-  return urlChanges.join('\n') + 
-    (hasPostingRedirect ? '\n🎯 **POSTING REDIRECT DETECTED**: compose → home pattern found = SUCCESSFUL POST' : '');
-})()}
 
 # **CURRENT PAGE STATE**
 - URL: ${finalState.pageInfo?.url}
@@ -251,7 +232,7 @@ Break down the original task into logical components and assess each:
     try {
       const response = await this.llmService.call([
         { role: 'user', content: validatorPrompt }
-      ], { maxTokens: 1200 }, 'validator');
+      ], { maxTokens: 6000 }, 'validator');
       
       console.log('[ValidatorAgent] LLM response:', response);
       
