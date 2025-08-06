@@ -27,7 +27,7 @@ const SettingsModal = () => {
   }, [config]);
 
   const handleClose = () => {
-    navigate('/profile');
+    navigate('/chat');
   };
 
   const handleSave = async () => {

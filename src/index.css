@@ -1,5 +1,3 @@
-/* Import Labubu styles */
-@import './labubu/styles/labubu.css';
 @import './styles/GlobalAnimations.css';
 @import './styles/AuthPageAnimations.css';
 @import './styles/ChatInterfaceAnimations.css';

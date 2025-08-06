@@ -7,8 +7,8 @@ import AuthPage from './components/AuthPage';
 import SubscriptionPage from './components/SubscriptionPage';
 import SettingsModal from './components/SettingsModal';
 import ProfilePage from './components/ProfilePage';
-import IntegrationHub from './components/IntegrationHub';
-import LabubuRoute from './components/LabubuRoute';
+// import IntegrationHub from './components/IntegrationHub';
+// import LabubuRoute from './components/LabubuRoute';
 import './App.css';
 import ChatHistoryPage from './components/ChatHistoryPage';
 
@@ -88,16 +88,17 @@ function AppContent() {
       {/* Integration Hub - Main Landing Page */}
       <Route 
         path="/" 
-        element={<IntegrationHub />} 
+        // element={<IntegrationHub />} 
+        element={<Navigate to={"/chat"} replace />}
       />
       
       {/* Labubu Route */}
-      <Route 
+      {/* <Route 
         path="/labubu" 
         element={<LabubuRoute />} 
-      />
+      /> */}
       
-      <Route 
+      {/* <Route 
         path="/auth" 
         element={
           isLoggedIn ? (
@@ -106,24 +107,24 @@ function AppContent() {
             <AuthPage onLogin={handleLogin} />
           )
         } 
-      />
+      /> */}
       
       <Route 
         path="/chat" 
         element={
-          !isLoggedIn ? (
-            <Navigate to="/auth" replace />
-          ) : (
+          // !isLoggedIn ? (
+          //   <Navigate to="/auth" replace />
+          // ) : (
             <ChatInterface 
               user={user}
               subscription={subscription}
               onLogout={logout}
             />
-          )
+          // )
         } 
       />
       
-      <Route 
+      {/* <Route 
         path="/subscription" 
         element={
           !isLoggedIn ? (
@@ -140,20 +141,20 @@ function AppContent() {
             />
           )
         } 
-      />
+      /> */}
       
       <Route 
         path="/settings" 
         element={
-          !isLoggedIn ? (
-            <Navigate to="/auth" replace />
-          ) : (
+          // !isLoggedIn ? (
+          //   <Navigate to="/auth" replace />
+          // ) : (
             <SettingsModal />
-          )
+          // )
         } 
       />
 
-      <Route 
+      {/* <Route 
         path="/profile" 
         element={
           !isLoggedIn ? (
@@ -166,16 +167,16 @@ function AppContent() {
             />
           )
         } 
-      />
+      /> */}
       
       <Route 
         path="/history" 
         element={
-          !isLoggedIn ? (
-            <Navigate to="/auth" replace />
-          ) : (
+          // !isLoggedIn ? (
+          //   <Navigate to="/auth" replace />
+          // ) : (
             <ChatHistoryPage />
-          )
+          // )
         } 
       />
     </Routes>

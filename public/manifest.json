@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Social Shopping Agent",
   "version": "1.0.0",
-  "description": "AI-powered social shopping agent with Labubu autobuy features",
+  "description": "AI-powered Social Shopping Agent",
   "permissions": [
     "storage",
     "alarms",
@@ -25,16 +25,6 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://m.popmart.com/*",
-        "https://www.popmart.com/*"
-      ],
-      "js": ["labubuContent.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "action": {
     "default_popup": "index.html",
     "default_title": "Social Shopping Agent"

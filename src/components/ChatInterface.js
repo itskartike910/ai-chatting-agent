@@ -6,20 +6,23 @@ import ChatInput from './ChatInput';
 import TaskStatus from './TaskStatus';
 import { useChat } from '../hooks/useChat';
 import { useLocation } from 'react-router-dom';
+import { useConfig } from '../hooks/useConfig';
 import { 
   FaEdit, 
-  FaUser, 
+  // FaUser, 
   FaWifi,
   FaExclamationTriangle,
-  FaHistory
+  FaHistory,
+  FaCog
 } from 'react-icons/fa';
-import RequestCounter from './RequestCounter';
-import SubscriptionChoice from './SubscriptionChoice';
+// import RequestCounter from './RequestCounter';
+// import SubscriptionChoice from './SubscriptionChoice';
 import { useNavigate } from 'react-router-dom';
 
 const ChatInterface = ({ user, subscription, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { config } = useConfig();
   
   // Get chat ID from URL params
   const urlParams = new URLSearchParams(location.search);
@@ -34,7 +37,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   const isConnectingRef = useRef(false);
 
   // Add state for subscription choice modal
-  const [showSubscriptionChoice, setShowSubscriptionChoice] = useState(false);
+  // const [showSubscriptionChoice, setShowSubscriptionChoice] = useState(false);
 
   // Add state for message input
   const [messageInput, setMessageInput] = useState('');
@@ -45,6 +48,11 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);
+  };
+
+  // Helper function to check if API keys are configured
+  const hasApiKeysConfigured = () => {
+    return !!(config.anthropicApiKey || config.openaiApiKey || config.geminiApiKey);
   };
 
   // Helper function to detect markdown content
@@ -281,14 +289,30 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   }, []);
 
   const handleSendMessage = async (message) => {
-    const shouldShowSubscription = !subscription.usingPersonalAPI && 
-                                   !subscription.hasPersonalKeys && 
-                                   subscription.remaining_requests <= 0;
-
-    if (shouldShowSubscription) {
-      setShowSubscriptionChoice(true);
-      return; 
+    // Check if API keys are configured
+    if (!hasApiKeysConfigured()) {
+      addMessage({
+        type: 'system',
+        content: '🔧 **API Configuration Required**\n\nTo use the AI Social Shopping Agent, you need to configure at least one API key.\n\n**What you need to do:**\n• Go to Settings and add your API keys\n• Choose from Anthropic (Claude), OpenAI, or Google Gemini\n• Save your configuration\n\n**Why this is needed:**\nThe agent uses AI models to understand and execute your requests. Without API keys, it cannot function.\n\nClick the Settings button (⚙️) in the header to configure your API keys.',
+        timestamp: Date.now()
+      });
+      
+      // Navigate to settings after a short delay
+      setTimeout(() => {
+        navigate('/settings');
+      }, 2000);
+      
+      return;
     }
+
+    // const shouldShowSubscription = !subscription.usingPersonalAPI && 
+    //                                !subscription.hasPersonalKeys && 
+    //                                subscription.remaining_requests <= 0;
+
+    // if (shouldShowSubscription) {
+    //   setShowSubscriptionChoice(true);
+    //   return; 
+    // }
 
     addMessage({
       type: 'user',
@@ -369,6 +393,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   };
 
   const getConnectionStatusColor = () => {
+    if (!hasApiKeysConfigured()) {
+      return '#ffad1f'; // Warning color for missing API keys
+    }
+    
     switch (connectionStatus) {
       case 'connected': return '#17bf63';
       case 'connecting': return '#ffad1f';
@@ -378,6 +406,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   };
 
   const getConnectionStatusText = () => {
+    if (!hasApiKeysConfigured()) {
+      return 'API Keys Required';
+    }
+    
     switch (connectionStatus) {
       case 'connected': return 'Connected';
       case 'connecting': return 'Connecting...';
@@ -387,6 +419,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   };
 
   const getConnectionIcon = () => {
+    if (!hasApiKeysConfigured()) {
+      return <FaExclamationTriangle />; // Warning icon for missing API keys
+    }
+    
     switch (connectionStatus) {
       case 'connected': return <FaWifi />;
       case 'connecting': return <FaWifi style={{ opacity: 0.6 }} />;
@@ -459,10 +495,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             {getConnectionIcon()}
             <span>{getConnectionStatusText()}</span>
             {/* {isExecuting && <span>• Working...</span>} */}
-            <RequestCounter 
+            {/* <RequestCounter 
               subscriptionState={subscription} 
               onUpgradeClick={() => setShowSubscriptionChoice(true)}
-            />
+            /> */}
           </div>
         </div>
         <div className="chat-header-buttons" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -508,23 +544,30 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           
           <div style={{ position: 'relative' }}>
             <button 
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate('/settings')}
               className="chat-header-button"
               style={{ 
                 padding: '6px 8px',
-                backgroundColor: 'rgba(255, 220, 220, 0.2)',
-                border: '1px solid rgba(255, 220, 220, 0.3)',
-                color: '#FFDCDCFF',
+                backgroundColor: !hasApiKeysConfigured() 
+                  ? 'rgba(255, 173, 31, 0.3)' // Warning background when API keys missing
+                  : 'rgba(255, 220, 220, 0.2)',
+                border: !hasApiKeysConfigured()
+                  ? '1px solid rgba(255, 173, 31, 0.5)' // Warning border when API keys missing
+                  : '1px solid rgba(255, 220, 220, 0.3)',
+                color: !hasApiKeysConfigured()
+                  ? '#ffad1f' // Warning color when API keys missing
+                  : '#FFDCDCFF',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 fontSize: '16px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                animation: !hasApiKeysConfigured() ? 'pulse 2s infinite' : 'none'
               }}
-              title="Profile"
+              title={!hasApiKeysConfigured() ? "Configure API Keys (Required)" : "Settings"}
             >
-              <FaUser />
+              <FaCog />
             </button>
           </div>
         </div>
@@ -553,11 +596,13 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           onSendMessage={handleSendMessage}
           onStopExecution={handleStopExecution}
           isExecuting={isExecuting}
-          disabled={connectionStatus !== 'connected'}
+          disabled={!hasApiKeysConfigured() || connectionStatus !== 'connected'}
           placeholder={
-            connectionStatus === 'connected' 
-              ? (isExecuting ? "Processing..." : "Ask me anything...")
-              : "Connecting..."
+            !hasApiKeysConfigured() 
+              ? "Configure API keys to start..."
+              : connectionStatus === 'connected' 
+                ? (isExecuting ? "Processing..." : "Ask me anything...")
+                : "Connecting..."
           }
           value={messageInput}
           onChange={setMessageInput}
@@ -565,7 +610,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       </div>
       
       {/* Add subscription choice as overlay */}
-      {showSubscriptionChoice && (
+      {/* {showSubscriptionChoice && (
         <SubscriptionChoice 
           onSubscribe={() => {
             setShowSubscriptionChoice(false);
@@ -579,7 +624,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           onRefreshSubscription={() => subscription.loadSubscriptionData()}
           user={user}
         />
-      )}
+      )} */}
     </div>
   );
 };
