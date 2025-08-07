@@ -502,10 +502,6 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
                 >
                   {message.content}
                 </ReactMarkdown>
-              ) : message.preserveLineBreaks ? (
-                <div style={{ whiteSpace: 'pre-line' }}>
-                  {message.content}
-                </div>
               ) : (
                 message.content
               )}
