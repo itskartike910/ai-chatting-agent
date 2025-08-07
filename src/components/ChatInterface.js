@@ -200,7 +200,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               addMessage({
                 type: 'system',
                 content: `⚡ ${message.message}`,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                preserveLineBreaks: true 
               });
               break;
               
