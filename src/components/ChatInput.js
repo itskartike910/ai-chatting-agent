@@ -111,20 +111,21 @@ const ChatInput = ({
                 height: '36px',
                 backgroundColor: '#e0245e',
                 color: 'white',
-                border: 'none',
+                border: '1px solid #F00000FF',
                 borderRadius: '50%',
                 cursor: 'pointer',
-                fontSize: '12px',
-                fontWeight: '600',
+                fontSize: '24px',
+                fontWeight: '800',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 8px rgba(224, 36, 94, 0.3)',
+                paddingBottom: '6px',
                 transition: 'all 0.2s ease'
               }}
               title="Stop Execution"
             >
-              ⏹
+              ■
             </button>
           ) : (
             <button
@@ -140,7 +141,7 @@ const ChatInput = ({
                 height: '36px',
                 backgroundColor: (!currentValue.trim() || disabled) ? '#CCCCCC' : '#00B64CFF',
                 color: 'white',
-                border: 'none',
+                border: (!currentValue.trim() || disabled) ? '1px solid #AFAFAFFF' : '1px solid #00F064FF',
                 borderRadius: '50%',
                 cursor: (!currentValue.trim() || disabled) ? 'default' : 'pointer',
                 fontSize: '22px',
@@ -149,7 +150,9 @@ const ChatInput = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: (!currentValue.trim() || disabled) ? 'none' : '0 2px 8px rgba(0, 240, 100, 0.3)',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                paddingBottom: '2px',
+                paddingRight: '4px'
               }}
               title="Send Message"
             >
