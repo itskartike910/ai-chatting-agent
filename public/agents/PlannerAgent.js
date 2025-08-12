@@ -120,10 +120,14 @@ ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT worki
 ${elements}
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**
-Current Step: ${context.currentStep}/25 (Increased limit for complex tasks)
+Current Step: ${context.currentStep}/50 (Enhanced limit for complex social/shopping tasks)
+
+**IMPORTANT**: When clicking elements, use the index number from the elements list. Avoid complex selectors with quotes or special characters.
 Task Components Completed: ${context.taskState?.completedComponents?.length || 0}/${context.taskState?.components?.length || 'unknown'}
 Task Progress: ${context.taskHistory?.map(h => h.component).join(' → ') || 'Starting task'}
 Recent Actions: ${recentActions.substring(0, 300)} (Increased context)
+
+${enhancedContext.screenshotContext || ''}
 
 # **VALIDATION FEEDBACK FROM PREVIOUS STEP**
 ${enhancedContext.lastValidation ? `
@@ -190,15 +194,22 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
   "strategy": "High-level approach using current page elements (2-7 steps)",
   "batch_actions": [
     {
-      "action_type": "navigate|click|type|scroll|wait",
+      "action_type": "navigate|click|type|find_click|find_type|shop_search|add_to_cart|scroll|wait|wait_for_text|go_back|screenshot",
       "parameters": {
         "url": "https://example.com/xyz", // for navigate (try to generate the most closest url to the platform which is more closest to the user message or task.)
-        "index": 5, // for CLICKABLE and TYPEABLE elements only
-        "selector": "selector", // for CLICKABLE and TYPEABLE elements only
-        "text": "search term/ text to type", // for TYPEABLE elements only  
+        "index": 5, // for CLICKABLE and TYPEABLE elements only (PREFERRED over selector)
+        "selector": "#simple-id", // ONLY use simple selectors (avoid aria-label with quotes)
+        "text": "search term / button text / post text",
+        "purpose": "submit|add-to-cart|product-link",
+        "category": "action|form|navigation", 
+        "context": "shopping context like carbonara ingredients", // for find_click
+        "query": "placeholder/name/label for find_type OR product name for shop_search",
+        "site": "amazon|flipkart|generic", // for shop_search
+        "product_context": "product description for add_to_cart", // for add_to_cart
         "direction": "down/up", // for scroll
         "amount": 500, // for scroll
         "duration": 2000, // for wait
+        "timeout": 4000, // for wait_for_text
         "intent": "What this action accomplishes"
       }
     }
@@ -530,7 +541,32 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
 
   parsePlan(rawText) {
     try {
-      const obj = JSON.parse(rawText);
+      // Handle complex JSON parsing issues with selectors containing quotes
+      let fixedText = rawText;
+      
+      // Specific fix for the aria-label selector issue we're seeing
+      // Pattern: "selector": "[aria-label=\"Storio Kuku Baby Ride-On Toy – Push Car..."]"
+      fixedText = fixedText.replace(
+        /"selector":\s*"\[aria-label=\\"([^"]*?)\\"\]"/g, 
+        '"selector":"[aria-label=\\"$1\\"]"'
+      );
+      
+      // More general fix for any attribute selector with unescaped quotes
+      fixedText = fixedText.replace(
+        /"selector":\s*"\[([^=]+)=\\"([^"]*?)\\"\]"/g,
+        '"selector":"[$1=\\"$2\\"]"'
+      );
+      
+      // If the above doesn't work, try removing problematic selectors entirely and use index only
+      if (fixedText.includes('[aria-label=') && fixedText.includes('"]"')) {
+        console.log('🔧 Removing problematic selector, keeping only index');
+        fixedText = fixedText.replace(
+          /"selector":\s*"\[[^"]*aria-label[^"]*\]"/g,
+          '"selector":null'
+        );
+      }
+      
+      const obj = JSON.parse(fixedText);
       
       // Validate required fields
       if (!obj.observation) {

@@ -71,14 +71,13 @@ Task Components Completed: ${context.taskState?.completedComponents?.length || 0
 Total Task Components: ${context.taskState?.components?.length || 'unknown'}
 Task History: ${context.taskHistory?.map(h => h.component).join(' → ') || 'No history'}
 
-# **DETAILED EXECUTION HISTORY**
-${executionHistory.map((h, i) => {
-  const stepNum = i + 1;
+# **RECENT EXECUTION HISTORY (last 5 steps)**
+${executionHistory.slice(-5).map((h, i) => {
+  const stepNum = executionHistory.length - 4 + i;
   const status = h.success ? '✅ SUCCESS' : '❌ FAILED';
   const action = h.action || 'action';
   const navigation = h.navigation || 'unknown action';
-  const error = h.results?.[0]?.result?.error || '';
-  return `Step ${stepNum}: ${action} - ${navigation} - ${status}${error ? ` (${error})` : ''}`;
+  return `Step ${stepNum}: ${action} - ${navigation} - ${status}`;
 }).join('\n')}
 
 
@@ -89,8 +88,8 @@ ${executionHistory.map((h, i) => {
 - Page Type: ${finalState.pageContext?.pageType || 'unknown'}
 - Has Login: ${finalState.pageContext?.isLoggedIn || false}
 
-# **VISIBLE PAGE ELEMENTS (first 30 for better context)**
-${this.formatElements(finalState.interactiveElements?.slice(0, 30) || [])}
+# **VISIBLE PAGE ELEMENTS (first 15 for context)**
+${this.formatElements(finalState.interactiveElements?.slice(0, 15) || [])}
 
 # **PROGRESSIVE VALIDATION RULES:**
 
@@ -247,7 +246,7 @@ Break down the original task into logical components and assess each:
     try {
       const response = await this.llmService.call([
         { role: 'user', content: validatorPrompt }
-      ], { maxTokens: 6000 }, 'validator');
+      ], { maxTokens: 7000 }, 'validator');
       
       console.log('[ValidatorAgent] LLM response:', response);
       

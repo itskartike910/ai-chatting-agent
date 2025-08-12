@@ -75,7 +75,7 @@ For web automation, determine the MOST EFFICIENT approach:
 Do NOT include any extra characters before or after these blocks.
 
 # **RESPONSE FORMAT**
-Use this EXACT format with special delimiters to avoid JSON parsing issues:
+Use this EXACT format with special delimiters to avoid JSON parsing issues. When planning WEB_AUTOMATION, prefer mobile-friendly actions including heuristic finders when index/selector is not known.
 
 ===CLASSIFICATION_START===
 INTENT: CHAT|WEB_AUTOMATION
@@ -90,10 +90,19 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
     "observation": "Detailed analysis of current page state and task requirements",
     "done": false,
     "strategy": "Step-by-step approach with clear completion criteria",
-    "next_action": "navigate|click|type|scroll|wait", 
+    "next_action": "navigate|click|type|scroll|wait|find_click|find_type|add_to_cart|wait_for_text|go_back|screenshot", 
     "direct_url": "https://most-closest-url-for-users-task",
-    "index": "index of the element to click or type on if the user is already on the correct page",
-    "selector": "selector of the element to click or type on if the user is already on the correct page",
+    "index": "index of the element to click or type on if known",
+    "selector": "selector of the element to click or type on if known",
+    "parameters": {
+        "text": "for find_click (button/link text) or wait_for_text",
+        "purpose": "optional purpose e.g. submit, add-to-cart",
+        "category": "optional category e.g. action, form, navigation",
+        "query": "for find_type to identify input by placeholder/name/label",
+        "amount": 500,
+        "direction": "down",
+        "timeout": 4000
+    },
     "reasoning": "Why this approach will achieve the user's goal efficiently",
     "completion_criteria": "Specific indicators that show task is 100% complete",
     "workflow_type": "social_media|shopping|search|authentication|content_extraction",

@@ -3,629 +3,14 @@ import { PlannerAgent } from './agents/PlannerAgent.js';
 import { NavigatorAgent } from './agents/NavigatorAgent.js';
 import { ValidatorAgent } from './agents/ValidatorAgent.js';
 import { AITaskRouter } from './agents/AITaskRouter.js';
+import { ActionRegistry } from './actions/ActionRegistry.js';
+import { MemoryManager } from './managers/MemoryManager.js';
+import { TaskManager } from './managers/TaskManager.js';
+import { ContextManager } from './managers/ContextManager.js';
+import { ConnectionManager } from './managers/ConnectionManager.js';
+import { MultiLLMService } from './services/MultiLLMService.js';
 
 console.log('AI Universal Agent Background Script Loading...');
-const API_BASE_URL = "";
-
-class ProceduralMemoryManager {
-  constructor() {
-    this.messages = [];
-    this.proceduralSummaries = [];
-    this.maxMessages = 50;  
-    this.maxSummaries = 10;     
-    this.stepCounter = 0;
-    this.taskHistory = [];     
-    this.currentTaskState = null; 
-  }
-
-  addMessage(message) {
-    const safeMessage = {
-      ...message,
-      content: this.ensureString(message.content),
-      timestamp: Date.now(),
-      step: this.stepCounter++
-    };
-
-    this.messages.push(safeMessage);
-
-    if (this.messages.length > this.maxMessages) {
-      this.createProceduralSummary();
-      this.messages = this.messages.slice(-6);
-    }
-  }
-
-  ensureString(content) {
-    if (typeof content === 'string') return content;
-    if (content === null || content === undefined) return '';
-    if (typeof content === 'object') return JSON.stringify(content);
-    return String(content);
-  }
-
-  createProceduralSummary() {
-    const recentMessages = this.messages.slice(-5);
-    const summary = {
-      steps: `${Math.max(0, this.stepCounter - 5)}-${this.stepCounter}`,
-      actions: recentMessages.map(m => m.action || 'action').join(' → '),
-      findings: recentMessages.map(m => this.ensureString(m.content)).join(' '),
-      timestamp: Date.now()
-    };
-    
-    this.proceduralSummaries.push(summary);
-    if (this.proceduralSummaries.length > this.maxSummaries) {
-      this.proceduralSummaries.shift();
-    }
-  }
-
-  getContext() {
-    return {
-      recentMessages: this.messages.slice(-10).map(m => ({
-        ...m,
-        content: this.ensureString(m.content)
-      })),
-      proceduralSummaries: this.proceduralSummaries.slice(-10),
-      currentStep: this.stepCounter
-    };
-  }
-
-  // Enhanced context compressor with increased limits
-  compressForPrompt(maxTokens = 4000) {
-    const ctx = this.getContext();
-    const json = JSON.stringify(ctx);
-    if (json.length > maxTokens * 4 && ctx.proceduralSummaries.length) {
-      ctx.proceduralSummaries.shift();
-    }
-    while (JSON.stringify(ctx).length > maxTokens * 4 && ctx.recentMessages.length > 10) {
-      ctx.recentMessages.shift();
-    }
-    
-    ctx.taskState = this.currentTaskState;
-    ctx.taskHistory = this.taskHistory.slice(-5); 
-    
-    return ctx;
-  }
-
-  clear() {
-    this.messages = [];
-    this.proceduralSummaries = [];
-    this.stepCounter = 0;
-    this.taskHistory = [];
-    this.currentTaskState = null;
-  }
-
-  setCurrentTask(task) {
-    this.currentTaskState = {
-      originalTask: task,
-      components: this.decomposeTask(task),
-      completedComponents: [],
-      startTime: Date.now()
-    };
-  }
-
-  markComponentCompleted(component, evidence) {
-    if (this.currentTaskState) {
-      this.currentTaskState.completedComponents.push({
-        component: component,
-        evidence: evidence,
-        timestamp: Date.now(),
-        step: this.stepCounter
-      });
-      this.taskHistory.push({
-        component: component,
-        evidence: evidence,
-        timestamp: Date.now()
-      });
-    }
-  }
-
-  decomposeTask(task) {
-    const taskLower = task.toLowerCase();
-    const components = [];
-    
-    // Navigation component
-    if (taskLower.includes('go to') || taskLower.includes('open') || taskLower.includes('visit')) {
-      components.push('navigate_to_site');
-    }
-    
-    // Search component
-    if (taskLower.includes('search') || taskLower.includes('find') || taskLower.includes('look for')) {
-      components.push('perform_search');
-    }
-    
-    // Click/interaction component
-    if (taskLower.includes('click') || taskLower.includes('select') || taskLower.includes('choose')) {
-      components.push('interact_with_element');
-    }
-    
-    // Data extraction component
-    if (taskLower.includes('get') || taskLower.includes('extract') || taskLower.includes('show')) {
-      components.push('extract_information');
-    }
-    
-    // Social media components
-    if (taskLower.includes('post') || taskLower.includes('tweet') || taskLower.includes('share')) {
-      components.push('create_post');
-    }
-    
-    // Shopping components
-    if (taskLower.includes('buy') || taskLower.includes('purchase') || taskLower.includes('cart')) {
-      components.push('shopping_action');
-    }
-    
-    return components.length > 0 ? components : ['complete_task'];
-  }
-}
-
-class BackgroundTaskManager {
-  constructor() {
-    this.runningTasks = new Map();
-    this.taskResults = new Map();
-    this.maxConcurrentTasks = 2;
-    console.log('✅ BackgroundTaskManager initialized');
-  }
-
-  async startTask(taskId, taskData, executor, connectionManager) {
-    console.log(`🚀 BackgroundTaskManager starting: ${taskId}`);
-    
-    this.runningTasks.set(taskId, {
-      id: taskId,
-      data: taskData,
-      status: 'running',
-      startTime: Date.now(),
-      messages: [],
-      executor: executor
-    });
-
-    setTimeout(() => {
-      this.executeTaskIndependently(taskId, taskData, executor, connectionManager);
-    }, 100);
-  }
-
-  async executeTaskIndependently(taskId, taskData, executor, connectionManager) {
-    try {
-      console.log(`⚙️ BackgroundTaskManager executing independently: ${taskId}`);
-      
-      const backgroundConnectionManager = {
-        broadcast: (message) => {
-          const task = this.runningTasks.get(taskId);
-          if (task) {
-            task.messages.push({
-              ...message,
-              timestamp: Date.now()
-            });
-            
-            if (message.type === 'task_complete' || message.type === 'task_error') {
-              task.status = message.type === 'task_complete' ? 'completed' : 'error';
-              task.result = message.result || message;
-              task.endTime = Date.now();
-              
-              this.taskResults.set(taskId, task);
-              this.runningTasks.delete(taskId);
-              
-              // Clear execution state from storage when task completes
-              chrome.storage.local.set({
-                isExecuting: false,
-                activeTaskId: null,
-                taskStartTime: null,
-                sessionId: null
-              });
-              
-              console.log(`✅ BackgroundTaskManager completed: ${taskId}`);
-            }
-            
-            if (connectionManager) {
-              connectionManager.broadcast(message);
-            }
-          }
-        }
-      };
-
-      // Pass the initial plan if available
-      await executor.execute(taskData.task, backgroundConnectionManager, taskData.initialPlan);
-
-    } catch (error) {
-      console.error(`❌ BackgroundTaskManager error: ${taskId}`, error);
-      
-      // Clear element highlighting on error
-      if (executor && typeof executor.clearElementHighlighting === 'function') {
-        executor.clearElementHighlighting().catch(err => 
-          console.warn('Failed to clear highlighting on error:', err)
-        );
-      }
-      
-      // Clear execution state from storage on error
-      chrome.storage.local.set({
-        isExecuting: false,
-        activeTaskId: null,
-        taskStartTime: null,
-        sessionId: null
-      });
-      
-      const task = this.runningTasks.get(taskId);
-      if (task) {
-        task.status = 'error';
-        task.error = error.message;
-        task.endTime = Date.now();
-        
-        this.taskResults.set(taskId, task);
-        this.runningTasks.delete(taskId);
-      }
-    }
-  }
-
-  getTaskStatus(taskId) {
-    return this.runningTasks.get(taskId) || this.taskResults.get(taskId) || null;
-  }
-
-  getRecentMessages(taskId, limit = 20) {
-    const task = this.getTaskStatus(taskId);
-    return task?.messages?.slice(-limit) || [];
-  }
-
-  getAllRunningTasks() {
-    return Array.from(this.runningTasks.values());
-  }
-
-  getAllCompletedTasks() {
-    return Array.from(this.taskResults.values());
-  }
-
-  cancelTask(taskId) {
-    const task = this.runningTasks.get(taskId);
-    if (task && task.executor) {
-      console.log(`🛑 BackgroundTaskManager cancelling: ${taskId}`);
-      
-      // Clear element highlighting when cancelling
-      if (typeof task.executor.clearElementHighlighting === 'function') {
-        task.executor.clearElementHighlighting().catch(err => 
-          console.warn('Failed to clear highlighting on cancel:', err)
-        );
-      }
-      
-      task.executor.cancel();
-      task.status = 'cancelled';
-      task.endTime = Date.now();
-      
-      this.taskResults.set(taskId, task);
-      this.runningTasks.delete(taskId);
-      return true;
-    }
-    return false;
-  }
-}
-
-class UniversalActionRegistry {
-  constructor(browserContext) {
-    this.browserContext = browserContext;
-    this.actions = new Map();
-    this.initializeActions();
-  }
-
-  initializeActions() {
-    // Navigation Action
-    this.actions.set('navigate', {
-      description: 'Navigate to a specific URL',
-      schema: {
-        url: 'string - The complete URL to navigate to',
-        intent: 'string - Description of why navigating to this URL'
-      },
-      handler: async (input) => {
-        try {
-          const url = this.validateAndFixUrl(input.url);
-          if (!url) {
-            throw new Error('Invalid or missing URL');
-          }
-          
-          console.log(`🌐 Universal Navigation: ${url}`);
-          
-          const currentTab = await this.browserContext.getCurrentActiveTab();
-          if (currentTab) {
-            try {
-              await chrome.tabs.remove(currentTab.id);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            } catch (e) {
-              console.log('Could not close current tab:', e);
-            }
-          }
-          
-          const newTab = await chrome.tabs.create({ url: url, active: true });
-          this.browserContext.activeTabId = newTab.id;
-          await this.browserContext.waitForReady(newTab.id);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          return {
-            success: true,
-            extractedContent: `Successfully navigated to ${url}`,
-            includeInMemory: true,
-            navigationCompleted: true
-          };
-          
-        } catch (error) {
-          console.error('Navigation error:', error);
-          return {
-            success: false,
-            error: error.message,
-            extractedContent: `Navigation failed: ${error.message}`,
-            includeInMemory: true
-          };
-        }
-      }
-    });
-
-    // Click Action - Universal
-    this.actions.set('click', {
-      description: 'Click on any interactive element on the page',
-      schema: {
-        index: 'number - The element index from the page state',
-        selector: 'string - CSS selector (from page state only)',
-        intent: 'string - Description of what you are clicking and why'
-      },
-      handler: async (input) => {
-        try {
-          console.log(`🖱️ Universal Click: ${input.intent || 'Click action'}`);
-          
-          return new Promise((resolve) => {
-            const actionParams = {};
-            
-            if (input.index !== undefined) {
-              actionParams.index = input.index;
-              console.log(`🎯 Using element index: ${input.index}`);
-            } else if (input.selector) {
-              actionParams.selector = input.selector;
-              console.log(`🎯 Using selector: ${input.selector}`);
-            } else {
-              resolve({
-                success: false,
-                error: 'No index or selector provided',
-                extractedContent: 'Click failed: No target specified',
-                includeInMemory: true
-              });
-              return;
-            }
-
-            chrome.wootz.performAction('click', actionParams, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ?
-                  `Successfully clicked: ${input.intent}` :
-                  `Click failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
-        } catch (error) {
-          console.error('Click action error:', error);
-          return {
-            success: false,
-            error: error.message,
-            extractedContent: `Click failed: ${error.message}`,
-            includeInMemory: true
-          };
-        }
-      }
-    });
-
-    // Type Action - Universal
-    this.actions.set('type', {
-      description: 'Type text into any input field, textarea, or contenteditable element',
-      schema: {
-        index: 'number - The element index from the page state',
-        selector: 'string - CSS selector (from page state only)',
-        text: 'string - The text to type into the element',
-        intent: 'string - Description of what you are typing and why'
-      },
-      handler: async (input) => {
-        try {
-          console.log(`⌨️ Universal Type: "${input.text}" - ${input.intent}`);
-          return new Promise((resolve) => {
-            const actionParams = { text: input.text };
-            if (input.index !== undefined) {
-              actionParams.index = input.index;
-            } else if (input.selector) {
-              actionParams.selector = input.selector;
-            } else {
-              resolve({
-                success: false,
-                error: 'No index or selector provided for text input',
-                extractedContent: `Type failed: No target specified for "${input.text}"`,
-                includeInMemory: true
-              });
-              return;
-            }
-            chrome.wootz.performAction('fill', actionParams, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ?
-                  `Successfully typed: "${input.text}"` :
-                  `Type failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
-        } catch (error) {
-          console.error('Type action error:', error);
-          return {
-            success: false,
-            error: error.message,
-            extractedContent: `Type failed: ${error.message}`,
-            includeInMemory: true
-          };
-        }
-      }
-    });
-
-    // Scroll Action - Universal
-    this.actions.set('scroll', {
-      description: 'Scroll the page in any direction',
-      schema: {
-        direction: 'string - Direction to scroll (up, down, left, right)',
-        amount: 'number - Amount to scroll in pixels (optional, default: 300)',
-        intent: 'string - Description of why you are scrolling'
-      },
-      handler: async (input) => {
-        try {
-          const amount = String(input.amount || 300);
-          const direction = input.direction || 'down';
-          
-          console.log(`📜 Universal Scroll: ${direction} by ${amount}px - ${input.intent}`);
-          
-          return new Promise((resolve) => {
-            chrome.wootz.performAction('scroll', {
-              direction: direction,
-              amount: amount
-            }, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ? 
-                  `Scrolled ${direction} by ${amount}px` : 
-                  `Scroll failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
-        } catch (error) {
-          console.error('Scroll action error:', error);
-          return {
-            success: false,
-            error: error.message,
-            extractedContent: `Scroll failed: ${error.message}`,
-            includeInMemory: true
-          };
-        }
-      }
-    });
-
-    // Wait Action - Universal
-    this.actions.set('wait', {
-      description: 'Wait for a specified amount of time',
-      schema: {
-        duration: 'number - Time to wait in milliseconds (default: 2000)',
-        intent: 'string - Reason for waiting'
-      },
-      handler: async (input) => {
-        const duration = input.duration || 2000;
-        console.log(`⏳ Universal Wait: ${duration}ms - ${input.intent}`);
-        await new Promise(resolve => setTimeout(resolve, duration));
-        return {
-          success: true,
-          extractedContent: `Waited ${duration}ms`,
-          includeInMemory: true
-        };
-      }
-    });
-
-    // Complete Action - Universal
-    this.actions.set('complete', {
-      description: 'Mark the task as completed with a summary',
-      schema: {
-        success: 'boolean - Whether the task was successful',
-        summary: 'string - Summary of what was accomplished',
-        details: 'string - Additional details about the completion'
-      },
-      handler: async (input) => {
-        console.log(`✅ Task Complete: ${input.summary}`);
-        return {
-          success: input.success !== false,
-          extractedContent: input.summary || 'Task completed',
-          isDone: true,
-          includeInMemory: true,
-          completionDetails: input.details
-        };
-      }
-    });
-  }
-
-  async executeAction(actionName, input) {
-    const action = this.actions.get(actionName);
-    if (!action) {
-      throw new Error(`Unknown action: ${actionName}`);
-    }
-
-    try {
-      return await action.handler(input);
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        extractedContent: `Action ${actionName} failed: ${error.message}`,
-        includeInMemory: true
-      };
-    }
-  }
-
-  validateAndFixUrl(url) {
-    if (!url || typeof url !== 'string') {
-      console.error('Invalid URL provided:', url);
-      return null;
-    }
-    
-    url = url.trim().replace(/['"]/g, '');
-    
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      try {
-        new URL(url);
-        return url;
-      } catch (e) {
-        console.error('Invalid URL format:', url);
-        return null;
-      }
-    }
-    
-    if (!url.startsWith('http')) {
-      url = 'https://' + url;
-    }
-    
-    try {
-      new URL(url);
-      return url;
-    } catch (e) {
-      console.error('Could not create valid URL:', url);
-      return null;
-    }
-  }
-}
-
-class BrowserContextManager {
-  constructor() {
-    this.activeTabId = null;
-  }
-
-  async waitForReady(tabId, timeout = 10000) {
-    return new Promise((resolve) => {
-      const startTime = Date.now();
-      
-      const checkReady = () => {
-        if (Date.now() - startTime > timeout) {
-          resolve({ id: tabId, status: 'timeout' });
-          return;
-        }
-        
-        chrome.tabs.get(tabId, (tab) => {
-          if (chrome.runtime.lastError || !tab) {
-            setTimeout(checkReady, 500);
-          } else if (tab.status === 'complete') {
-            resolve(tab);
-          } else {
-            setTimeout(checkReady, 500);
-          }
-        });
-      };
-      
-      checkReady();
-    });
-  }
-
-  async getCurrentActiveTab() {
-    try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      return tabs[0];
-    } catch (error) {
-      return null;
-    }
-  }
-}
 
 function urlValidator() {
   // Add null checks to prevent the TypeError
@@ -702,9 +87,9 @@ function urlValidator() {
 class MultiAgentExecutor {
   constructor(llmService) {
     this.llmService = llmService;
-    this.memoryManager = new ProceduralMemoryManager();
-    this.browserContext = new BrowserContextManager();
-    this.actionRegistry = new UniversalActionRegistry(this.browserContext);
+    this.memoryManager = new MemoryManager();
+    this.browserContext = new ContextManager();
+    this.actionRegistry = new ActionRegistry(this.browserContext);
     
     this.planner = new PlannerAgent(this.llmService, this.memoryManager);
     this.navigator = new NavigatorAgent(this.llmService, this.memoryManager, this.actionRegistry);
@@ -716,7 +101,7 @@ class MultiAgentExecutor {
     this.determinePageType = helpers.determinePageType;
     this.detectPlatform = helpers.detectPlatform;
     
-    this.maxSteps = 20; 
+    this.maxSteps = 50; 
     this.executionHistory = [];
     this.currentStep = 0;
     this.cancelled = false;
@@ -725,6 +110,8 @@ class MultiAgentExecutor {
     this.currentBatchPlan = null;
     
     this.failedElements = new Set();
+    this.recentActionKeys = new Set();
+    this.recentActionKeysMax = 120;
   }
 
   async execute(userTask, connectionManager, initialPlan = null) {
@@ -819,12 +206,12 @@ class MultiAgentExecutor {
             message: `📋 Batch completed: ${batchResults.executedActions.length} actions executed`
           });
           
-          // Enhanced validation with progressive checking and smart triggers
+          // Optimized validation with reduced frequency to improve speed
           const shouldRunValidation = batchResults.anySuccess && (
             this.currentBatchPlan?.shouldValidate || 
-            this.currentStep >= 10 || // Validate every 10 steps to check progress
-            this.currentStep % 5 === 0 || // Validate every 5 steps
-            this.executionHistory.filter(h => h.success).length >= 3 // Validate after 3 successful actions
+            this.currentStep >= 15 || // Validate every 15 steps (reduced frequency)
+            this.currentStep % 8 === 0 || // Validate every 8 steps (reduced frequency)
+            this.executionHistory.filter(h => h.success).length >= 5 // Validate after 5 successful actions (increased threshold)
           );
           
           if (shouldRunValidation) {
@@ -1167,6 +554,7 @@ class MultiAgentExecutor {
       anySuccess: false,
       criticalFailure: false
     };
+    let ineffectiveCount = 0;
     
     console.log(`🚀 Executing ${this.actionQueue.length} actions in batch`);
     
@@ -1183,6 +571,16 @@ class MultiAgentExecutor {
       console.log(`🎯 Executing action ${i + 1}/${this.actionQueue.length}: ${action.name}`);
       
       try {
+        const beforeState = this.lastPageState || await this.getCurrentState();
+        const urlBefore = beforeState?.pageInfo?.url || 'unknown';
+        const targetKey = action.parameters?.selector ?? (Number.isFinite(action.parameters?.index) ? `idx:${action.parameters.index}` : 'none');
+        const actKey = `${urlBefore}::${action.name}::${targetKey}`;
+        if (this.recentActionKeys.has(actKey)) {
+          console.log('🔄 Skipping repeated action on same target and URL:', actKey);
+          results.executedActions.push({ action: action.name, success: false, intent: action.parameters?.intent || action.name, error: 'loop-prevented' });
+          continue;
+        }
+
         const actionResult = await this.executeAction(action, connectionManager);
         
         if (!actionResult) {
@@ -1290,9 +688,41 @@ class MultiAgentExecutor {
         if (pageChanged) {
           console.log('🔄 Page state changed - triggering replanning');
           this.actionQueue = [];
+          ineffectiveCount = 0;
           break;
         }
         
+        // semantic effectiveness check
+        const effective = this.verifyAfterAction(action, beforeState, currentState, actionResult);
+        if (!effective) {
+          ineffectiveCount += 1;
+          console.log(`⚠️ Action deemed ineffective (count=${ineffectiveCount})`);
+          if (ineffectiveCount >= 2) {
+            console.log('🔄 Two ineffective actions - triggering replanning');
+            this.actionQueue = [];
+            break;
+          }
+        } else {
+          ineffectiveCount = 0;
+        }
+
+        // Handle screenshot results for context preservation (similar to BrowserBee)
+        if (actionResult?.screenshotRef && this.actionRegistry?.screenshotStore) {
+          const screenshotData = this.actionRegistry.screenshotStore.get(actionResult.screenshotRef);
+          if (screenshotData) {
+            // Store for next planning cycle
+            this.lastScreenshotRef = actionResult.screenshotRef;
+            console.log(`📸 Screenshot ${actionResult.screenshotRef} stored for planning context`);
+          }
+        }
+
+        if (ineffectiveCount >= 2) {
+          console.log('🔄 Multiple ineffective actions - triggering replanning');
+          this.actionQueue = [];
+          ineffectiveCount = 0;
+          break;
+        }
+
         // If batch only contains navigation/wait, force replan after execution
         if (this.actionQueue.every(a => ['navigate', 'wait'].includes(a.name))) {
           console.log('🔄 Only navigation/wait actions in batch - forcing replan');
@@ -1300,6 +730,12 @@ class MultiAgentExecutor {
           break;
         }
         
+        // Mark executed action key (for loop prevention)
+        this.recentActionKeys.add(actKey);
+        if (this.recentActionKeys.size > this.recentActionKeysMax) {
+          this.recentActionKeys = new Set(Array.from(this.recentActionKeys).slice(-this.recentActionKeysMax));
+        }
+
         // Small delay between actions
         await this.delay(500);
         
@@ -1329,6 +765,84 @@ class MultiAgentExecutor {
     }
     
     return results;
+  }
+
+  // Semantic post-action verification: treat an action as ineffective if neither URL, title,
+  // nor meaningful element count/text presence changed. Used implicitly within batch loop above.
+  verifyAfterAction(action, beforeState, afterState, actionResult) {
+    try {
+      if (!actionResult?.success) return false;
+      if (!beforeState || !afterState) return true;
+      
+      const urlChanged = (beforeState.pageInfo?.url || '') !== (afterState.pageInfo?.url || '');
+      const titleChanged = (beforeState.pageInfo?.title || '') !== (afterState.pageInfo?.title || '');
+      const countBefore = (beforeState.interactiveElements || []).length;
+      const countAfter = (afterState.interactiveElements || []).length;
+      const elementCountChanged = Math.abs(countAfter - countBefore) > 5;
+      
+      // Strong indicators of effectiveness
+      if (urlChanged || titleChanged || elementCountChanged) return true;
+      
+      // E-commerce specific effectiveness checks
+      if (action.name === 'click') {
+        const purpose = action.parameters?.purpose;
+        const beforeCartCount = this.extractCartCount(beforeState);
+        const afterCartCount = this.extractCartCount(afterState);
+        
+        // Check if cart count increased for add-to-cart actions
+        if (purpose === 'add-to-cart' && afterCartCount > beforeCartCount) {
+          console.log(`✅ Cart count increased: ${beforeCartCount} → ${afterCartCount}`);
+          return true;
+        }
+      }
+      
+      // For type actions, verify input contains the typed text
+      if (action.name === 'type') {
+        const sel = action.parameters?.selector;
+        const idx = action.parameters?.index;
+        const target = (afterState.interactiveElements || []).find(e => 
+          (sel && e.selector === sel) || (Number.isFinite(idx) && e.index === idx)
+        );
+        const typed = String(action.parameters?.text ?? '');
+        if (target && (target.text || target.textContent || '').includes(typed.slice(0, 10))) {
+          return true;
+        }
+      }
+      
+      // For scroll actions, check if new elements appeared or viewport changed
+      if (action.name === 'scroll') {
+        const viewportBefore = beforeState.viewportInfo?.scrollTop || 0;
+        const viewportAfter = afterState.viewportInfo?.scrollTop || 0;
+        if (Math.abs(viewportAfter - viewportBefore) > 100) return true;
+      }
+      
+      return false;
+    } catch {
+      return true; // Default to effective on error
+    }
+  }
+  
+  // Helper to extract cart count from page state
+  extractCartCount(state) {
+    try {
+      // Look for cart count in common locations
+      const cartElements = (state.interactiveElements || []).filter(el => 
+        el.selector?.includes('cart') || 
+        el.xpath?.includes('cart') ||
+        el.textContent?.match(/^\d+$/) // Numbers only
+      );
+      
+      for (const el of cartElements) {
+        const text = el.textContent || el.text || '';
+        const num = parseInt(text.trim());
+        if (!isNaN(num) && num >= 0 && num < 100) { // Reasonable cart count
+          return num;
+        }
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
   }
 
   // Clear element highlighting by calling getPageState with debugMode: false
@@ -1768,6 +1282,15 @@ class MultiAgentExecutor {
   buildEnhancedContextWithHistory() {
     const ctx = this.memoryManager.compressForPrompt(1200);
     
+    // Include latest screenshot if available (for visual context like BrowserBee)
+    let screenshotContext = '';
+    if (this.lastScreenshotRef && this.actionRegistry?.screenshotStore) {
+      const screenshotData = this.actionRegistry.screenshotStore.get(this.lastScreenshotRef);
+      if (screenshotData) {
+        screenshotContext = `\n## Visual Context\nRecent screenshot available: ${this.lastScreenshotRef} (${screenshotData.intent})\nTimestamp: ${screenshotData.timestamp}`;
+      }
+    }
+    
     return {
       ...ctx,
       procHistory: this.safeCall('formatProceduralSummaries', ctx.proceduralSummaries),
@@ -1778,7 +1301,8 @@ class MultiAgentExecutor {
       maxSteps: this.maxSteps,
       executionPhase: this.safeCall('determineExecutionPhase'),
       failurePatterns: this.safeCall('detectFailurePatterns'),
-      loopPrevention: this.safeCall('getLoopPreventionGuidance')
+      loopPrevention: this.safeCall('getLoopPreventionGuidance'),
+      screenshotContext
     };
   }
 
@@ -2021,612 +1545,10 @@ class MultiAgentExecutor {
   }
 }
 
-class MultiLLMService {
-  constructor(config = {}) {
-    this.config = config;
-    console.log('🤖 Universal LLM Service initialized with provider:', this.config.aiProvider || 'anthropic');
-  }
-
-  getModelName(provider, agentType = 'planner') {
-    const configuredModel = agentType === 'navigator' ? this.config.navigatorModel : 
-                           agentType === 'planner' ? this.config.plannerModel :
-                           agentType === 'validator' ? this.config.validatorModel : null;
-
-    if (configuredModel && this.isModelValidForProvider(configuredModel, provider)) {
-      return configuredModel;
-    }
-
-    const defaultModels = {
-      'anthropic': {
-        'navigator': 'claude-3-5-sonnet-20241022',
-        'planner': 'claude-3-5-sonnet-20241022',
-        'validator': 'claude-3-haiku-20240307'
-      },
-      'openai': {
-        'navigator': 'gpt-4o',
-        'planner': 'gpt-4o',
-        'validator': 'gpt-4o-mini'
-      },
-      'gemini': {
-        'navigator': 'gemini-2.5-flash',
-        'planner': 'gemini-2.5-flash',
-        'validator': 'gemini-2.5-flash'
-      },
-      'geminiGenerate': {
-        'navigator': 'gemini-2.5-flash',
-        'planner': 'gemini-2.5-flash',
-        'validator': 'gemini-2.5-flash',
-        'chat': 'gemini-2.5-flash'
-      }
-    };
-    
-    return defaultModels[provider]?.[agentType] || defaultModels[provider]?.['navigator'] || 'gemini-1.5-pro';
-  }
-
-  isModelValidForProvider(model, provider) {
-    const modelProviderMap = {
-      'claude-3-7-sonnet-20250219': 'anthropic',
-      'claude-3-5-sonnet-20241022': 'anthropic',
-      'claude-3-5-haiku-20241022': 'anthropic',
-      'claude-3-sonnet-20240229': 'anthropic', 
-      'claude-3-haiku-20240307': 'anthropic',
-      'claude-3-opus-20240229': 'anthropic',
-      'o1-preview': 'openai',
-      'o1-mini': 'openai',
-      'gpt-4o': 'openai',
-      'gpt-4o-mini': 'openai',
-      'gpt-4-turbo': 'openai',
-      'gpt-4': 'openai',
-      'gpt-3.5-turbo': 'openai',
-      'gemini-2.5-flash': 'gemini',
-      'gemini-2.5-pro': 'gemini',
-      'gemini-2.0-flash': 'gemini',
-      'gemini-1.5-pro': 'gemini',
-      'gemini-1.5-flash': 'gemini'
-    };
-    
-    // For geminiGenerate provider, all Gemini models are valid
-    if (provider === 'geminiGenerate') {
-      return modelProviderMap[model] === 'gemini';
-    }
-    
-    return modelProviderMap[model] === provider;
-  }
-
-  async call(messages, options = {}, agentType = 'planner') {
-    return await this.callForAgent(messages, options, agentType);
-  }
-
-  async callForChat(messages, options = {}) {
-    const provider = await this.determineProvider(true);
-    const modelName = this.getModelName(provider, 'chat');
-    
-    console.log(`🎯 DEBUG: Chat Provider=${provider}, ModelName=${modelName}`);
-    
-    const hasApiKey = this.checkApiKey(provider);
-    if (!hasApiKey) {
-      throw new Error(`${provider} API key not configured. Please add your API key in settings.`);
-    }
-    
-    try {
-      return await this.callProvider(provider, messages, { ...options, model: modelName });
-    } catch (error) {
-      console.error(`❌ ${provider} failed:`, error);
-      throw error;
-    }
-  }
-
-  async callForAgent(messages, options = {}, agentType = 'navigator') {
-    const provider = await this.determineProvider(false);
-    const modelName = this.getModelName(provider, agentType);
-    
-    console.log(`🎯 DEBUG: Agent Provider=${provider}, AgentType=${agentType}, ModelName=${modelName}`);
-    
-    const hasApiKey = this.checkApiKey(provider);
-    if (!hasApiKey) {
-      throw new Error(`${provider} API key not configured. Please add your API key in settings.`);
-    }
-    
-    try {
-      return await this.callProvider(provider, messages, { ...options, model: modelName });
-    } catch (error) {
-      console.error(`❌ ${provider} failed:`, error);
-      throw error;
-    }
-  }
-
-  async determineProvider(forChat = false) {
-    try {
-      // Check user preference for personal API
-      const storage = await chrome.storage.local.get(['userPreferPersonalAPI']);
-      const userPreferPersonalAPI = storage.userPreferPersonalAPI || false;
-      
-      // Check if personal API keys are configured
-      const hasPersonalKeys = !!(
-        this.config.anthropicApiKey || 
-        this.config.openaiApiKey || 
-        this.config.geminiApiKey
-      );
-      
-      // If user prefers personal API and keys are available, use configured provider
-      if (userPreferPersonalAPI && hasPersonalKeys) {
-        return this.config.aiProvider || 'gemini';
-      }
-      
-      // Otherwise, use geminiGenerate (free trial)
-      return 'geminiGenerate';
-    } catch (error) {
-      console.warn('Error determining provider, defaulting to geminiGenerate:', error);
-      return 'geminiGenerate';
-    }
-  }
-
-  checkApiKey(provider) {
-    switch (provider) {
-      case 'anthropic':
-        return !!this.config.anthropicApiKey;
-      case 'openai':
-        return !!this.config.openaiApiKey;
-      case 'gemini':
-        return !!this.config.geminiApiKey;
-      case 'geminiGenerate':
-        return true; 
-      default:
-        return false;
-    }
-  }
-
-  async callProvider(provider, messages, options) {
-    switch (provider) {
-      case 'anthropic':
-        return await this.callAnthropic(messages, options);
-      case 'openai':
-        return await this.callOpenAI(messages, options);
-      case 'gemini':
-        return await this.callGemini(messages, options);
-      case 'geminiGenerate':
-        return await this.callGeminiGenerate(messages, options);
-      default:
-        throw new Error(`Unsupported provider: ${provider}`);
-    }
-  }
-
-  async callAnthropic(messages, options = {}) {
-    if (!this.config.anthropicApiKey) {
-      throw new Error('Anthropic API key not configured');
-    }
-
-    const model = options.model || 'claude-3-5-sonnet-20241022';
-    console.log(`🔥 Calling Anthropic with model: ${model}`);
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': this.config.anthropicApiKey,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: model,
-        max_tokens: options.maxTokens || 4000,
-        temperature: options.temperature || 0.4,
-        messages: messages
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
-  }
-
-  async callOpenAI(messages, options = {}) {
-    if (!this.config.openaiApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
-
-    const model = options.model || 'gpt-4o';
-    console.log(`🔥 Calling OpenAI with model: ${model}`);
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.config.openaiApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        max_tokens: options.maxTokens || 4000,
-        temperature: options.temperature || 0.4
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-  }
-
-  async callGemini(messages, options = {}) {
-    if (!this.config.geminiApiKey) {
-      throw new Error('Gemini API key not configured');
-    }
-
-    const model = options.model || 'gemini-1.5-pro';
-    console.log(`🔥 Calling Gemini with model: ${model}`);
-
-    const geminiMessages = messages.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
-
-    const requestBody = {
-      contents: geminiMessages,
-      generationConfig: {
-        maxOutputTokens: options.maxTokens || 4000,
-        temperature: options.temperature || 0.4
-      }
-    };
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${this.config.geminiApiKey}`, 
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log('🔍 Raw Gemini response:', JSON.stringify(data, null, 2));
-    
-    // Handle empty or incomplete responses
-    if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('Empty response from Gemini API');
-    }
-
-    const candidate = data.candidates[0];
-    
-    // Handle MAX_TOKENS case
-    if (candidate.finishReason === 'MAX_TOKENS') {
-      throw new Error('Response exceeded maximum token limit. Try breaking down the task into smaller steps.');
-    }
-
-    // Handle empty content
-    if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
-      throw new Error('Incomplete response from Gemini API - missing content parts');
-    }
-
-    // Handle missing text
-    if (!candidate.content.parts[0].text) {
-      throw new Error('Incomplete response from Gemini API - missing text content');
-    }
-
-    return candidate.content.parts[0].text;
-  }
-
-  async callGeminiGenerate(messages, options = {}) {
-    console.log(`🔥 Calling GeminiGenerate API`);
-    
-    try {
-      // Get access token from chrome storage
-      const storage = await chrome.storage.local.get(['userAuth']);
-      const accessToken = storage.userAuth?.access_token;
-      
-      if (!accessToken) {
-        throw new Error('Access token not found. Please log in again.');
-      }
-
-      // Convert messages to prompt format
-      const prompt = messages.map(msg => msg.content).join('\n\n');
-      
-      const requestBody = {
-        prompt: prompt,
-        max_tokens: options.maxTokens || 1500,
-        temperature: options.temperature || 0.5
-      };
-
-      const response = await fetch(`${API_BASE_URL}/gemini/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`GeminiGenerate API error: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data.response) {
-        throw new Error('Invalid response from GeminiGenerate API');
-      }
-
-      return data.response;
-    } catch (error) {
-      console.error('GeminiGenerate API error:', error);
-      throw error;
-    }
-  }
-}
-
-class PersistentConnectionManager {
-  constructor(backgroundTaskManager) {
-    this.connections = new Map();
-    this.messageQueue = [];
-    this.backgroundTaskManager = backgroundTaskManager;
-    this.activeTask = null;
-    this.lastSentMessageId = new Map();
-    this.currentSessionId = null; // Track current session
-  }
-
-  async addConnection(connectionId, port) {
-    console.log(`🔗 Adding connection: ${connectionId}`);
-    
-    // Ensure we have a current session
-    if (!this.currentSessionId) {
-      this.currentSessionId = Date.now().toString();
-      console.log(`🆕 Auto-created new session: ${this.currentSessionId}`);
-    }
-    
-    this.connections.set(connectionId, {
-      port: port,
-      connected: true,
-      lastActivity: Date.now(),
-      sessionId: this.currentSessionId
-    });
-
-    try {
-      // Get stored messages and execution state
-      const storage = await chrome.storage.local.get([
-        'currentSessionMessages',
-        'isExecuting',
-        'activeTaskId',
-        'sessionId',
-        'disconnectedMessages'
-      ]);
-
-      // Merge and deduplicate messages
-      let allMessages = [];
-      
-      // Add current session messages first (if any)
-      if (storage.currentSessionMessages?.length > 0) {
-        allMessages.push(...storage.currentSessionMessages);
-      }
-      
-      // Add disconnected messages (if any)
-      if (storage.disconnectedMessages?.length > 0) {
-        allMessages.push(...storage.disconnectedMessages);
-      }
-
-      // Remove duplicates and sort by timestamp
-      if (allMessages.length > 0) {
-        const uniqueMessages = allMessages
-          .filter((message, index, self) => 
-            index === self.findIndex((m) => m.id === message.id))
-          .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-        console.log(`📤 Sending ${uniqueMessages.length} unique messages after deduplication`);
-        
-        // Store the deduplicated messages
-        await chrome.storage.local.set({ currentSessionMessages: uniqueMessages });
-        await chrome.storage.local.remove(['disconnectedMessages']);
-
-        // Send messages in order
-        uniqueMessages.forEach(message => {
-          this.safePortMessage(port, {
-            type: 'restore_message',
-            message
-          });
-        });
-      }
-
-      // Send current execution state if needed
-      if (storage.isExecuting && storage.sessionId === this.currentSessionId) {
-        this.safePortMessage(port, {
-          type: 'execution_state',
-          isExecuting: true,
-          activeTaskId: storage.activeTaskId,
-          sessionId: this.currentSessionId
-        });
-      }
-
-      // Send connected status
-      this.safePortMessage(port, {
-        type: 'connected',
-        sessionId: this.currentSessionId
-      });
-
-    } catch (error) {
-      console.error('Error handling connection setup:', error);
-    }
-  }
-
-  async removeConnection(connectionId) {
-    console.log(`🔌 Removing connection: ${connectionId}`);
-    
-    try {
-      // Get current session messages and execution state
-      const storage = await chrome.storage.local.get([
-        'currentSessionMessages',
-        'isExecuting',
-        'activeTaskId'
-      ]);
-      
-      const currentMessages = storage.currentSessionMessages || [];
-      
-      // Only store messages if there's an active task or there are messages
-      if ((storage.isExecuting && storage.activeTaskId) || currentMessages.length > 0) {
-        console.log(`📥 Storing ${currentMessages.length} messages for disconnected state`);
-        
-        // Store messages with timestamps for proper ordering
-        const timestampedMessages = currentMessages.map(msg => ({
-          ...msg,
-          timestamp: msg.timestamp || Date.now(),
-          disconnectedAt: Date.now()
-        }));
-        
-        await chrome.storage.local.set({
-          disconnectedMessages: timestampedMessages
-        });
-        
-        // Clear current session messages to prevent duplicates
-        await chrome.storage.local.remove(['currentSessionMessages']);
-      }
-      
-      this.connections.delete(connectionId);
-      
-    } catch (error) {
-      console.error('Error handling connection removal:', error);
-      this.connections.delete(connectionId);
-    }
-  }
-
-  async broadcast(message) {
-    // Add unique ID, session ID, and timestamp
-    message.id = Date.now() + Math.random();
-    message.sessionId = this.currentSessionId;
-    message.timestamp = Date.now();
-    
-    let messageSent = false;
-    
-    // Send to all connected ports
-    this.connections.forEach((connection, connectionId) => {
-      if (connection.connected && this.safePortMessage(connection.port, message)) {
-        messageSent = true;
-        this.lastSentMessageId.set(connectionId, message.id);
-      }
-    });
-
-    try {
-      // Get current messages
-      const storage = await chrome.storage.local.get(['currentSessionMessages']);
-      let currentMessages = storage.currentSessionMessages || [];
-      
-      // For task_complete messages, ensure the content is properly extracted and stored
-      let messageToStore = { ...message };
-      
-      // Special handling for task_complete messages to ensure content is accessible
-      if (message.type === 'task_complete' && message.result) {
-        const responseContent = message.result.response || message.result.message;
-        if (responseContent) {
-          // Ensure the message has the content directly accessible for restoration
-          messageToStore.content = responseContent;
-          messageToStore.isMarkdown = message.result.isMarkdown || false;
-          console.log('📝 Storing task_complete message with extracted content:', responseContent.substring(0, 100) + '...');
-        } else {
-          console.warn('⚠️ task_complete message has no response content:', message.result);
-        }
-      }
-      
-      // Add new message
-      currentMessages.push(messageToStore);
-      
-      // Remove duplicates by ID and sort by timestamp
-      currentMessages = currentMessages
-        .filter((msg, index, self) => 
-          index === self.findIndex((m) => m.id === msg.id))
-        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-      
-      // Keep only last 100 messages to prevent memory issues
-      if (currentMessages.length > 100) {
-        currentMessages = currentMessages.slice(-100);
-      }
-      
-      // Store updated messages
-      await chrome.storage.local.set({ currentSessionMessages: currentMessages });
-      
-      // Add to queue for future connections (only current session)
-      this.messageQueue.push(messageToStore);
-      
-      // Keep only last 20 messages in memory queue
-      if (this.messageQueue.length > 20) {
-        this.messageQueue = this.messageQueue.slice(-20);
-      }
-
-      if (!messageSent) {
-        console.log('📦 Message stored for background persistence:', message.type);
-      }
-    } catch (error) {
-      console.error('Error storing message:', error);
-    }
-  }
-
-  // Start new session (called when new chat is created)
-  startNewSession() {
-    this.currentSessionId = Date.now().toString();
-    console.log(`🆕 Starting new session: ${this.currentSessionId}`);
-    
-    // Clear old messages from different sessions
-    this.messageQueue = this.messageQueue.filter(msg => 
-      msg.sessionId === this.currentSessionId
-    );
-    
-    // Clear last sent message tracking for new session
-    this.lastSentMessageId.clear();
-    
-    return this.currentSessionId;
-  }
-
-  // Get current session ID
-  getCurrentSession() {
-    if (!this.currentSessionId) {
-      this.currentSessionId = Date.now().toString();
-    }
-    return this.currentSessionId;
-  }
-
-  // Clear all messages (for new chat)
-  clearMessages() {
-    console.log('🧹 Clearing all messages for new chat');
-    this.messageQueue = []; // Clear ALL messages
-    this.lastSentMessageId.clear(); // Clear all tracking
-    this.startNewSession();
-  }
-
-  safePortMessage(port, message) {
-    try {
-      if (port && typeof port.postMessage === 'function') {
-        port.postMessage(message);
-        return true;
-      }
-    } catch (error) {
-      console.error('Port message failed:', error);
-      return false;
-    }
-    return false;
-  }
-
-  setActiveTask(taskId) {
-    this.activeTask = taskId;
-  }
-
-  getActiveTask() {
-    return this.activeTask;
-  }
-}
-
 class BackgroundScriptAgent {
   constructor() {
-    this.backgroundTaskManager = new BackgroundTaskManager();
-    this.connectionManager = new PersistentConnectionManager(this.backgroundTaskManager);
+    this.backgroundTaskManager = new TaskManager();
+    this.connectionManager = new ConnectionManager(this.backgroundTaskManager);
     this.activeTasks = new Map();
     this.llmService = null;
     this.multiAgentExecutor = null;
