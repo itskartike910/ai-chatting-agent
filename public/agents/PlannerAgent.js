@@ -127,8 +127,6 @@ Task Components Completed: ${context.taskState?.completedComponents?.length || 0
 Task Progress: ${context.taskHistory?.map(h => h.component).join(' → ') || 'Starting task'}
 Recent Actions: ${recentActions.substring(0, 300)} (Increased context)
 
-${enhancedContext.screenshotContext || ''}
-
 # **VALIDATION FEEDBACK FROM PREVIOUS STEP**
 ${enhancedContext.lastValidation ? `
 Progress: ${enhancedContext.lastValidation.progress_percentage}% complete
@@ -194,7 +192,7 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
   "strategy": "High-level approach using current page elements (2-7 steps)",
   "batch_actions": [
     {
-      "action_type": "navigate|click|type|find_click|find_type|shop_search|add_to_cart|scroll|wait|wait_for_text|go_back|screenshot",
+      "action_type": "navigate|click|type|find_click|find_type|shop_search|add_to_cart|scroll|wait|wait_for_text|go_back",
       "parameters": {
         "url": "https://example.com/xyz", // for navigate (try to generate the most closest url to the platform which is more closest to the user message or task.)
         "index": 5, // for CLICKABLE and TYPEABLE elements only (PREFERRED over selector)

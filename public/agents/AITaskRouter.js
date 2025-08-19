@@ -90,7 +90,7 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
     "observation": "Detailed analysis of current page state and task requirements",
     "done": false,
     "strategy": "Step-by-step approach with clear completion criteria",
-    "next_action": "navigate|click|type|scroll|wait|find_click|find_type|add_to_cart|wait_for_text|go_back|screenshot", 
+    "next_action": "navigate|click|type|scroll|wait|find_click|find_type|add_to_cart|wait_for_text|go_back", 
     "direct_url": "https://most-closest-url-for-users-task",
     "index": "index of the element to click or type on if known",
     "selector": "selector of the element to click or type on if known",

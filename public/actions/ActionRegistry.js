@@ -396,47 +396,6 @@ export class ActionRegistry {
       }
     });
 
-    // Capture screenshot (content script will attempt html2canvas if available)
-    this.actions.set('screenshot', {
-      description: 'Capture a screenshot of the current tab viewport for visual analysis',
-      schema: { 
-        quality: 'number - JPEG quality hint (content-script dependent)',
-        intent: 'string - Why taking screenshot (for planning context)'
-      },
-      handler: async (input) => {
-        try {
-          const tab = await this.browserContext.getCurrentActiveTab();
-          if (!tab?.id) return { success:false, error:'No active tab', includeInMemory:true };
-          const res = await new Promise((resolve) => {
-            chrome.tabs.sendMessage(tab.id, { type: '__agent_capture_screenshot', quality: input.quality || 0.6 }, (resp) => resolve(resp));
-          });
-          if (res?.ok && res.imageData) {
-            // Store screenshot for later LLM use (similar to BrowserBee pattern)
-            const screenshotId = `screenshot-${Date.now()}`;
-            if (!this.screenshotStore) this.screenshotStore = new Map();
-            this.screenshotStore.set(screenshotId, {
-              imageData: res.imageData,
-              timestamp: new Date().toISOString(),
-              intent: input.intent || 'Visual context capture'
-            });
-            console.log(`📸 Screenshot ${screenshotId} stored for planning context`);
-            return { 
-              success: true, 
-              extractedContent: `Screenshot captured as ${screenshotId}`, 
-              screenshotRef: screenshotId,
-              includeInMemory: true
-            };
-          }
-          if (res?.ok && res.pageHtml) {
-            return { success:true, extractedContent:'HTML snapshot captured', pageHtml: res.pageHtml, includeInMemory:false };
-          }
-          return { success:false, error: res?.error || 'screenshot unavailable', includeInMemory:true };
-        } catch (e) {
-          return { success:false, error:e.message, extractedContent:`Screenshot failed: ${e.message}`, includeInMemory:true };
-        }
-      }
-    });
-
     // Enhanced add to cart action for e-commerce sites with automatic scrolling
     this.actions.set('add_to_cart', {
       description: 'Find and click add to cart button with e-commerce specific logic and auto-scroll',

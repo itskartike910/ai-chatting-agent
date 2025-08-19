@@ -706,16 +706,6 @@ class MultiAgentExecutor {
           ineffectiveCount = 0;
         }
 
-        // Handle screenshot results for context preservation (similar to BrowserBee)
-        if (actionResult?.screenshotRef && this.actionRegistry?.screenshotStore) {
-          const screenshotData = this.actionRegistry.screenshotStore.get(actionResult.screenshotRef);
-          if (screenshotData) {
-            // Store for next planning cycle
-            this.lastScreenshotRef = actionResult.screenshotRef;
-            console.log(`📸 Screenshot ${actionResult.screenshotRef} stored for planning context`);
-          }
-        }
-
         if (ineffectiveCount >= 2) {
           console.log('🔄 Multiple ineffective actions - triggering replanning');
           this.actionQueue = [];
@@ -1282,15 +1272,6 @@ class MultiAgentExecutor {
   buildEnhancedContextWithHistory() {
     const ctx = this.memoryManager.compressForPrompt(1200);
     
-    // Include latest screenshot if available (for visual context like BrowserBee)
-    let screenshotContext = '';
-    if (this.lastScreenshotRef && this.actionRegistry?.screenshotStore) {
-      const screenshotData = this.actionRegistry.screenshotStore.get(this.lastScreenshotRef);
-      if (screenshotData) {
-        screenshotContext = `\n## Visual Context\nRecent screenshot available: ${this.lastScreenshotRef} (${screenshotData.intent})\nTimestamp: ${screenshotData.timestamp}`;
-      }
-    }
-    
     return {
       ...ctx,
       procHistory: this.safeCall('formatProceduralSummaries', ctx.proceduralSummaries),
@@ -1301,8 +1282,7 @@ class MultiAgentExecutor {
       maxSteps: this.maxSteps,
       executionPhase: this.safeCall('determineExecutionPhase'),
       failurePatterns: this.safeCall('detectFailurePatterns'),
-      loopPrevention: this.safeCall('getLoopPreventionGuidance'),
-      screenshotContext
+      loopPrevention: this.safeCall('getLoopPreventionGuidance')
     };
   }
 
