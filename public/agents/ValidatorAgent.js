@@ -86,10 +86,22 @@ ${executionHistory.slice(-5).map((h, i) => {
 - Title: ${finalState.pageInfo?.title}
 - Domain: ${this.extractDomain(finalState.pageInfo?.url)}
 - Page Type: ${finalState.pageContext?.pageType || 'unknown'}
-- Has Login: ${finalState.pageContext?.isLoggedIn || false}
 
-# **VISIBLE PAGE ELEMENTS (first 15 for context)**
-${this.formatElements(finalState.interactiveElements?.slice(0, 15) || [])}
+# **VISIBLE PAGE ELEMENTS (first 20 for context)**
+${this.formatElements(finalState.interactiveElements?.slice(0, 20) || [])}
+
+# **VISUAL CONTEXT (Screenshot Analysis)**
+📸 A screenshot of the current page with highlighted interactive elements has been captured and is available as visual context. The screenshot shows:
+- The current page layout and design
+- Highlighted interactive elements (buttons, links, inputs, etc.) with their indexes
+- Visual positioning and styling of elements
+- Current page state and any visible content
+- Element boundaries and clickable areas
+- Form fields, search results, and action buttons
+- Navigation elements and interactive components
+- Visual confirmation of task completion (e.g., cart items, posted content, search results)
+
+Use this visual context along with the element data to accurately assess task completion by examining both the visual state of the page and the available interactive elements.
 
 # **PROGRESSIVE VALIDATION RULES:**
 
@@ -343,42 +355,14 @@ Break down the original task into logical components and assess each:
       // Limit text content to prevent token explosion
       const textContent = (el.textContent || '').trim();
       const limitedTextContent = textContent.length > 80 ? textContent.substring(0, 80) + '...' : textContent;
-      
-      const text = (el.text || '').trim();
-      const limitedText = text.length > 80 ? text.substring(0, 80) + '...' : text;
 
       // Limit selector length
       const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 150 ? selector.substring(0, 150) + '...' : selector;
+      const limitedSelector = selector.length > 100 ? selector.substring(0, 100) + '...' : selector;
 
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 150 ? xpath.substring(0, 150) + '...' : xpath;
-
-      // Process attributes to limit their length
-      const processedAttributes = {};
-      if (el.attributes) {
-        for (const [key, value] of Object.entries(el.attributes)) {
-          // Skip internal or redundant attributes
-          if (key.startsWith('_') || key === 'xpath' || key === 'selector') continue;
-          
-          // Skip empty or null values
-          if (!value) continue;
-          
-          // Convert value to string and limit length
-          const strValue = String(value);
-          if (key === 'href' || key === 'src' || key === 'data-url') {
-            // Limit URLs to 100 characters
-            processedAttributes[key] = strValue.length > 100 ? strValue.substring(0, 100) + '...' : strValue;
-          } else if (key === 'style' || key === 'class' || key.includes('data-')) {
-            // Limit style/class/data attributes to 50 characters
-            processedAttributes[key] = strValue.length > 50 ? strValue.substring(0, 50) + '...' : strValue;
-          } else {
-            // Limit other attributes to 80 characters
-            processedAttributes[key] = strValue.length > 80 ? strValue.substring(0, 80) + '...' : strValue;
-          }
-        }
-      }
+      const limitedXPath = xpath.length > 100 ? xpath.substring(0, 100) + '...' : xpath;
 
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
@@ -390,17 +374,13 @@ Break down the original task into logical components and assess each:
       };
       
       return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
-    Category: ${el.category || 'unknown'}
-    Purpose: ${el.purpose || 'general'} 
-    Type: ${el.type || 'unknown'}
-    Selector: ${limitedSelector}
-    XPath: ${limitedXPath}
-    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
-    TextContent: "${limitedTextContent}"
-    Text: "${limitedText}"
-    Attributes: ${JSON.stringify(processedAttributes)}
-    Bounds: ${JSON.stringify(simplifiedBounds)}
-}`;
+  Category: ${el.category || 'unknown'}
+  Purpose: ${el.purpose || 'general'}
+  Selector: ${limitedSelector}
+  XPath: ${limitedXPath} 
+  TextContent: "${limitedTextContent}" 
+  Bounds: ${JSON.stringify(simplifiedBounds)}
+      }`;
     }).join('\n\n');
   }
 

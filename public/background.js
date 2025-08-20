@@ -1776,10 +1776,10 @@ class BackgroundScriptAgent {
         throw new Error('LLM service not properly initialized. Please check your API key configuration.');
       }
 
-      const currentContext = await this.getCurrentPageContext();
+      const currentState = await this.multiAgentExecutor.getCurrentState();
       
-      console.log('🧠 Making single intelligent routing call...');
-      const intelligentResult = await this.taskRouter.analyzeAndRoute(task, currentContext);
+      console.log('🧠 Making single intelligent routing call with detailed page state...');
+      const intelligentResult = await this.taskRouter.analyzeAndRoute(task, currentState);
       
       console.log('🎯 Intelligent result:', intelligentResult);
 

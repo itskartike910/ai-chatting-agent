@@ -3,12 +3,12 @@ export class AITaskRouter {
     this.llmService = llmService;
   }
 
-  async analyzeAndRoute(userMessage, currentContext = {}) {
+  async analyzeAndRoute(userMessage, currentState = {}) {
     // Store userMessage for use in fallback methods.
     this.userMessage = userMessage;
     
     console.log('[AITaskRouter] userMessage:', userMessage,
-                'currentContext:', currentContext
+                'currentState:', currentState
               );
 
     try {
@@ -35,14 +35,23 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 # **USER MESSAGE**
 "${userMessage}"
 
-# **ENHANCED CURRENT CONTEXT**
-- URL: ${currentContext.url || 'unknown'}
-- Platform: ${this.detectPlatformFromUrl(currentContext.url)}
-- Elements Count: ${currentContext.elementsCount || 0}
-- Elements (First 40): ${this.formatElementsForContext(currentContext.interactiveElements?.slice(0, 40) || [])}
-- Page Title: ${currentContext.title || 'unknown'}
-- Device Type: ${currentContext.deviceType || 'mobile'}
-- Previous Tasks: ${currentContext.taskHistory ? currentContext.taskHistory.length : 0} completed components
+# **CURRENT PAGE STATE**
+- URL: ${currentState.pageInfo?.url || 'unknown'}
+- Platform: ${this.detectPlatformFromUrl(currentState.pageInfo?.url)}
+- Elements Count: ${currentState.interactiveElements?.length || 0}
+- Elements (First 40): ${this.formatElementsForContext(currentState.interactiveElements?.slice(0, 40) || [])}
+- Page Title: ${currentState.pageInfo?.title || 'unknown'}
+- Page Type: ${currentState.pageContext?.pageType || 'unknown'}
+
+# **VISUAL CONTEXT (Screenshot Analysis)**
+📸 A screenshot of the current page with highlighted interactive elements has been captured and is available as visual context. The screenshot shows:
+- The current page layout and design
+- Highlighted interactive elements (buttons, links, inputs, etc.) with their indexes
+- Visual positioning and styling of elements
+- Current page state and any visible content
+- Element boundaries and clickable areas
+
+Use this visual context along with the element data to make accurate decisions about navigation and automation.
 
 # **INTELLIGENT AUTOMATION STRATEGY**
 
@@ -201,30 +210,14 @@ Always provide complete, well-formatted responses!
     return elements.map(el => {
       const textContent = (el.textContent || '').trim();
       const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
-      
-      const text = (el.text || '').trim();
-      const limitedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
-
+ 
       // Limit selector length
       const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 150 ? selector.substring(0, 150) + '...' : selector;
+      const limitedSelector = selector.length > 100 ? selector.substring(0, 100) + '...' : selector;
 
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 150 ? xpath.substring(0, 150) + '...' : xpath;
-
-      // Process attributes to limit their length
-      const processedAttributes = {};
-      if (el.attributes) {
-        for (const [key, value] of Object.entries(el.attributes)) {
-          // Skip internal or redundant attributes
-          if (key.startsWith('_') || key === 'xpath' || key === 'selector') continue;
-          
-          // Convert value to string and limit length
-          const strValue = String(value || '');
-          processedAttributes[key] = strValue.length > 100 ? strValue.substring(0, 100) + '...' : strValue;
-        }
-      }
+      const limitedXPath = xpath.length > 100 ? xpath.substring(0, 100) + '...' : xpath;
 
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
@@ -236,16 +229,12 @@ Always provide complete, well-formatted responses!
       };
       
       return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
-    Category: ${el.category || 'unknown'}
-    Purpose: ${el.purpose || 'general'} 
-    Type: ${el.type || 'unknown'}
-    Selector: ${limitedSelector}
-    XPath: ${limitedXPath}
-    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
-    TextContent: "${limitedTextContent}"
-    Text: "${limitedText}"
-    Attributes: ${JSON.stringify(processedAttributes)}
-    Bounds: ${JSON.stringify(simplifiedBounds)}
+  Category: ${el.category || 'unknown'}
+  Purpose: ${el.purpose || 'general'}
+  Selector: ${limitedSelector}
+  XPath: ${limitedXPath} 
+  TextContent: "${limitedTextContent}" 
+  Bounds: ${JSON.stringify(simplifiedBounds)}
 }`;
     }).join('\n\n');
   }

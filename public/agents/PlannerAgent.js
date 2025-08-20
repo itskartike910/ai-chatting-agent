@@ -59,7 +59,7 @@ export class PlannerAgent {
       .join('\n');
     
     const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
-    const elements = this.formatCompleteElements(currentState.interactiveElements?.slice(0, 80) || []);
+    const elements = this.formatCompleteElements(currentState.interactiveElements?.slice(0, 100) || []);
     
     console.log('[PlannerAgent] userTask:', userTask, 
                 'currentState:', currentState, 
@@ -104,7 +104,7 @@ Create strategic BATCH PLANS with 2-7 sequential actions that can execute WITHOU
 NEVER use these indices: ${failedIndicesForLLM || 'None'}
 ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT working. Find different elements!' : ''}
 
-# **ENHANCED MOBILE PAGE STATE**
+# **CURRENT PAGE STATE**
 - URL: ${currentState.pageInfo?.url || 'unknown'}
 - Title: ${currentState.pageInfo?.title || 'unknown'} 
 - Domain: ${this.extractDomain(currentState.pageInfo?.url)}
@@ -116,8 +116,20 @@ ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT worki
 # **ELEMENT ANALYSIS**
 - Total Elements: ${currentState.interactiveElements?.length || 0}
 
-# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 80 elements)**
+# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 100 elements)**
 ${elements}
+
+# **VISUAL CONTEXT (Screenshot Analysis)**
+📸 A screenshot of the current page with highlighted interactive elements has been captured and is available as visual context. The screenshot shows:
+- The current page layout and design
+- Highlighted interactive elements (buttons, links, inputs, etc.) with their indexes
+- Visual positioning and styling of elements
+- Current page state and any visible content
+- Element boundaries and clickable areas
+- Search interfaces, forms, and action buttons
+- Product listings, navigation menus, and interactive components
+
+Use this visual context along with the element data to create accurate batch plans that leverage the current page's visual layout and interactive elements.
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**
 Current Step: ${context.currentStep}/50 (Enhanced limit for complex social/shopping tasks)
@@ -163,12 +175,9 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
 ## **ACTIONABLE STEP DIVISION:**
 - Break complex tasks into current-page-actionable chunks
 - Example 1: "Search for iPhone on Amazon and add to cart the first one" = 
-  1. Navigate to Amazon (if not there)
-  2. Find search box and search button on current page
-  3. Type "iPhone" in search box
-  4. Click search button
-  5. Click the first item in the search results (make sure your are clicking on the item element not the other elements like 1st index element)
-  6. Click the add to cart button (scroll down if the add to cart button is not visible)
+  1. Navigate to Amazon s?k=iphone (if not there) (try to generate the most closest url to the platform which is more closest to the user message or task.)
+  2. Click the first item in the search results (make sure your are clicking on the item element not the other elements like 1st index element)
+  3. Click the add to cart button (scroll down if the add to cart button is not visible)
 - Each step uses only currently visible elements
 
 ## **ELEMENT SELECTION RULES:**
@@ -384,43 +393,15 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
     return elements.map((el, index) => {
       const textContent = (el.textContent || '').trim();
       const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
-      
-      const text = (el.text || '').trim();
-      const limitedText = text.length > 100 ? text.substring(0, 100) + '...' : text;
-
+ 
       // Limit selector length
       const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 150 ? selector.substring(0, 150) + '...' : selector;
+      const limitedSelector = selector.length > 100 ? selector.substring(0, 100) + '...' : selector;
 
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 150 ? xpath.substring(0, 150) + '...' : xpath;
-
-      // Process attributes to limit their length
-      const processedAttributes = {};
-      if (el.attributes) {
-        for (const [key, value] of Object.entries(el.attributes)) {
-          // Skip internal or redundant attributes
-          if (key.startsWith('_') || key === 'xpath' || key === 'selector') continue;
-          
-          // Skip empty or null values
-          if (!value) continue;
-          
-          // Convert value to string and limit length
-          const strValue = String(value);
-          if (key === 'href' || key === 'src' || key === 'data-url') {
-            // Limit URLs to 100 characters
-            processedAttributes[key] = strValue.length > 100 ? strValue.substring(0, 100) + '...' : strValue;
-          } else if (key === 'style' || key === 'class' || key.includes('data-')) {
-            // Limit style/class/data attributes to 50 characters
-            processedAttributes[key] = strValue.length > 50 ? strValue.substring(0, 50) + '...' : strValue;
-          } else {
-            // Limit other attributes to 80 characters
-            processedAttributes[key] = strValue.length > 80 ? strValue.substring(0, 80) + '...' : strValue;
-          }
-        }
-      }
-
+      const limitedXPath = xpath.length > 100 ? xpath.substring(0, 100) + '...' : xpath;
+ 
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
       const simplifiedBounds = {
@@ -431,16 +412,12 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
       };
       
       return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
-    Category: ${el.category || 'unknown'}
-    Purpose: ${el.purpose || 'general'} 
-    Type: ${el.type || 'unknown'}
-    Selector: ${limitedSelector}
-    XPath: ${limitedXPath}
-    Interactive: ${el.isInteractive}, Visible: ${el.isVisible}
-    TextContent: "${limitedTextContent}"
-    Text: "${limitedText}"
-    Attributes: ${JSON.stringify(processedAttributes)}
-    Bounds: ${JSON.stringify(simplifiedBounds)}
+  Category: ${el.category || 'unknown'}
+  Purpose: ${el.purpose || 'general'}
+  Selector: ${limitedSelector}
+  XPath: ${limitedXPath} 
+  TextContent: "${limitedTextContent}" 
+  Bounds: ${JSON.stringify(simplifiedBounds)}
 }`;
     }).join('\n\n');
   }

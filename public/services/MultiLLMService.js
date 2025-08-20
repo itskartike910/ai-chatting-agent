@@ -32,12 +32,12 @@ export class MultiLLMService {
         // Wait a moment for highlighting to complete
         await new Promise(resolve => setTimeout(resolve, 500));
         
-        // Capture screenshot using the correct API: chrome.wootz.captureScreenshot()
-        // It returns a Promise directly and takes no parameters.
+        // Capture screenshot using the API: chrome.wootz.captureScreenshot()
         const screenshotResult = await chrome.wootz.captureScreenshot();
         
         if (screenshotResult && screenshotResult.success && screenshotResult.dataUrl) {
           console.log(`✅ Screenshot captured: ~${Math.round(screenshotResult.dataUrl.length * 0.75 / 1024)}KB`);
+          console.log('🔍 Screenshot dataUrl:', screenshotResult.dataUrl);
           return screenshotResult.dataUrl;
         } else {
           console.log('❌ Screenshot capture failed:', screenshotResult?.error || 'No dataUrl returned');
@@ -117,27 +117,6 @@ export class MultiLLMService {
   
     async call(messages, options = {}, agentType = 'planner') {
       return await this.callForAgent(messages, options, agentType);
-    }
-  
-    async callForChat(messages, options = {}) {
-      const provider = await this.determineProvider(true);
-      const modelName = this.getModelName(provider, 'chat');
-      
-      console.log(`🎯 DEBUG: Chat Provider=${provider}, ModelName=${modelName}`);
-      
-      const hasApiKey = this.checkApiKey(provider);
-      if (!hasApiKey) {
-        throw new Error(`${provider} API key not configured. Please add your API key in settings.`);
-      }
-      
-      try {
-        // Capture screenshot for chat calls too
-        const screenshot = await this.captureScreenshot();
-        return await this.callProvider(provider, messages, { ...options, model: modelName, screenshot });
-      } catch (error) {
-        console.error(`❌ ${provider} failed:`, error);
-        throw error;
-      }
     }
   
     async callForAgent(messages, options = {}, agentType = 'navigator') {
