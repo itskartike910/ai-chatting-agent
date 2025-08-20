@@ -7,6 +7,47 @@ export class MultiLLMService {
       this.config = config;
       console.log('🤖 Universal LLM Service initialized with provider:', this.config.aiProvider || 'anthropic');
     }
+
+    // Capture screenshot using Wootz API
+    async captureScreenshot() {
+      try {
+        console.log('📸 Capturing screenshot using chrome.wootz.captureScreenshot()...');
+        
+        // First highlight elements with debug mode
+        console.log('🔍 Highlighting elements with debug mode...');
+        await new Promise((resolve) => {
+          chrome.wootz.getPageState({
+            debugMode: true,
+            includeHidden: true
+          }, (result) => {
+            if (result.success) {
+              console.log('✅ Elements highlighted successfully');
+            } else {
+              console.log('⚠️ Element highlighting failed:', result.error);
+            }
+            resolve();
+          });
+        });
+        
+        // Wait a moment for highlighting to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Capture screenshot using the correct API: chrome.wootz.captureScreenshot()
+        // It returns a Promise directly and takes no parameters.
+        const screenshotResult = await chrome.wootz.captureScreenshot();
+        
+        if (screenshotResult && screenshotResult.success && screenshotResult.dataUrl) {
+          console.log(`✅ Screenshot captured: ~${Math.round(screenshotResult.dataUrl.length * 0.75 / 1024)}KB`);
+          return screenshotResult.dataUrl;
+        } else {
+          console.log('❌ Screenshot capture failed:', screenshotResult?.error || 'No dataUrl returned');
+          return null;
+        }
+      } catch (error) {
+        console.error('❌ Screenshot capture error:', error);
+        return null;
+      }
+    }
   
     getModelName(provider, agentType = 'planner') {
       const configuredModel = agentType === 'navigator' ? this.config.navigatorModel : 
@@ -90,7 +131,9 @@ export class MultiLLMService {
       }
       
       try {
-        return await this.callProvider(provider, messages, { ...options, model: modelName });
+        // Capture screenshot for chat calls too
+        const screenshot = await this.captureScreenshot();
+        return await this.callProvider(provider, messages, { ...options, model: modelName, screenshot });
       } catch (error) {
         console.error(`❌ ${provider} failed:`, error);
         throw error;
@@ -109,7 +152,9 @@ export class MultiLLMService {
       }
       
       try {
-        return await this.callProvider(provider, messages, { ...options, model: modelName });
+        // Always capture screenshot for agent calls
+        const screenshot = await this.captureScreenshot();
+        return await this.callProvider(provider, messages, { ...options, model: modelName, screenshot });
       } catch (error) {
         console.error(`❌ ${provider} failed:`, error);
         throw error;
@@ -180,6 +225,38 @@ export class MultiLLMService {
       const model = options.model || 'claude-3-5-sonnet-20241022';
       console.log(`🔥 Calling Anthropic with model: ${model}`);
   
+      // Prepare messages with screenshot if available
+      let processedMessages = [...messages];
+      
+      if (options.screenshot) {
+        // For Anthropic, add screenshot as a separate message with image content
+        const screenshotMessage = {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/jpeg',
+                data: options.screenshot.split(',')[1] // Remove data URL prefix
+              }
+            },
+            {
+              type: 'text',
+              text: 'This is a screenshot of the current web page with highlighted interactive elements. Use this visual context along with the text prompt to provide accurate responses.'
+            }
+          ]
+        };
+        
+        // Insert screenshot message before the last user message
+        const lastUserIndex = processedMessages.findLastIndex(msg => msg.role === 'user');
+        if (lastUserIndex !== -1) {
+          processedMessages.splice(lastUserIndex, 0, screenshotMessage);
+        } else {
+          processedMessages.unshift(screenshotMessage);
+        }
+      }
+  
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -192,7 +269,7 @@ export class MultiLLMService {
           model: model,
           max_tokens: options.maxTokens || 4000,
           temperature: options.temperature || 0.4,
-          messages: messages
+          messages: processedMessages
         })
       });
   
@@ -213,6 +290,36 @@ export class MultiLLMService {
       const model = options.model || 'gpt-4o';
       console.log(`🔥 Calling OpenAI with model: ${model}`);
   
+      // Prepare messages with screenshot if available
+      let processedMessages = [...messages];
+      
+      if (options.screenshot) {
+        // For OpenAI, add screenshot as a separate message with image content
+        const screenshotMessage = {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: options.screenshot
+              }
+            },
+            {
+              type: 'text',
+              text: 'This is a screenshot of the current web page with highlighted interactive elements. Use this visual context along with the text prompt to provide accurate responses.'
+            }
+          ]
+        };
+        
+        // Insert screenshot message before the last user message
+        const lastUserIndex = processedMessages.findLastIndex(msg => msg.role === 'user');
+        if (lastUserIndex !== -1) {
+          processedMessages.splice(lastUserIndex, 0, screenshotMessage);
+        } else {
+          processedMessages.unshift(screenshotMessage);
+        }
+      }
+  
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -221,7 +328,7 @@ export class MultiLLMService {
         },
         body: JSON.stringify({
           model: model,
-          messages: messages,
+          messages: processedMessages,
           max_tokens: options.maxTokens || 4000,
           temperature: options.temperature || 0.4
         })
@@ -244,13 +351,44 @@ export class MultiLLMService {
       const model = options.model || 'gemini-1.5-pro';
       console.log(`🔥 Calling Gemini with model: ${model}`);
   
-      const geminiMessages = messages.map(msg => ({
+      // Prepare messages with screenshot if available
+      let processedMessages = messages.map(msg => ({
         role: msg.role === 'user' ? 'user' : 'model',
         parts: [{ text: msg.content }]
       }));
+      
+      if (options.screenshot) {
+        // For Gemini, add screenshot as inline_data in the first user message
+        if (processedMessages.length > 0 && processedMessages[0].role === 'user') {
+          const base64Data = options.screenshot.split(',')[1]; // Remove data URL prefix
+          processedMessages[0].parts.unshift({
+            inline_data: {
+              mime_type: 'image/jpeg',
+              data: base64Data
+            }
+          });
+        } else {
+          // Create a new user message with screenshot
+          const base64Data = options.screenshot.split(',')[1];
+          processedMessages.unshift({
+            role: 'user',
+            parts: [
+              {
+                inline_data: {
+                  mime_type: 'image/jpeg',
+                  data: base64Data
+                }
+              },
+              {
+                text: 'This is a screenshot of the current web page with highlighted interactive elements. Use this visual context along with the text prompt to provide accurate responses.'
+              }
+            ]
+          });
+        }
+      }
   
       const requestBody = {
-        contents: geminiMessages,
+        contents: processedMessages,
         generationConfig: {
           maxOutputTokens: options.maxTokens || 4000,
           temperature: options.temperature || 0.4
@@ -312,7 +450,12 @@ export class MultiLLMService {
         }
   
         // Convert messages to prompt format
-        const prompt = messages.map(msg => msg.content).join('\n\n');
+        let prompt = messages.map(msg => msg.content).join('\n\n');
+        
+        // Add screenshot context if available
+        if (options.screenshot) {
+          prompt = `[SCREENSHOT CONTEXT: A screenshot of the current web page with highlighted interactive elements is available. Use this visual context to provide accurate responses.]\n\n${prompt}`;
+        }
         
         const requestBody = {
           prompt: prompt,
