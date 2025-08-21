@@ -539,6 +539,35 @@ Skip index/selector for navigate/wait/scroll.
       }
     }
     
+    // If exact click/type failed, try heuristic actions
+    if (lastAction && lastAction.content?.includes('failed')) {
+      if (lastAction.action === 'click') {
+        return {
+          thinking: 'Previous click failed, trying find_click with text matching',
+          action: {
+            name: 'find_click',
+            parameters: {
+              text: 'search', // or appropriate text
+              intent: 'Find and click element using text matching'
+            }
+          }
+        };
+      }
+      if (lastAction.action === 'type') {
+        return {
+          thinking: 'Previous type failed, trying find_type with query matching',
+          action: {
+            name: 'find_type',
+            parameters: {
+              query: 'search', // or appropriate query
+              text: 'search term',
+              intent: 'Find and type in input field using query matching'
+            }
+          }
+        };
+      }
+    }
+    
     return {
       thinking: `Context-aware fallback for ${domain}. Step ${context?.currentStep || 0}. ${lastAction ? `Last action: ${lastAction.action}` : 'No previous actions'}. Using enhanced context to determine best fallback approach.`,
       action: fallbackAction

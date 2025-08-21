@@ -206,13 +206,13 @@ class MultiAgentExecutor {
             message: `📋 Batch completed: ${batchResults.executedActions.length} actions executed`
           });
           
-          // Optimized validation with reduced frequency to improve speed
-          const shouldRunValidation = batchResults.anySuccess && (
-            this.currentBatchPlan?.shouldValidate || 
-            this.currentStep >= 15 || // Validate every 15 steps (reduced frequency)
-            this.currentStep % 8 === 0 || // Validate every 8 steps (reduced frequency)
-            this.executionHistory.filter(h => h.success).length >= 5 // Validate after 5 successful actions (increased threshold)
-          );
+          const shouldRunValidation = (
+            this.currentBatchPlan?.shouldValidate || // Planner-requested only
+            (this.currentStep >= 10 && this.currentStep % 10 === 0) || // Reduced frequency
+            (this.executionHistory.filter(h => h.success).length >= 10 && 
+            this.executionHistory.slice(-3).every(h => h.success)) // After multiple successes
+          ) && batchResults.anySuccess;
+
           
           if (shouldRunValidation) {
             console.log('🔍 Running progressive validation as requested by planner...');
@@ -974,9 +974,9 @@ class MultiAgentExecutor {
             };
 
             console.log(`📊 Enhanced Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
-            console.log(`📱 Viewport: ${processedState.viewportInfo.deviceType} ${processedState.viewportInfo.width}x${processedState.viewportInfo.height}`);
-            console.log(`🏷️ Categories:`, processedState.elementCategories);
-            console.log(`⚡ Capabilities:`, processedState.pageContext.capabilities);
+            // console.log(`📱 Viewport: ${processedState.viewportInfo.deviceType} ${processedState.viewportInfo.width}x${processedState.viewportInfo.height}`);
+            // console.log(`🏷️ Categories:`, processedState.elementCategories);
+            // console.log(`⚡ Capabilities:`, processedState.pageContext.capabilities);
             
             // Store last page state for validation
             this.lastPageState = processedState;
@@ -1399,17 +1399,28 @@ class MultiAgentExecutor {
     const availableSelectors = (currentState.interactiveElements || []).map(el => el.selector);
 
     return batchActions.map(action => {
-      // Only allow index or selector from page state
+      if (['find_click', 'find_type', 'add_to_cart', 'shop_search'].includes(action.action_type)) {
+        return {
+          name: action.action_type,
+          parameters: action.parameters
+        };
+      }
+      
+      // Only validate exact indices for basic actions
       if (action.action_type === 'click' || action.action_type === 'type' || action.action_type === 'fill') {
-        // Prefer index if available
         if (action.parameters.index !== undefined && availableIndices.includes(action.parameters.index)) {
-          // Valid index, use as is
+          return {
+            name: action.action_type,
+            parameters: action.parameters
+          };
         } else if (action.parameters.selector && availableSelectors.includes(action.parameters.selector)) {
-          // Index missing or invalid, use selector from page state
           delete action.parameters.index;
+          return {
+            name: action.action_type,
+            parameters: action.parameters
+          };
         } else {
-          // Neither valid index nor selector from page state, skip this action
-          return null;
+          return null; // Skip invalid basic actions
         }
       }
       // Loop prevention: skip if failed 3+ times

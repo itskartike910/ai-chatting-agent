@@ -61,17 +61,17 @@ export class PlannerAgent {
     const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
     const elements = this.formatCompleteElements(currentState.interactiveElements?.slice(0, 100) || []);
     
-    console.log('[PlannerAgent] userTask:', userTask, 
-                'currentState:', currentState, 
-                'executionHistory:', executionHistory, 
-                'context:', context, 
-                'recentActions:', recentActions, 
-                'proceduralHistory:', proceduralHistory, 
-                'progressAnalysis:', progressAnalysis, 
-                'failedActionsSummary:', failedActionsSummary, 
-                'failedIndices:', failedIndicesForLLM,
-                'enhancedContext', enhancedContext,
-                'Formatted elements', elements);
+    // console.log('[PlannerAgent] userTask:', userTask, 
+    //             'currentState:', currentState, 
+    //             'executionHistory:', executionHistory, 
+    //             'context:', context, 
+    //             'recentActions:', recentActions, 
+    //             'proceduralHistory:', proceduralHistory, 
+    //             'progressAnalysis:', progressAnalysis, 
+    //             'failedActionsSummary:', failedActionsSummary, 
+    //             'failedIndices:', failedIndicesForLLM,
+    //             'enhancedContext', enhancedContext,
+    //             'Formatted elements', elements);
 
     const plannerPrompt = `## CONTEXT HASH: ${context.currentStep}-${context.proceduralSummaries.length}
 

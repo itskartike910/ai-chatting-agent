@@ -133,6 +133,7 @@ export class MultiLLMService {
       try {
         // Always capture screenshot for agent calls
         const screenshot = await this.captureScreenshot();
+        console.log('📩📫 Messages', messages);
         return await this.callProvider(provider, messages, { ...options, model: modelName, screenshot });
       } catch (error) {
         console.error(`❌ ${provider} failed:`, error);

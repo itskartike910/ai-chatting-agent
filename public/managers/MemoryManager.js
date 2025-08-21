@@ -49,7 +49,7 @@ export class MemoryManager {
   
     getContext() {
       return {
-        recentMessages: this.messages.slice(-10).map(m => ({
+        recentMessages: this.messages.slice(-5).map(m => ({
           ...m,
           content: this.ensureString(m.content)
         })),
@@ -59,7 +59,7 @@ export class MemoryManager {
     }
   
     // Enhanced context compressor with increased limits
-    compressForPrompt(maxTokens = 4000) {
+    compressForPrompt(maxTokens = 2000) {
       const ctx = this.getContext();
       const json = JSON.stringify(ctx);
       if (json.length > maxTokens * 4 && ctx.proceduralSummaries.length) {
