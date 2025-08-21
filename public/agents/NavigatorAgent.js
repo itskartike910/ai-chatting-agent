@@ -83,7 +83,7 @@ ${recentActions}
 ${failedActionsNav ? `# **RECENT FAILURES**\n${failedActionsNav}` : ''}
 
 # **AVAILABLE ACTIONS**
-navigate(url), click(index|selector), type(index|selector,text), find_click(text,purpose,category,context), find_type(query,text), shop_search(query,site,intent), add_to_cart(product_context,intent), scroll(direction,amount), wait(duration), wait_for_text(text,timeout), go_back()
+navigate(url), click(index|selector), type(index|selector,text), find_click(text,purpose,category,context), find_type(query,text), scroll(direction,amount), wait(duration), wait_for_text(text,timeout), go_back()
 
 # **OUTPUT FORMAT - MUST BE COMPLETE**
 **CRITICAL**: Return COMPLETE JSON response - NO TRUNCATION OR TRIMMING ALLOWED

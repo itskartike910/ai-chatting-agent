@@ -678,12 +678,12 @@ class MultiAgentExecutor {
 
         const pageChanged = urlChanged || elementCountChanged || titleChanged || modalStateChanged;
         
-        if (action.name === 'click' && action.parameters?.index !== undefined && 
-            actionResult.success && !pageChanged) {
-          const elementIndex = action.parameters.index;
-          this.failedElements.add(elementIndex);
-          console.log(`⚠️ Element ${elementIndex} clicked successfully but no significant page change - marking as potentially ineffective`);
-        }
+        // if (action.name === 'click' && action.parameters?.index !== undefined && 
+        //     actionResult.success && !pageChanged) {
+        //   const elementIndex = action.parameters.index;
+        //   this.failedElements.add(elementIndex);
+        //   console.log(`⚠️ Element ${elementIndex} clicked successfully but no significant page change - marking as potentially ineffective`);
+        // }
         
         if (pageChanged) {
           console.log('🔄 Page state changed - triggering replanning');
@@ -697,8 +697,8 @@ class MultiAgentExecutor {
         if (!effective) {
           ineffectiveCount += 1;
           console.log(`⚠️ Action deemed ineffective (count=${ineffectiveCount})`);
-          if (ineffectiveCount >= 2) {
-            console.log('🔄 Two ineffective actions - triggering replanning');
+          if (ineffectiveCount >= 3) {
+            console.log('🔄 Three ineffective actions - triggering replanning');
             this.actionQueue = [];
             break;
           }
@@ -1399,7 +1399,7 @@ class MultiAgentExecutor {
     const availableSelectors = (currentState.interactiveElements || []).map(el => el.selector);
 
     return batchActions.map(action => {
-      if (['find_click', 'find_type', 'add_to_cart', 'shop_search'].includes(action.action_type)) {
+      if (['find_click', 'find_type'].includes(action.action_type)) {
         return {
           name: action.action_type,
           parameters: action.parameters

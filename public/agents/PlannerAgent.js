@@ -108,7 +108,6 @@ ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT worki
 - URL: ${currentState.pageInfo?.url || 'unknown'}
 - Title: ${currentState.pageInfo?.title || 'unknown'} 
 - Domain: ${this.extractDomain(currentState.pageInfo?.url)}
-- Device: ${currentState.viewportInfo?.deviceType || 'mobile'}
 
 # **PAGE CONTEXT**
 - Page Type: ${currentState.pageContext?.pageType || 'unknown'}
@@ -201,7 +200,7 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
   "strategy": "High-level approach using current page elements (2-7 steps)",
   "batch_actions": [
     {
-      "action_type": "navigate|click|type|find_click|find_type|shop_search|add_to_cart|scroll|wait|wait_for_text|go_back",
+      "action_type": "navigate|click|type|find_click|find_type|scroll|wait|wait_for_text|go_back",
       "parameters": {
         "url": "https://example.com/xyz", // for navigate (try to generate the most closest url to the platform which is more closest to the user message or task.)
         "index": 5, // for CLICKABLE and TYPEABLE elements only (PREFERRED over selector)
@@ -210,9 +209,6 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
         "purpose": "submit|add-to-cart|product-link",
         "category": "action|form|navigation", 
         "context": "shopping context like carbonara ingredients", // for find_click
-        "query": "placeholder/name/label for find_type OR product name for shop_search",
-        "site": "amazon|flipkart|generic", // for shop_search
-        "product_context": "product description for add_to_cart", // for add_to_cart
         "direction": "down/up", // for scroll
         "amount": 500, // for scroll
         "duration": 2000, // for wait

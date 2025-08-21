@@ -87,8 +87,8 @@ ${executionHistory.slice(-5).map((h, i) => {
 - Domain: ${this.extractDomain(finalState.pageInfo?.url)}
 - Page Type: ${finalState.pageContext?.pageType || 'unknown'}
 
-# **VISIBLE PAGE ELEMENTS (first 20 for context)**
-${this.formatElements(finalState.interactiveElements?.slice(0, 20) || [])}
+# **VISIBLE PAGE ELEMENTS (first 15 for context)**
+${this.formatElements(finalState.interactiveElements?.slice(0, 15) || [])}
 
 # **VISUAL CONTEXT (Screenshot Analysis)**
 📸 A screenshot of the current page with highlighted interactive elements has been captured and is available as visual context. The screenshot shows:

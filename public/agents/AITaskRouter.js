@@ -99,13 +99,12 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
     "observation": "Detailed analysis of current page state and task requirements",
     "done": false,
     "strategy": "Step-by-step approach with clear completion criteria",
-    "next_action": "navigate|click|type|scroll|wait|find_click|find_type|add_to_cart|wait_for_text|go_back", 
+    "next_action": "navigate|click|type|scroll|wait|find_click|find_type|wait_for_text|go_back", 
     "direct_url": "https://most-closest-url-for-users-task",
     "index": "index of the element to click or type on if known",
     "selector": "selector of the element to click or type on if known",
     "parameters": {
         "text": "for find_click (button/link text) or wait_for_text",
-        "purpose": "optional purpose e.g. submit, add-to-cart",
         "category": "optional category e.g. action, form, navigation",
         "query": "for find_type to identify input by placeholder/name/label",
         "amount": 500,
@@ -115,10 +114,7 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
     "reasoning": "Why this approach will achieve the user's goal efficiently",
     "completion_criteria": "Specific indicators that show task is 100% complete",
     "workflow_type": "social_media|shopping|search|authentication|content_extraction",
-    "requires_auth": true|false,
-    "task_components": ["component1", "component2", "component3"],
-    "expected_steps": 3,
-    "success_indicators": ["indicator1", "indicator2"]
+    "requires_auth": true|false
 }
 ===RESPONSE_END===
 
