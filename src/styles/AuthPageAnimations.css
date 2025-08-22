@@ -58,6 +58,42 @@
   display: inline-block;
 }
 
+/* Neon glow animation for robot icon */
+@keyframes robotNeonGlow {
+  0% {
+    filter: drop-shadow(0 0 8px rgba(255, 209, 209, 0.6)) drop-shadow(0 0 12px rgba(255, 182, 193, 0.4));
+    color: #FFD1D1FF;
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(255, 209, 209, 0.8)) drop-shadow(0 0 16px rgba(255, 182, 193, 0.6));
+    color: #FFB6C1FF;
+  }
+  100% {
+    filter: drop-shadow(0 0 8px rgba(135, 206, 235, 0.6)) drop-shadow(0 0 12px rgba(135, 206, 235, 0.4));
+    color: #87CEEBFF;
+  }
+}
+
+/* Breathing animation for robot icon */
+@keyframes robotBreathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Title gradient shift animation */
+@keyframes titleGradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 /* Title and subtitle don't animate on form switch */
 .auth-title {
   position: relative;

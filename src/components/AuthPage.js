@@ -246,10 +246,28 @@ const AuthPage = ({ onLogin }) => {
 
       {/* Header */}
       <div className="auth-header" style={headerStyle}>
-        <div className="auth-robot-icon" style={{ fontSize: '40px', marginBottom: '-5px',marginTop: '5px', color: '#FFD1D1FF' }}>
+        <div className="auth-robot-icon" style={{ 
+          fontSize: '40px', 
+          marginBottom: '-5px',
+          marginTop: '5px', 
+          color: '#FFD1D1FF',
+          filter: 'drop-shadow(0 0 8px rgba(255, 209, 209, 0.6))',
+          animation: 'robotNeonGlow 3s ease-in-out infinite alternate, robotBreathe 5s ease-in-out infinite'
+        }}>
           <FaRobot />
         </div>
-        <h2 className="auth-title" style={{ margin: 0, fontSize: '22px', fontWeight: '700' }}>
+        <h2 className="auth-title" style={{ 
+          margin: 0, 
+          fontSize: '22px', 
+          fontWeight: '700',
+          background: 'linear-gradient(135deg, #FFDCDC, #FFB6C1, #87CEEB, #FFDCDC)',
+          backgroundSize: '300% 300%',
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          animation: 'titleGradientShift 4s ease-in-out infinite',
+          filter: 'drop-shadow(0 0 10px rgba(255, 220, 220, 0.4))'
+        }}>
           SOCIAL SHOPPING AGENT
         </h2>
         <p className="auth-subtitle" style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9 }}>

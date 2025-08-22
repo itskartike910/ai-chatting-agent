@@ -12,7 +12,8 @@
     "debugger",
     "webNavigation",
     "wootz",
-    "notifications"
+    "notifications",
+    "cookies"
   ],
   "host_permissions": [
     "<all_urls>",
