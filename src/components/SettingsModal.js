@@ -64,10 +64,10 @@ const SettingsModal = () => {
       if (saveButton) {
         saveButton.textContent = '✅ Saved!';
         setTimeout(() => {
-          navigate('/chat');
+          navigate('/profile');
         }, 500);
       } else {
-        navigate('/chat');
+        navigate('/profile');
       }
       
     } catch (error) {
@@ -161,7 +161,11 @@ const SettingsModal = () => {
 
   const sectionStyle = {
     padding: '16px',
-    borderBottom: '1px solid rgba(255, 220, 220, 0.2)'
+    borderBottom: '1px solid rgba(255, 220, 220, 0.2)',
+    backgroundColor: 'rgba(255, 220, 220, 0.03)',
+    backdropFilter: 'blur(5px)',
+    margin: '8px 0',
+    borderRadius: '8px'
   };
 
   const labelStyle = {
@@ -180,10 +184,12 @@ const SettingsModal = () => {
     fontSize: '14px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    backgroundColor: '#003A7CFF',
+    backgroundColor: 'rgba(0, 58, 124, 0.8)',
+    backdropFilter: 'blur(10px)',
     color: '#FFDCDCFF',
     userSelect: 'text',
-    WebkitUserSelect: 'text'
+    WebkitUserSelect: 'text',
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
   };
 
   const selectStyle = {
@@ -194,7 +200,8 @@ const SettingsModal = () => {
     backgroundPosition: 'right 8px center',
     backgroundRepeat: 'no-repeat',
     backgroundSize: '16px',
-    paddingRight: '32px'
+    paddingRight: '32px',
+    backdropFilter: 'blur(10px)'
   };
 
   // const checkboxContainerStyle = {
@@ -235,10 +242,63 @@ const SettingsModal = () => {
   return (
     <div className="settings-container" style={containerStyle}>
       {/* Background Animation */}
-      <div className="background-animation">
-        <div className="floating-orb settings-orb-1"></div>
-        <div className="floating-orb settings-orb-2"></div>
-        <div className="floating-orb settings-orb-3"></div>
+      <div
+        className="background-animation"
+        style={{
+          position: "absolute",
+          top: 0,           
+          left: 0,          
+          right: 0,         
+          bottom: 0,        
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        <div
+          className="settings-orb-1"
+          style={{
+            position: "absolute",
+            width: "200px",
+            height: "200px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #FF6B6B, #FF8E8E)",
+            filter: "blur(40px)",
+            opacity: 0.2,
+            top: "10%",
+            left: "10%",
+            animation: "float 6s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="settings-orb-2"
+          style={{
+            position: "absolute",
+            width: "150px",
+            height: "150px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #4ECDC4, #6EE7DF)",
+            filter: "blur(40px)",
+            opacity: 0.2,
+            top: "60%",
+            right: "15%",
+            animation: "float 6s ease-in-out infinite 2s",
+          }}
+        />
+        <div
+          className="settings-orb-3"
+          style={{
+            position: "absolute",
+            width: "180px",
+            height: "180px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #45B7D1, #67C9E1)",
+            filter: "blur(40px)",
+            opacity: 0.2,
+            bottom: "20%",
+            left: "20%",
+            animation: "float 6s ease-in-out infinite 4s",
+          }}
+        />
       </div>
 
       {/* Custom CSS for placeholder styling */}

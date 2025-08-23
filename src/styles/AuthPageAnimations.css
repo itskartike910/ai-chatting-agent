@@ -260,9 +260,7 @@
 }
 
 /* Loading Spinner */
-.auth-loading-spinner {
-  animation: spin 1s linear infinite;
-}
+/* Loading spinner is now handled by GlobalAnimations.css */
 
 /* Shimmer Effect for Inputs */
 .auth-input-shimmer {

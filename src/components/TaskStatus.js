@@ -49,13 +49,11 @@ const TaskStatus = ({ status }) => {
         flexShrink: 0
       }}>
         {status.status === 'executing' ? (
-          <div style={{
+          <div className="spinner-loader" style={{
             width: '10px',
             height: '10px',
-            border: '2px solid #ffffff',
-            borderTop: '2px solid transparent',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
+            border: '2px solid transparent',
+            borderRightColor: '#ffffff'
           }} />
         ) : (
           <span style={{ fontSize: '8px' }}>
@@ -89,14 +87,7 @@ const TaskStatus = ({ status }) => {
         )}
       </div>
 
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
+
     </div>
   );
 };

@@ -1,3 +1,4 @@
+/* global chrome */
 import React, { useState } from "react";
 import {
   FaArrowLeft,
@@ -20,11 +21,13 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
       setLoading(true);
       setError("");
 
-      // Open pricing page in new tab
-      window.open(
-        "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-        "_blank"
-      );
+      // Open pricing page in new tab using chrome.tabs.create
+      if (typeof chrome !== "undefined" && chrome.tabs) {
+        chrome.tabs.create({
+          url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
+          active: true,
+        });
+      }
     } catch (error) {
       console.error("Subscription error:", error);
       setError(error.message || "Failed to subscribe to plan");
@@ -38,11 +41,13 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
       setLoading(true);
       setError("");
 
-      // Open pricing page in new tab
-      window.open(
-        "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-        "_blank"
-      );
+      // Open pricing page in new tab using chrome.tabs.create
+      if (typeof chrome !== "undefined" && chrome.tabs) {
+        chrome.tabs.create({
+          url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
+          active: true,
+        });
+      }
     } catch (error) {
       console.error("Trial error:", error);
       setError(error.message || "Failed to start trial");

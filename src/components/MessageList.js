@@ -525,9 +525,54 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
         flexDirection: 'column',
         backgroundColor: '#002550FF', 
         WebkitOverflowScrolling: 'touch',
-        scrollBehavior: 'smooth'
+        scrollBehavior: 'smooth',
+        position: 'relative'
       }}
     >
+      {/* Background Animation - Floating Orbs */}
+      <div
+        className="background-animation"
+        style={{
+          position: "absolute",
+          top: 0,           
+          left: 0,          
+          right: 0,         
+          bottom: 0,        
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        <div
+          className="message-orb-1"
+          style={{
+            position: "absolute",
+            width: "200px",
+            height: "200px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #FF6B6B, #FF8E8E)",
+            filter: "blur(40px)",
+            opacity: 0.2,
+            top: "10%",
+            left: "10%",
+            animation: "float 6s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="message-orb-2"
+          style={{
+            position: "absolute",
+            width: "150px",
+            height: "150px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, #4ECDC4, #6EE7DF)",
+            filter: "blur(40px)",
+            opacity: 0.2,
+            top: "60%",
+            right: "15%",
+            animation: "float 6s ease-in-out infinite 2s",
+          }}
+        />
+      </div>
       {/* CSS Keyframes for animations */}
       <style>
         {`
@@ -567,10 +612,10 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
 
       {messages.length === 0 && (
         <>
-          <div className="welcome-message">
+          <div className="welcome-message" style={{ position: 'relative', zIndex: 1 }}>
             <WelcomeMessage />
           </div>
-          <div className="template-commands">
+          <div className="template-commands" style={{ position: 'relative', zIndex: 1 }}>
             <TemplateCommands />
           </div>
         </>
@@ -590,6 +635,8 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
           ...baseStyle,
           marginBottom: isLastInGroup ? '8px' : '2px',
           marginTop: isFirstInGroup ? '8px' : '2px',
+          position: 'relative',
+          zIndex: 1,
           borderRadius: (() => {
             if (message.type === 'user') {
               if (isFirstInGroup && isLastInGroup) return '14px 14px 4px 14px';
@@ -678,7 +725,9 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
             animation: 'slideInFromLeft 0.3s ease-out',
             backgroundColor: 'transparent',
             border: 'none',
-            boxShadow: 'none'
+            boxShadow: 'none',
+            position: 'relative',
+            zIndex: 1
           }}
         >
           <div style={{ textAlign: 'left', width: '100%' }}>

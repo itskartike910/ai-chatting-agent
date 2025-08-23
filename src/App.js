@@ -34,13 +34,7 @@ function AppContent() {
         backgroundColor: '#002550FF',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          border: '4px solid rgba(255, 220, 220, 0.3)',
-          borderTop: '4px solid #FFDCDCFF',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
+        <div className="spinner-loader" style={{
           marginBottom: '20px'
         }} />
         <div style={{ 
@@ -48,29 +42,10 @@ function AppContent() {
           color: '#FFDCDCFF',
           textAlign: 'center'
         }}>
-          <span id="loading-text"> </span>
+          <div className="text-loader" style={{ fontSize: '16px' }}></div>
         </div>
         
-        <style>
-          {`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-            
-            @keyframes dots {
-              0% { content: 'Loading'; }
-              33% { content: 'Loading.'; }
-              66% { content: 'Loading..'; }
-              100% { content: 'Loading...'; }
-            }
-            
-            #loading-text::after {
-              content: '';
-              animation: dots 1.5s infinite;
-            }
-          `}
-        </style>
+
       </div>
     );
   }

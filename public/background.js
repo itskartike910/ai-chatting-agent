@@ -858,13 +858,13 @@ class MultiAgentExecutor {
     try {
       console.log('📊 Getting page state via Wootz API');
 
-      const config = await chrome.storage.sync.get('agentConfig');
-      const debugMode = config?.agentConfig?.debugMode || false;
-      console.log('🔍 Debug mode:', debugMode);
+      // const config = await chrome.storage.sync.get('agentConfig');
+      // const debugMode = config?.agentConfig?.debugMode || false;
+      // console.log('🔍 Debug mode:', debugMode);
       
       return new Promise((resolve) => {
         chrome.wootz.getPageState({
-          debugMode: debugMode,
+          debugMode: true,
           includeHidden: true
         }, (result) => {
           if (result.success) {

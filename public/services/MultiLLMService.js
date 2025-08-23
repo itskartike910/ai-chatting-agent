@@ -155,17 +155,28 @@ export class MultiLLMService {
         return 'llmGenerate'; // Map to new name
       }
       
-      // Check other providers
-      if (this.config.anthropic && this.config.anthropic.enabled && this.config.anthropic.apiKey) {
-        return 'anthropic';
-      }
+      // Use aiProvider to determine the active provider
+      const activeProvider = this.config.aiProvider || 'gemini';
       
-      if (this.config.openai && this.config.openai.enabled && this.config.openai.apiKey) {
-        return 'openai';
-      }
-      
-      if (this.config.gemini && this.config.gemini.enabled && this.config.gemini.apiKey) {
-        return 'gemini';
+      // Check if the active provider has a valid API key
+      switch (activeProvider) {
+        case 'anthropic':
+          if (this.config.anthropicApiKey) {
+            return 'anthropic';
+          }
+          break;
+        case 'openai':
+          if (this.config.openaiApiKey) {
+            return 'openai';
+          }
+          break;
+        case 'gemini':
+          if (this.config.geminiApiKey) {
+            return 'gemini';
+          }
+          break;
+        default:
+          return 'llmGenerate';
       }
       
       throw new Error('No valid LLM provider configured');
@@ -196,9 +207,9 @@ export class MultiLLMService {
           return await this.callOpenAI(messages, options);
         case 'gemini':
           return await this.callGemini(messages, options);
-                  case 'llmGenerate':
+        case 'llmGenerate':
             return await this.callLlmGenerate(messages, options);
-          case 'geminiGenerate':
+        case 'geminiGenerate':
             return await this.callLlmGenerate(messages, options); // Map legacy to new
         default:
           throw new Error(`Unsupported provider: ${provider}`);

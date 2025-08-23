@@ -396,12 +396,11 @@ const AuthPage = ({ onLogin }) => {
           >
             {loading ? (
               <>
-                <div className="auth-loading-spinner" style={{
+                <div className="spinner-loader" style={{
                   width: '14px',
                   height: '14px',
                   border: '2px solid transparent',
-                  borderTop: '2px solid #ffffff',
-                  borderRadius: '50%'
+                  borderRightColor: '#ffffff'
                 }} />
                 Authenticating...
               </>

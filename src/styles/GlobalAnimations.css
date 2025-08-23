@@ -124,6 +124,89 @@
   100% { transform: rotate(360deg); }
 }
 
+/* 
+ * LOADING ANIMATIONS
+ * 
+ * Usage:
+ * 1. Spinner Loader: <div className="spinner-loader"></div>
+ * 2. Text Loader: <div className="text-loader"></div>
+ * 
+ * You can customize size and color by overriding the CSS properties:
+ * - width, height for size
+ * - border-right-color for spinner color
+ * - color for text loader color
+ */
+
+/* Spinner Loader Animation */
+.spinner-loader {
+  width: 50px;
+  aspect-ratio: 1;
+  display: grid;
+  border: 4px solid transparent;
+  border-radius: 50%;
+  border-right-color: #ffffff;
+  animation: spinner-rotate 1s infinite linear;
+}
+.spinner-loader::before,
+.spinner-loader::after {    
+  content: "";
+  grid-area: 1/1;
+  margin: 2px;
+  border: inherit;
+  border-radius: 50%;
+  animation: spinner-rotate 2s infinite;
+}
+.spinner-loader::after {
+  margin: 8px;
+  animation-duration: 3s;
+}
+@keyframes spinner-rotate{ 
+  100%{transform: rotate(1turn)}
+}
+
+/* Text Loader Animation */
+.text-loader {
+  font-weight: bold;
+  font-family: monospace;
+  display: inline-grid;
+  font-size: 30px;
+  color: #ffffff;
+}
+.text-loader:before,
+.text-loader:after {
+  content:"Loading...";
+  grid-area: 1/1;
+  -webkit-mask-size: 100% 5px,100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  animation: text-load-1 1s infinite;
+}
+.text-loader:before {
+  -webkit-mask-image:
+    linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0);
+}
+.text-loader:after {
+  -webkit-mask-image:
+    linear-gradient(#000 0 0);
+  animation:
+    text-load-1  1s infinite,
+    text-load-2 .2s infinite cubic-bezier(0.5,200,0.5,-200);
+}
+
+@keyframes text-load-1{
+  0%   {-webkit-mask-position:0 20px,0 0}
+  20%  {-webkit-mask-position:0 8px ,0 0}
+  40%  {-webkit-mask-position:0 100%,0 0}
+  60%  {-webkit-mask-position:0 3px ,0 0}
+  80%  {-webkit-mask-position:0 15px,0 0}
+  100% {-webkit-mask-position:0 0   ,0 0}
+}
+@keyframes text-load-2{
+  100% {transform:translate(0.1px)} 
+}
+
 @keyframes bounce {
   0%, 100% {
     transform: translateY(0);

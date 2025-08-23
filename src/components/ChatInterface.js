@@ -46,6 +46,13 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add state for typing indicator
   const [isTyping, setIsTyping] = useState(false);
 
+  // Refresh subscription data when component mounts
+  useEffect(() => {
+    if (subscription?.loadSubscriptionData) {
+      subscription.loadSubscriptionData();
+    }
+  }, [subscription]);
+
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);
@@ -522,10 +529,12 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             {getConnectionIcon()}
             <span>{getConnectionStatusText()}</span>
             {/* {isExecuting && <span>• Working...</span>} */}
-            <RequestCounter 
-              subscriptionState={subscription} 
-              onUpgradeClick={() => setShowSubscriptionChoice(true)}
-            />
+            {!subscription?.usingPersonalAPI && (
+              <RequestCounter 
+                subscriptionState={subscription} 
+                onUpgradeClick={() => setShowSubscriptionChoice(true)}
+              />
+            )}
           </div>
         </div>
         <div className="chat-header-buttons" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
