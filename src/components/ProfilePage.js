@@ -35,27 +35,50 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
     try {
       setLoading(true);
 
-      // Get current user details
-      const userData = await apiService.getCurrentUser();
-      setUserDetails(userData);
-
-      // Also try to get auth data from storage for additional details
+      // First, check if we have user data in chrome.storage.local
+      let storedUserData = null;
       try {
-        const authData = await new Promise((resolve) => {
-          chrome.storage.local.get(["authData"], (result) => {
-            resolve(result.authData || null);
+        const storageData = await new Promise((resolve) => {
+          chrome.storage.local.get(["userAuth", "authData"], (result) => {
+            resolve({
+              userAuth: result.userAuth || null,
+              authData: result.authData || null,
+            });
           });
         });
 
-        if (authData && authData.user) {
-          // Merge auth data with user data for complete information
-          setUserDetails((prevData) => ({
-            ...prevData,
-            ...authData.user,
-          }));
+        // Use stored data if available
+        if (storageData.userAuth?.user) {
+          storedUserData = storageData.userAuth.user;
+        } else if (storageData.authData?.user) {
+          storedUserData = storageData.authData.user;
         }
       } catch (storageError) {
-        console.log("Could not get auth data from storage:", storageError);
+        console.log("Could not get stored user data:", storageError);
+      }
+
+      // If we have stored data, use it and don't make API call
+      if (storedUserData) {
+        console.log("Using stored user data:", storedUserData);
+        setUserDetails(storedUserData);
+        setLoading(false);
+        return;
+      }
+
+      // Only make API call if no stored data
+      console.log("No stored user data found, making API call");
+      const userData = await apiService.getCurrentUser();
+      setUserDetails(userData);
+
+      // Store the fetched data for future use
+      if (userData) {
+        try {
+          await new Promise((resolve) => {
+            chrome.storage.local.set({ userAuth: { user: userData } }, resolve);
+          });
+        } catch (storageError) {
+          console.log("Could not store user data:", storageError);
+        }
       }
 
       // Get user's organizations - use the provided price ID
@@ -155,7 +178,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   };
 
   const getSubscriptionStatus = () => {
-    if (subscription.loading) {
+    // Don't show loading if we have subscription data
+    if (subscription.loading && !subscription.status && !subscription.usingPersonalAPI) {
       return { text: "Loading...", color: "#657786", icon: <FaClock /> };
     }
 
@@ -418,7 +442,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           <div
             style={{
               display: "flex",
-              alignItems: "center",
+              alignItems: "flex-start",
               marginBottom: "20px",
             }}
           >
@@ -437,31 +461,31 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 marginRight: "16px",
                 overflow: "hidden",
                 backgroundImage:
-                  userDetails?.user?.image || userDetails?.image
-                    ? `url(${userDetails?.user?.image || userDetails?.image})`
+                  userDetails?.image
+                    ? `url(${userDetails.image})`
                     : "none",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
+                flexShrink: 0,
               }}
             >
-              {!(userDetails?.user?.image || userDetails?.image) &&
-                (userDetails?.user?.name?.charAt(0) ||
-                  userDetails?.name?.charAt(0) ||
+              {!userDetails?.image &&
+                (userDetails?.name?.charAt(0) ||
                   user?.name?.charAt(0) ||
                   "U")}
             </div>
-            <div className="profile-user-details">
+            <div className="profile-user-details" style={{ flex: 1 }}>
               <h3
                 className="profile-user-name"
                 style={{
                   fontSize: "20px",
                   fontWeight: "600",
+                  textAlign: "left",
                   color: "#FFDCDCFF",
                   margin: "0 0 4px 0",
                 }}
               >
-                {userDetails?.user?.name ||
-                  userDetails?.name ||
+                {userDetails?.name ||
                   user?.name ||
                   "User"}
               </h3>
@@ -469,12 +493,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 className="profile-user-email"
                 style={{
                   fontSize: "14px",
-                  color: "rgba(255, 220, 220, 0.8)",
-                  margin: 0,
+                  textAlign: "left",
+                  color: "rgba(255, 220, 220, 0.9)",
+                  margin: "0 0 8px 0",
                 }}
               >
-                {userDetails?.user?.email ||
-                  userDetails?.email ||
+                {userDetails?.email ||
                   user?.email ||
                   "user@example.com"}
               </p>
@@ -519,7 +543,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 className="profile-join-date"
                 style={{
                   fontSize: "12px",
-                  color: "rgba(255, 220, 220, 0.6)",
+                  color: "rgba(255, 220, 220, 0.7)",
+                  textAlign: "left",
                   margin: "0 0 8px 0",
                 }}
               >
@@ -533,7 +558,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 <p
                   style={{
                     fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.6)",
+                    color: "rgba(255, 220, 220, 0.7)",
+                    textAlign: "left",
                     margin: "0 0 8px 0",
                   }}
                 >
@@ -551,24 +577,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 <p
                   style={{
                     fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.6)",
+                    color: "rgba(255, 220, 220, 0.7)",
+                    textAlign: "left",
                     margin: "0 0 8px 0",
                   }}
                 >
                   Organization ID:{" "}
                   {userDetails?.user?.selectedOrganizationId ||
                     userDetails?.selectedOrganizationId}
-                </p>
-              )}
-              {userDetails?.sessionToken && (
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.6)",
-                    margin: "0 0 16px 0",
-                  }}
-                >
-                  Session Token: {userDetails.sessionToken.substring(0, 8)}...
                 </p>
               )}
 
@@ -581,6 +597,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                       fontWeight: "600",
                       color: "#FFDCDCFF",
                       margin: "0 0 12px 0",
+                      textAlign: "left",
                     }}
                   >
                     Your Organizations
@@ -610,6 +627,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                               fontWeight: "600",
                               color: "#FFDCDCFF",
                               margin: "0 0 4px 0",
+                              textAlign: "left",
                             }}
                           >
                             {org.name}
@@ -619,6 +637,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                               fontSize: "12px",
                               color: "rgba(255, 220, 220, 0.7)",
                               margin: 0,
+                              textAlign: "left",
                             }}
                           >
                             {org.subscriptionType} • {org.subscriptionStatus}
@@ -634,6 +653,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                               ? "rgba(76, 175, 80, 0.2)"
                               : "rgba(158, 158, 158, 0.2)",
                             color: org.isActive ? "#4CAF50" : "#9E9E9E",
+                            textAlign: "left",
                           }}
                         >
                           {org.isActive ? "ACTIVE" : "INACTIVE"}
