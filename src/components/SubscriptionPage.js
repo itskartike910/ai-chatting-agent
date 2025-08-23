@@ -1,10 +1,10 @@
 /* global chrome */
 import React, { useState } from "react";
-import {
+import { 
   FaArrowLeft,
   FaCheck,
   FaStar,
-  FaCrown,
+  FaCrown, 
   // FaRocket,
   FaShieldAlt,
   // FaInfinity,
@@ -18,7 +18,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
 
   const handleSubscribe = async (planName) => {
     try {
-      setLoading(true);
+    setLoading(true);
       setError("");
 
       // Open pricing page in new tab using chrome.tabs.create
@@ -38,7 +38,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
 
   const handleTrial = async (planName) => {
     try {
-      setLoading(true);
+    setLoading(true);
       setError("");
 
       // Open pricing page in new tab using chrome.tabs.create
@@ -140,7 +140,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
     }s`,
   });
 
-  return (
+    return (
     <div
       className="subscription-container"
       style={{
@@ -168,10 +168,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         className="background-animation"
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+        top: 0,           
+        left: 0,          
+        right: 0,         
+        bottom: 0,        
           pointerEvents: "none",
           zIndex: 0,
         }}
@@ -240,10 +240,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
           zIndex: 1,
         }}
       >
-        <button
+          <button 
           onClick={() => window.history.back()}
-          className="subscription-back-button"
-          style={{
+            className="subscription-back-button"
+            style={{ 
             padding: "6px 8px",
             backgroundColor: "rgba(255, 220, 220, 0.2)",
             border: "1px solid rgba(255, 220, 220, 0.3)",
@@ -254,12 +254,12 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-          }}
-          title="Back to Profile"
-        >
-          <FaArrowLeft />
-        </button>
-
+            }}
+            title="Back to Profile"
+          >
+            <FaArrowLeft />
+          </button>
+          
         <div style={{ minWidth: 0, flex: 1, textAlign: "center" }}>
           <h1
             className="subscription-title"
@@ -284,11 +284,11 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             }}
           >
             Select the perfect plan for your needs
-          </p>
-        </div>
+        </p>
+      </div>
 
         <div style={{ width: "32px" }}></div>
-      </div>
+          </div>
 
       {/* Scrollable Content */}
       <div
@@ -323,7 +323,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             >
               ✅ Currently on {currentPlan.name} plan ({currentPlan.status})
             </p>
-          </div>
+              </div>
         )}
 
         {/* Error Message */}
@@ -341,9 +341,9 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             }}
           >
             {error}
-          </div>
-        )}
-
+                </div>
+              )}
+              
         {/* Plans Grid */}
         <div
           className="subscription-plans"
@@ -388,8 +388,8 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                     }}
                   >
                     MOST POPULAR
-                  </div>
-                )}
+                    </div>
+                  )}
 
                 <div
                   className="plan-header"
@@ -410,7 +410,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                     }}
                   >
                     <IconComponent />
-                  </div>
+                </div>
 
                   <h3
                     className="plan-title"
@@ -443,9 +443,9 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                         }}
                       >
                         /{plan.period}
-                      </span>
-                    )}
-                  </div>
+                    </span>
+                  )}
+                </div>
 
                   <p
                     className="plan-description"
@@ -457,7 +457,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                   >
                     {plan.description}
                   </p>
-                </div>
+              </div>
 
                 <div className="plan-features" style={{ marginBottom: "16px" }}>
                   {plan.features.map((feature, featureIndex) => (
@@ -481,9 +481,9 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                         }}
                       />
                       <span>{feature}</span>
-                    </div>
-                  ))}
-                </div>
+            </div>
+          ))}
+        </div>
 
                 <div className="plan-actions" style={{ textAlign: "center" }}>
                   {isCurrentPlan ? (
@@ -499,13 +499,13 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                       }}
                     >
                       Current Plan
-                    </div>
+          </div>
                   ) : plan.id === "free" ? (
-                    <button
+        <button
                       onClick={() => handleSubscribe(plan.name)}
-                      disabled={loading}
+          disabled={loading}
                       className="plan-button"
-                      style={{
+          style={{
                         width: "100%",
                         padding: "8px 16px",
                         backgroundColor: "#4ECDC4",
@@ -542,12 +542,12 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                         }}
                       >
                         {loading ? "Processing..." : "Start Trial"}
-                      </button>
-                      <button
+        </button>
+        <button
                         onClick={() => handleSubscribe(plan.name)}
-                        disabled={loading}
+          disabled={loading}
                         className="plan-button"
-                        style={{
+          style={{
                           flex: 1,
                           padding: "8px 12px",
                           backgroundColor: "#FF6B6B",
@@ -637,9 +637,9 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             >
               Configure your personal API keys for unlimited usage
             </p>
-            <button
-              onClick={onOpenSettings}
-              style={{
+        <button
+          onClick={onOpenSettings}
+          style={{
                 width: "100%",
                 padding: "10px 16px",
                 backgroundColor: "transparent",
@@ -653,7 +653,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
               }}
             >
               Open Settings
-            </button>
+        </button>
           </div>
         </div>
 

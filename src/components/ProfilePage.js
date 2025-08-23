@@ -1,11 +1,11 @@
 /* global chrome */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  FaUser,
-  FaArrowLeft,
+import { 
+  FaUser, 
+  FaArrowLeft, 
   // FaEnvelope,
-  FaCrown,
+  FaCrown, 
   // FaCalendarAlt,
   FaChartBar,
   FaSignOutAlt,
@@ -106,7 +106,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       setLoading(false);
     }
   };
-
+  
   // Refresh subscription data when component gains focus (returning from settings)
   useEffect(() => {
     const handleFocus = () => {
@@ -114,7 +114,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         subscription.loadSubscriptionData();
       }
     };
-
+    
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [subscription]);
@@ -138,26 +138,26 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
   const handleTogglePersonalAPI = async () => {
     if (isToggling) return;
-
+    
     setIsToggling(true);
-
+    
     try {
       const newPreference = !subscription.userPreferPersonalAPI;
-
+      
       // If turning ON and no API keys, redirect to settings
       if (newPreference && !subscription.hasPersonalKeys) {
         navigate("/settings");
         setIsToggling(false);
         return;
       }
-
+      
       // Set the preference
       const success = await subscription.setUserAPIPreference(newPreference);
-
+      
       if (success) {
         console.log(
           `API preference set to: ${
-            newPreference ? "Personal API" : "Free Trial"
+            newPreference ? "Personal API" : "DeepHUD API"
           }`
         );
       }
@@ -179,20 +179,24 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
   const getSubscriptionStatus = () => {
     // Don't show loading if we have subscription data
-    if (subscription.loading && !subscription.status && !subscription.usingPersonalAPI) {
+    if (
+      subscription.loading &&
+      !subscription.status &&
+      !subscription.usingPersonalAPI
+    ) {
       return { text: "Loading...", color: "#657786", icon: <FaClock /> };
     }
 
     if (subscription.usingPersonalAPI) {
-      return {
-        text: `Personal API`,
+      return { 
+        text: `Personal API`, 
         color: "#17bf63",
         icon: <FaKey />,
       };
     }
 
     if (subscription.status === "trial") {
-      return {
+      return { 
         text: "Free Trial",
         color: "#ffad1f",
         icon: <FaStar />,
@@ -200,14 +204,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
     }
 
     if (subscription.status === "active") {
-      return {
+      return { 
         text: "Premium Subscription",
         color: "#17bf63",
         icon: <FaCrown />,
       };
     }
 
-    return {
+    return { 
       text: "Trial Expired",
       color: "#e0245e",
       icon: <FaClock />,
@@ -349,10 +353,10 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
       {/* Header */}
       <div className="profile-header" style={headerStyle}>
-        <button
+        <button 
           onClick={handleBack}
           className="profile-back-button"
-          style={{
+          style={{ 
             padding: "6px 8px",
             backgroundColor: "rgba(255, 220, 220, 0.2)",
             border: "1px solid rgba(255, 220, 220, 0.3)",
@@ -368,12 +372,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         >
           <FaArrowLeft />
         </button>
-
+        
         <div style={{ minWidth: 0, flex: 1, textAlign: "center" }}>
           <h3
             className="profile-title"
             style={{
-              margin: 0,
+            margin: 0, 
               color: "#FFDCDCFF",
               fontSize: "18px",
               fontWeight: "700",
@@ -390,7 +394,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           <p
             className="profile-subtitle"
             style={{
-              margin: 0,
+            margin: 0, 
               color: "rgba(255, 220, 220, 0.8)",
               fontSize: "12px",
               lineHeight: "14px",
@@ -400,28 +404,40 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             Account details and usage
           </p>
         </div>
-
-        {subscription.userPreferPersonalAPI && subscription.hasPersonalKeys && (
-          <button
-            onClick={() => navigate("/settings")}
-            className="profile-button"
-            style={{
-              padding: "6px 8px",
-              backgroundColor: "rgba(255, 220, 220, 0.2)",
-              border: "1px solid rgba(255, 220, 220, 0.3)",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "16px",
-              color: "#FFDCDCFF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-            title="Settings"
-          >
-            <FaCog />
-          </button>
-        )}
+        
+        <div
+          style={{
+            width:
+              subscription.userPreferPersonalAPI && subscription.hasPersonalKeys
+                ? "auto"
+                : "36px",
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
+          {subscription.userPreferPersonalAPI &&
+            subscription.hasPersonalKeys && (
+        <button 
+                onClick={() => navigate("/settings")}
+          className="profile-button"
+          style={{ 
+                  padding: "6px 8px",
+                  backgroundColor: "rgba(255, 220, 220, 0.2)",
+                  border: "1px solid rgba(255, 220, 220, 0.3)",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  color: "#FFDCDCFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+          }}
+          title="Settings"
+        >
+          <FaCog />
+        </button>
+            )}
+        </div>
       </div>
 
       {/* Scrollable Content */}
@@ -460,21 +476,18 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 color: "white",
                 marginRight: "16px",
                 overflow: "hidden",
-                backgroundImage:
-                  userDetails?.image
-                    ? `url(${userDetails.image})`
-                    : "none",
+                backgroundImage: userDetails?.image
+                  ? `url(${userDetails.image})`
+                  : "none",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 flexShrink: 0,
               }}
             >
               {!userDetails?.image &&
-                (userDetails?.name?.charAt(0) ||
-                  user?.name?.charAt(0) ||
-                  "U")}
-            </div>
-            <div className="profile-user-details" style={{ flex: 1 }}>
+                (userDetails?.name?.charAt(0) || user?.name?.charAt(0) || "U")}
+              </div>
+              <div className="profile-user-details" style={{ flex: 1 }}>
               <h3
                 className="profile-user-name"
                 style={{
@@ -485,9 +498,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   margin: "0 0 4px 0",
                 }}
               >
-                {userDetails?.name ||
-                  user?.name ||
-                  "User"}
+                {userDetails?.name || user?.name || "User"}
               </h3>
               <p
                 className="profile-user-email"
@@ -498,12 +509,10 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   margin: "0 0 8px 0",
                 }}
               >
-                {userDetails?.email ||
-                  user?.email ||
-                  "user@example.com"}
+                {userDetails?.email || user?.email || "user@example.com"}
               </p>
+              </div>
             </div>
-          </div>
 
           {loading ? (
             <div style={{ textAlign: "center", padding: "20px" }}>
@@ -657,8 +666,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                           }}
                         >
                           {org.isActive ? "ACTIVE" : "INACTIVE"}
-                        </div>
-                      </div>
+            </div>
+          </div>
                     </div>
                   ))}
                 </div>
@@ -721,12 +730,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   background: "none",
                   border: "none",
                   cursor: isToggling ? "wait" : "pointer",
-                  fontSize: "24px",
+                  fontSize: "28px",
                   color:
                     subscription.userPreferPersonalAPI &&
                     subscription.hasPersonalKeys
                       ? "#17bf63"
-                      : "#657786",
+                      : "#A0BFD8FF",
                   display: "flex",
                   alignItems: "center",
                   padding: "4px",
@@ -736,7 +745,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 title={
                   subscription.userPreferPersonalAPI &&
                   subscription.hasPersonalKeys
-                    ? "Click to use free trial API"
+                    ? "Click to use DeepHUD API"
                     : !subscription.hasPersonalKeys
                     ? "Configure API keys in settings first"
                     : "Click to use personal API key"
@@ -750,35 +759,35 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 )}
               </button>
             </div>
-
+            
             {/* Status indicator */}
             <div
               style={{
                 marginTop: "12px",
                 padding: "8px 12px",
                 borderRadius: "6px",
-                backgroundColor: subscription.usingPersonalAPI
+              backgroundColor: subscription.usingPersonalAPI 
                   ? "rgba(23, 191, 99, 0.1)"
-                  : subscription.remaining_requests <= 0
+                : subscription.remaining_requests <= 0 
                   ? "rgba(224, 36, 94, 0.1)"
                   : "rgba(255, 173, 31, 0.1)",
-                border: subscription.usingPersonalAPI
+              border: subscription.usingPersonalAPI 
                   ? "1px solid rgba(23, 191, 99, 0.3)"
-                  : subscription.remaining_requests <= 0
+                : subscription.remaining_requests <= 0 
                   ? "1px solid rgba(224, 36, 94, 0.3)"
                   : "1px solid rgba(255, 173, 31, 0.3)",
                 fontSize: "12px",
-                color: subscription.usingPersonalAPI
+              color: subscription.usingPersonalAPI 
                   ? "#17bf63"
-                  : subscription.remaining_requests <= 0
+                : subscription.remaining_requests <= 0 
                   ? "#e0245e"
                   : "#ffad1f",
               }}
             >
-              {subscription.usingPersonalAPI
+              {subscription.usingPersonalAPI 
                 ? "✅ Currently using your personal API key"
-                : subscription.hasPersonalKeys
-                ? "🔄 Currently using free trial API"
+                : subscription.hasPersonalKeys 
+                ? "🔄 Currently using DeepHUD API"
                 : "⚠️ Configure API keys in settings to enable personal API"}
             </div>
           </div>
@@ -830,11 +839,11 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                     color: "rgba(255, 220, 220, 0.8)",
                   }}
                 >
-                  {subscription.usingPersonalAPI
+                  {subscription.usingPersonalAPI 
                     ? "Unlimited usage with your API key"
                     : subscription.plan_type === "free_trial"
-                    ? `Trial expires ${formatDate(subscription.trial_end)}`
-                    : subscription.current_period_end
+                      ? `Trial expires ${formatDate(subscription.trial_end)}`
+                      : subscription.current_period_end
                     ? `Next billing ${formatDate(
                         subscription.current_period_end
                       )}`
@@ -966,7 +975,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                     textAlign: "center",
                   }}
                 >
-                  {subscription.remaining_requests > 0
+                  {subscription.remaining_requests > 0 
                     ? `${subscription.remaining_requests} requests remaining`
                     : "Trial expired - upgrade or use personal API"}
                 </div>
@@ -994,4 +1003,4 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   );
 };
 
-export default ProfilePage;
+export default ProfilePage; 

@@ -49,12 +49,40 @@ const TaskStatus = ({ status }) => {
         flexShrink: 0
       }}>
         {status.status === 'executing' ? (
-          <div className="spinner-loader" style={{
-            width: '10px',
-            height: '10px',
-            border: '2px solid transparent',
-            borderRightColor: '#ffffff'
-          }} />
+          <div className="task-status-loader" style={{
+            width: '12px',
+            height: '12px',
+            aspectRatio: '1',
+            display: 'grid',
+            color: '#ffffff',
+            background: 'radial-gradient(farthest-side, currentColor calc(100% - 2px), #0000 calc(100% - 1px) 0)',
+            WebkitMask: 'radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 calc(100% - 3px))',
+            mask: 'radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 calc(100% - 3px))',
+            borderRadius: '50%',
+            animation: 'taskStatusRotate 2s infinite linear'
+          }}>
+            <div style={{
+              content: '""',
+              gridArea: '1/1',
+              background: `
+                linear-gradient(currentColor 0 0) center,
+                linear-gradient(currentColor 0 0) center
+              `,
+              backgroundSize: '100% 2px, 2px 100%',
+              backgroundRepeat: 'no-repeat'
+            }} />
+            <div style={{
+              content: '""',
+              gridArea: '1/1',
+              background: `
+                linear-gradient(currentColor 0 0) center,
+                linear-gradient(currentColor 0 0) center
+              `,
+              backgroundSize: '100% 2px, 2px 100%',
+              backgroundRepeat: 'no-repeat',
+              transform: 'rotate(45deg)'
+            }} />
+          </div>
         ) : (
           <span style={{ fontSize: '8px' }}>
             {getStatusIcon(status.status)}

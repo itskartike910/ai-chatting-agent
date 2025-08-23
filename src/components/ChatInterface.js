@@ -204,6 +204,17 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 timestamp: Date.now()
               });
               break;
+
+            case 'execution_start':
+              setIsExecuting(true);
+              setIsTyping(true);
+              setTaskStatus({ status: 'executing', message: 'Execution started...' });
+              addMessage({
+                type: 'system',
+                content: '⚡ Execution started...',
+                timestamp: Date.now()
+              });
+              break;
               
             case 'status_update':
               setIsExecuting(true); 
@@ -216,6 +227,48 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 type: 'system',
                 content: `⚡ ${message.message}`,
                 timestamp: Date.now()
+              });
+              break;
+
+            case 'step_complete':
+              setIsExecuting(true);
+              setIsTyping(true);
+              setTaskStatus({ 
+                status: 'executing', 
+                message: message.message || 'Step completed, continuing...' 
+              });
+              addMessage({
+                type: 'system',
+                content: `✅ ${message.message || 'Step completed, continuing...'}`,
+                timestamp: Date.now()
+              });
+              break;
+
+            case 'plan_display':
+              setIsExecuting(true);
+              setIsTyping(true);
+              setTaskStatus({ 
+                status: 'executing', 
+                message: 'Displaying execution plan...' 
+              });
+              
+              // Create a more detailed plan display message
+              let planContent = `📋 **Execution Plan (Step ${message.step || 'N/A'})**\n\n`;
+              if (message.strategy) {
+                planContent += `**Strategy:** ${message.strategy}\n\n`;
+              }
+              if (message.plannedActions && message.plannedActions.length > 0) {
+                planContent += `**Planned Actions:**\n`;
+                message.plannedActions.forEach((action, index) => {
+                  planContent += `${index + 1}. **${action.type}** - ${action.intent}\n`;
+                });
+              }
+              
+              addMessage({
+                type: 'system',
+                content: planContent,
+                timestamp: Date.now(),
+                isMarkdown: true
               });
               break;
               

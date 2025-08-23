@@ -164,6 +164,11 @@
   100%{transform: rotate(1turn)}
 }
 
+/* Task Status Loader Animation */
+@keyframes taskStatusRotate{ 
+  100%{transform: rotate(1turn)}
+}
+
 /* Text Loader Animation */
 .text-loader {
   font-weight: bold;
