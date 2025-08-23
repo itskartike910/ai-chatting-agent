@@ -10,10 +10,10 @@ import {
   FaCompass, 
   FaClipboardList, 
   FaCheckCircle, 
-  FaMobile, 
-  FaLock, 
-  FaShieldAlt, 
-  FaSearch,
+  // FaMobile, 
+  // FaLock, 
+  // FaShieldAlt, 
+  // FaSearch,
   FaSave
 } from 'react-icons/fa';
 
@@ -27,7 +27,7 @@ const SettingsModal = () => {
   }, [config]);
 
   const handleClose = () => {
-    navigate('/chat');
+    navigate('/profile');
   };
 
   const handleSave = async () => {
@@ -197,16 +197,16 @@ const SettingsModal = () => {
     paddingRight: '32px'
   };
 
-  const checkboxContainerStyle = {
-    display: 'flex', 
-    alignItems: 'flex-start', 
-    gap: '10px',
-    padding: '12px',
-    backgroundColor: '#003A7CFF',
-    borderRadius: '8px',
-    marginBottom: '8px',
-    border: '1px solid rgba(255, 220, 220, 0.2)'
-  };
+  // const checkboxContainerStyle = {
+  //   display: 'flex', 
+  //   alignItems: 'flex-start', 
+  //   gap: '10px',
+  //   padding: '12px',
+  //   backgroundColor: '#003A7CFF',
+  //   borderRadius: '8px',
+  //   marginBottom: '8px',
+  //   border: '1px solid rgba(255, 220, 220, 0.2)'
+  // };
 
   const footerStyle = {
     padding: '12px 16px',
@@ -492,7 +492,7 @@ const SettingsModal = () => {
         </div>
 
         {/* Preferences */}
-        <div style={sectionStyle}>
+        {/* <div style={sectionStyle}>
           <h4 style={{ 
             color: '#FFDCDCFF', 
             fontSize: '16px', 
@@ -559,7 +559,7 @@ const SettingsModal = () => {
               </div>
             </div>
           </label>
-        </div>
+        </div> */}
       </div>
 
       {/* Fixed Footer */}

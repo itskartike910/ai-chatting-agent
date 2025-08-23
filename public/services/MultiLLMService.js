@@ -1,6 +1,7 @@
 /* global chrome */
 
-const API_BASE_URL = '';
+const API_BASE_URL = 'https://nextjs-app-410940835135.us-central1.run.app/api';
+const PRICE_ID = '';
 
 export class MultiLLMService {
     constructor(config = {}) {
@@ -107,9 +108,9 @@ export class MultiLLMService {
         'gemini-1.5-flash': 'gemini'
       };
       
-      // For geminiGenerate provider, all Gemini models are valid
-      if (provider === 'geminiGenerate') {
-        return modelProviderMap[model] === 'gemini';
+      // For llmGenerate provider, all models are valid
+      if (provider === 'llmGenerate' || provider === 'geminiGenerate') {
+        return true;
       }
       
       return modelProviderMap[model] === provider;
@@ -142,29 +143,32 @@ export class MultiLLMService {
     }
   
     async determineProvider(forChat = false) {
-      try {
-        // Check user preference for personal API
-        const storage = await chrome.storage.local.get(['userPreferPersonalAPI']);
-        const userPreferPersonalAPI = storage.userPreferPersonalAPI || false;
-        
-        // Check if personal API keys are configured
-        const hasPersonalKeys = !!(
-          this.config.anthropicApiKey || 
-          this.config.openaiApiKey || 
-          this.config.geminiApiKey
-        );
-        
-        // If user prefers personal API and keys are available, use configured provider
-        if (userPreferPersonalAPI && hasPersonalKeys) {
-          return this.config.aiProvider || 'gemini';
-        }
-        
-        // Otherwise, use geminiGenerate (free trial)
-        return 'geminiGenerate';
-      } catch (error) {
-        console.warn('Error determining provider, defaulting to geminiGenerate:', error);
-        return 'geminiGenerate';
+      // Use the config passed to constructor instead of calling getConfig()
+      
+      // Check for llmGenerate first (new DeepHUD API)
+      if (this.config.llmGenerate && this.config.llmGenerate.enabled) {
+        return 'llmGenerate';
       }
+      
+      // Check for geminiGenerate (legacy)
+      if (this.config.geminiGenerate && this.config.geminiGenerate.enabled) {
+        return 'llmGenerate'; // Map to new name
+      }
+      
+      // Check other providers
+      if (this.config.anthropic && this.config.anthropic.enabled && this.config.anthropic.apiKey) {
+        return 'anthropic';
+      }
+      
+      if (this.config.openai && this.config.openai.enabled && this.config.openai.apiKey) {
+        return 'openai';
+      }
+      
+      if (this.config.gemini && this.config.gemini.enabled && this.config.gemini.apiKey) {
+        return 'gemini';
+      }
+      
+      throw new Error('No valid LLM provider configured');
     }
   
     checkApiKey(provider) {
@@ -175,8 +179,10 @@ export class MultiLLMService {
           return !!this.config.openaiApiKey;
         case 'gemini':
           return !!this.config.geminiApiKey;
+        case 'llmGenerate':
+          return true; // Always valid for llmGenerate
         case 'geminiGenerate':
-          return true; 
+          return true; // Legacy support 
         default:
           return false;
       }
@@ -190,8 +196,10 @@ export class MultiLLMService {
           return await this.callOpenAI(messages, options);
         case 'gemini':
           return await this.callGemini(messages, options);
-        case 'geminiGenerate':
-          return await this.callGeminiGenerate(messages, options);
+                  case 'llmGenerate':
+            return await this.callLlmGenerate(messages, options);
+          case 'geminiGenerate':
+            return await this.callLlmGenerate(messages, options); // Map legacy to new
         default:
           throw new Error(`Unsupported provider: ${provider}`);
       }
@@ -417,56 +425,122 @@ export class MultiLLMService {
       return candidate.content.parts[0].text;
     }
   
-    async callGeminiGenerate(messages, options = {}) {
-      console.log(`🔥 Calling GeminiGenerate API`);
-      
+    async callLlmGenerate(messages, options = {}) {
       try {
-        // Get access token from chrome storage
-        const storage = await chrome.storage.local.get(['userAuth']);
-        const accessToken = storage.userAuth?.access_token;
+        console.log('🤖 Calling DeepHUD LLM API...');
         
-        if (!accessToken) {
-          throw new Error('Access token not found. Please log in again.');
+        // Get authentication data from chrome.storage.local
+        const authData = await this.getAuthData();
+        if (!authData) {
+          throw new Error('Authentication data not found. Please sign in first.');
         }
-  
-        // Convert messages to prompt format
-        let prompt = messages.map(msg => msg.content).join('\n\n');
-        
-        // Add screenshot context if available
-        if (options.screenshot) {
-          prompt = `[SCREENSHOT CONTEXT: A screenshot of the current web page with highlighted interactive elements is available. Use this visual context to provide accurate responses.]\n\n${prompt}`;
+
+        // Get user's organization for the default price ID
+        const priceId = PRICE_ID;
+        const orgResponse = await fetch(`${API_BASE_URL}/products/${priceId}/organizations/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+          },
+          credentials: 'include'
+        });
+
+        if (!orgResponse.ok) {
+          throw new Error(`Failed to get organization: ${orgResponse.status}`);
         }
+
+        const orgData = await orgResponse.json();
+        const organizations = orgData.organizations || [];
         
-        const requestBody = {
-          prompt: prompt,
-          max_tokens: options.maxTokens || 1500,
-          temperature: options.temperature || 0.5
-        };
-  
-        const response = await fetch(`${API_BASE_URL}/gemini/generate`, {
+        if (organizations.length === 0) {
+          throw new Error('No organizations found. Please create an organization first.');
+        }
+
+        // Use the first active organization
+        const activeOrg = organizations.find(org => org.isActive) || organizations[0];
+        
+        // Create streaming session
+        const sessionResponse = await fetch(`${API_BASE_URL}/streamMobile/createSession/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
+            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
           },
-          body: JSON.stringify(requestBody)
+          credentials: 'include'
         });
-  
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`GeminiGenerate API error: ${response.status} - ${errorText}`);
+
+        if (!sessionResponse.ok) {
+          throw new Error(`Failed to create session: ${sessionResponse.status}`);
         }
-  
-        const data = await response.json();
+
+        const sessionData = await sessionResponse.json();
+        const clientId = sessionData.clientId;
+
+        // Get Ably token for streaming
+        const tokenResponse = await fetch(`${API_BASE_URL}/streamMobile/getToken/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+          },
+          credentials: 'include',
+          body: JSON.stringify({ clientId: clientId })
+        });
+
+        if (!tokenResponse.ok) {
+          throw new Error(`Failed to get Ably token: ${tokenResponse.status}`);
+        }
+
+        const tokenData = await tokenResponse.json();
         
-        if (!data.response) {
-          throw new Error('Invalid response from GeminiGenerate API');
+        // Get the last user message as prompt
+        const lastUserMessage = messages.findLast(msg => msg.role === 'user');
+        if (!lastUserMessage) {
+          throw new Error('No user message found in messages array');
         }
-  
-        return data.response;
+
+        // Start AI chat session
+        const chatResponse = await fetch(`${API_BASE_URL}/streamMobile/startChat/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            prompt: lastUserMessage.content,
+            clientId: clientId,
+            orgId: activeOrg.id
+          })
+        });
+
+        if (!chatResponse.ok) {
+          throw new Error(`Failed to start chat: ${chatResponse.status}`);
+        }
+
+        const chatData = await chatResponse.json();
+        return chatData;
+        
       } catch (error) {
-        console.error('GeminiGenerate API error:', error);
+        console.error('❌ DeepHUD LLM API error:', error);
         throw error;
       }
+    }
+
+    async getAuthData() {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(['authData'], (result) => {
+          resolve(result.authData || null);
+        });
+      });
+    }
+
+    async saveAuthData(authData) {
+      return new Promise((resolve) => {
+        chrome.storage.local.set({ authData }, () => {
+          resolve();
+        });
+      });
     }
   }

@@ -1603,6 +1603,8 @@ class BackgroundScriptAgent {
         return !!config.openaiApiKey;
       case 'gemini':
         return !!config.geminiApiKey;
+      case 'llmGenerate':
+        return true; // Always valid for llmGenerate
       default:
         return false;
     }
