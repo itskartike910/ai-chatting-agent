@@ -143,43 +143,38 @@ export class MultiLLMService {
     }
   
     async determineProvider(forChat = false) {
-      // Use the config passed to constructor instead of calling getConfig()
+      // Check if user prefers personal API
+      const userPreference = await this.getUserAPIPreference();
       
-      // Check for llmGenerate first (new DeepHUD API)
-      if (this.config.llmGenerate && this.config.llmGenerate.enabled) {
-        return 'llmGenerate';
+      // If user prefers personal API, check for personal API keys
+      if (userPreference) {
+        const activeProvider = this.config.aiProvider || 'gemini';
+        
+        // Check if the active provider has a valid API key
+        switch (activeProvider) {
+          case 'anthropic':
+            if (this.config.anthropicApiKey) {
+              return 'anthropic';
+            }
+            break;
+          case 'openai':
+            if (this.config.openaiApiKey) {
+              return 'openai';
+            }
+            break;
+          case 'gemini':
+            if (this.config.geminiApiKey) {
+              return 'gemini';
+            }
+            break;
+        }
+        
+        // If no valid personal API key found, fall back to DeepHUD API
+        console.warn('Personal API preferred but no valid API key found, falling back to DeepHUD API');
       }
       
-      // Check for geminiGenerate (legacy)
-      if (this.config.geminiGenerate && this.config.geminiGenerate.enabled) {
-        return 'llmGenerate'; // Map to new name
-      }
-      
-      // Use aiProvider to determine the active provider
-      const activeProvider = this.config.aiProvider || 'gemini';
-      
-      // Check if the active provider has a valid API key
-      switch (activeProvider) {
-        case 'anthropic':
-          if (this.config.anthropicApiKey) {
-            return 'anthropic';
-          }
-          break;
-        case 'openai':
-          if (this.config.openaiApiKey) {
-            return 'openai';
-          }
-          break;
-        case 'gemini':
-          if (this.config.geminiApiKey) {
-            return 'gemini';
-          }
-          break;
-        default:
-          return 'llmGenerate';
-      }
-      
-      throw new Error('No valid LLM provider configured');
+      // Use DeepHUD API (when toggle is OFF or no personal API keys)
+      return 'llmGenerate';
     }
   
     checkApiKey(provider) {
@@ -446,92 +441,79 @@ export class MultiLLMService {
           throw new Error('Authentication data not found. Please sign in first.');
         }
 
-        // Get user's organization for the default price ID
-        const priceId = PRICE_ID;
-        const orgResponse = await fetch(`${API_BASE_URL}/products/${priceId}/organizations/`, {
+        // Get user data to get the priceId from user's selected organization
+        const userResponse = await fetch(`${API_BASE_URL}/user/`, {
           method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+            'Content-Type': 'application/json'
           },
           credentials: 'include'
         });
 
-        if (!orgResponse.ok) {
-          throw new Error(`Failed to get organization: ${orgResponse.status}`);
+        if (!userResponse.ok) {
+          throw new Error(`Failed to get user data: ${userResponse.status}`);
         }
 
-        const orgData = await orgResponse.json();
-        const organizations = orgData.organizations || [];
+        const userData = await userResponse.json();
+        const user = userData.user;
+        const organizations = userData.organizations || [];
         
         if (organizations.length === 0) {
           throw new Error('No organizations found. Please create an organization first.');
         }
 
-        // Use the first active organization
-        const activeOrg = organizations.find(org => org.isActive) || organizations[0];
-        
-        // Create streaming session
-        const sessionResponse = await fetch(`${API_BASE_URL}/streamMobile/createSession/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
-          },
-          credentials: 'include'
-        });
+        // Use the user's selected organization or the first active one
+        const activeOrg = organizations.find(org => org.id === user.selectedOrganizationId) || 
+                         organizations.find(org => org.isActive) || 
+                         organizations[0];
 
-        if (!sessionResponse.ok) {
-          throw new Error(`Failed to create session: ${sessionResponse.status}`);
-        }
-
-        const sessionData = await sessionResponse.json();
-        const clientId = sessionData.clientId;
-
-        // Get Ably token for streaming
-        const tokenResponse = await fetch(`${API_BASE_URL}/streamMobile/getToken/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
-          },
-          credentials: 'include',
-          body: JSON.stringify({ clientId: clientId })
-        });
-
-        if (!tokenResponse.ok) {
-          throw new Error(`Failed to get Ably token: ${tokenResponse.status}`);
-        }
-
-        const tokenData = await tokenResponse.json();
-        
         // Get the last user message as prompt
         const lastUserMessage = messages.findLast(msg => msg.role === 'user');
         if (!lastUserMessage) {
           throw new Error('No user message found in messages array');
         }
 
-        // Start AI chat session
+        // Prepare request body for direct response mode (no clientId for streaming)
+        const requestBody = {
+          prompt: lastUserMessage.content,
+          orgId: activeOrg.id
+        };
+
+        // Add screenshot if provided in options
+        if (options.screenshot) {
+          // Convert data URL to base64 if needed
+          let imageData = options.screenshot;
+          if (imageData.startsWith('data:image/')) {
+            imageData = imageData.split(',')[1]; // Remove data URL prefix
+          }
+          
+          requestBody.imageData = imageData;
+          requestBody.imageMimeType = 'image/jpeg'; // Default to JPEG
+        }
+
+        // Start AI chat session in direct response mode (no clientId)
         const chatResponse = await fetch(`${API_BASE_URL}/streamMobile/startChat/`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+            'Content-Type': 'application/json'
           },
           credentials: 'include',
-          body: JSON.stringify({
-            prompt: lastUserMessage.content,
-            clientId: clientId,
-            orgId: activeOrg.id
-          })
+          body: JSON.stringify(requestBody)
         });
 
         if (!chatResponse.ok) {
-          throw new Error(`Failed to start chat: ${chatResponse.status}`);
+          const errorText = await chatResponse.text();
+          throw new Error(`Failed to start chat: ${chatResponse.status} - ${errorText}`);
         }
 
         const chatData = await chatResponse.json();
-        return chatData;
+        
+        // Return the direct response (not streaming)
+        if (chatData.success && chatData.response) {
+          return chatData.response;
+        } else {
+          throw new Error('No response received from AI service');
+        }
         
       } catch (error) {
         console.error('❌ DeepHUD LLM API error:', error);
@@ -551,6 +533,14 @@ export class MultiLLMService {
       return new Promise((resolve) => {
         chrome.storage.local.set({ authData }, () => {
           resolve();
+        });
+      });
+    }
+
+    async getUserAPIPreference() {
+      return new Promise((resolve) => {
+        chrome.storage.local.get(['userPreferPersonalAPI'], (result) => {
+          resolve(result.userPreferPersonalAPI || false);
         });
       });
     }

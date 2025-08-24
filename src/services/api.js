@@ -12,8 +12,6 @@ class APIService {
     this.clientId = null;
     this.ablyToken = null;
     this.encryptionKey = null;
-    this._pollTimer = null;
-    this._safetyTimeout = null;
     
     // console.log('🔗 APIService initialized with URL:', this.baseURL);
   }
@@ -203,26 +201,56 @@ class APIService {
 
   async isUserAuthenticated() {
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get(['userAuth']);
-        return result.userAuth?.isAuthenticated || false;
+      // First check if we have stored auth data
+      const authData = await new Promise((resolve) => {
+        chrome.storage.local.get(['authData'], (result) => {
+          resolve(result.authData || null);
+        });
+      });
+      
+      if (!authData) {
+        return false;
       }
+      
+      // Check if session is still valid by making a test request
+      const response = await fetch(`${this.baseURL}/user/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      return response.ok;
     } catch (error) {
-      console.error('Error checking authentication status:', error);
+      console.error('Error checking authentication:', error);
+      return false;
     }
-    return false;
   }
 
   async getAuthSession() {
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get(['userAuth']);
-        return result.userAuth || { isAuthenticated: false, user: null };
+      const authData = await new Promise((resolve) => {
+        chrome.storage.local.get(['authData'], (result) => {
+          resolve(result.authData || null);
+        });
+      });
+      
+      if (!authData) {
+        return { isAuthenticated: false, user: null };
       }
+      
+      // Check if session is still valid
+      const isAuthenticated = await this.isUserAuthenticated();
+      
+      return {
+        isAuthenticated,
+        user: authData.user
+      };
     } catch (error) {
       console.error('Error getting auth session:', error);
+      return { isAuthenticated: false, user: null };
     }
-    return { isAuthenticated: false, user: null };
   }
 
   async clearAuthSession() {
@@ -235,150 +263,49 @@ class APIService {
     }
   }
 
-  _beginPolling() {
-    this._stopPolling();
-    this._pollTimer = setInterval(async () => {
-      try {
-        const user = await this._fetchMe();
-        if (user) {
-          await this.saveAuthUser(user);
-          this._stopPolling();
-        }
-      } catch {}
-    }, 2000);
-    this._safetyTimeout = setTimeout(() => this._stopPolling(), 300000); // 5 min
-  }
-
-  _stopPolling() {
-    if (this._pollTimer) clearInterval(this._pollTimer);
-    if (this._safetyTimeout) clearTimeout(this._safetyTimeout);
-    this._pollTimer = null;
-    this._safetyTimeout = null;
-  }
-
-  // Chrome Extension Authentication
-  async openAuthPopup() {
+  async startDeepHUDLogin() {
+    // Use background script for authentication (where chrome.cookies API is available)
     try {
-      if (typeof chrome !== 'undefined' && chrome.windows) {
-        const popup = await chrome.windows.create({
-          url: `${AUTH_URL}/ext/sign-in`,
-          type: 'popup',
-          width: 500,
-          height: 600
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'START_DEEPHUD_LOGIN' }, (response) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(response);
+          }
         });
-        return popup;
+      });
+
+      if (response.success) {
+        // Authentication successful, get user data
+        const userData = await this.getCurrentUser();
+        return userData;
+      } else {
+        throw new Error(response.error || 'Authentication failed');
       }
     } catch (error) {
-      console.error('Error opening auth popup:', error);
+      console.error('Authentication error:', error);
       throw error;
     }
-  }
-
-  // Chrome Extension Background Tab Authentication
-  async openAuthBackgroundTab() {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.tabs) {
-        const tab = await chrome.tabs.create({
-          url: `${AUTH_URL}/ext/sign-in`,
-          active: true
-        });
-        return tab;
-      }
-    } catch (error) {
-      console.error('Error opening auth background tab:', error);
-      throw error;
-    }
-  }
-
-  async startGitHubLogin() {
-    const authUrl = `${AUTH_URL}/ext/sign-in`;
-    this._beginPolling();
-
-    // 1) Try new tab (preferred method)
-    try {
-      if (chrome?.tabs?.create) {
-        const tab = await chrome.tabs.create({ url: authUrl, active: true });
-
-        const closer = setInterval(async () => {
-          if (await this.isUserAuthenticated()) {
-            try { tab?.id && (await chrome.tabs.remove(tab.id)); } catch {}
-            clearInterval(closer);
-          }
-        }, 2000);
-
-        return new Promise((resolve) => {
-          const check = setInterval(async () => {
-            const s = await this.getAuthSession();
-            if (s.isAuthenticated) { 
-              clearInterval(check); 
-              // Get fresh user data after authentication
-              try {
-                const userData = await this.getCurrentUser();
-                resolve(userData);
-              } catch (error) {
-                console.error('Error getting user data after auth:', error);
-                resolve(s.user);
-              }
-            }
-          }, 1000);
-          setTimeout(() => { clearInterval(check); resolve(null); }, 300000);
-        });
-      }
-    } catch (e) {
-      console.warn('[Auth] tabs.create failed:', e?.message || e);
-    }
-
-    // 2) Fallback: popup window
-    try {
-      if (chrome?.windows?.create) {
-        const popup = await chrome.windows.create({ url: authUrl, type: 'popup', width: 500, height: 600 });
-
-        const closer = setInterval(async () => {
-          if (await this.isUserAuthenticated()) {
-            try { popup?.id && (await chrome.windows.remove(popup.id)); } catch {}
-            clearInterval(closer);
-          }
-        }, 2000);
-
-        return new Promise((resolve) => {
-          const check = setInterval(async () => {
-            const s = await this.getAuthSession();
-            if (s.isAuthenticated) { 
-              clearInterval(check); 
-              // Get fresh user data after authentication
-              try {
-                const userData = await this.getCurrentUser();
-                resolve(userData);
-              } catch (error) {
-                console.error('Error getting user data after auth:', error);
-                resolve(s.user);
-              }
-            }
-          }, 1000);
-          setTimeout(() => { clearInterval(check); resolve(null); }, 300000);
-        });
-      }
-    } catch (e) {
-      console.warn('[Auth] windows.create failed:', e?.message || e);
-    }
-
-    // 3) Manual link case — caller should show `${AUTH_URL}/ext/sign-in`
-    console.warn('[Auth] No extension window/tab APIs available. Show manual link.');
-    return null;
   }
 
   async checkAuthStatus() {
     try {
-      if (typeof chrome !== 'undefined' && chrome.cookies) {
-        const cookie = await chrome.cookies.get({
-          url: AUTH_URL,
-          name: '__Secure-authjs.session-token'
-        });
-        
-        if (cookie) {
-          this.sessionToken = cookie.value;
-          return true;
+      // Check if session is valid by attempting to fetch user data
+      const response = await fetch(`${this.baseURL}/user/`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.user && userData.user.sessionToken) {
+          this.sessionToken = userData.user.sessionToken;
         }
+        return true;
       }
       return false;
     } catch (error) {
@@ -465,72 +392,73 @@ class APIService {
         throw new Error('Authentication data not found. Please sign in first.');
       }
 
-      // Get user's organization for the default price ID
-      const priceId = process.env.REACT_APP_PRICE_ID;
-      const orgResponse = await fetch(`${this.baseURL}/products/${priceId}/organizations/`, {
+      // Get user data to get the priceId from user's selected organization
+      const userResponse = await fetch(`${this.baseURL}/user/`, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+          'Content-Type': 'application/json'
         },
         credentials: 'include'
       });
 
-      if (!orgResponse.ok) {
-        throw new Error(`Failed to get organization: ${orgResponse.status}`);
+      if (!userResponse.ok) {
+        throw new Error(`Failed to get user data: ${userResponse.status}`);
       }
 
-      const orgData = await orgResponse.json();
-      const organizations = orgData.organizations || [];
+      const userData = await userResponse.json();
+      const user = userData.user;
+      const organizations = userData.organizations || [];
       
       if (organizations.length === 0) {
         throw new Error('No organizations found. Please create an organization first.');
       }
 
-      // Use the first active organization
-      const activeOrg = organizations.find(org => org.isActive) || organizations[0];
-      
-      // Create streaming session
-      const sessionResponse = await fetch(`${this.baseURL}/streamMobile/createSession/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
-        },
-        credentials: 'include'
-      });
+      // Use the user's selected organization or the first active one
+      const activeOrg = organizations.find(org => org.id === user.selectedOrganizationId) || 
+                       organizations.find(org => org.isActive) || 
+                       organizations[0];
 
-      if (!sessionResponse.ok) {
-        throw new Error(`Failed to create session: ${sessionResponse.status}`);
+      // Prepare request body for direct response mode (no clientId for streaming)
+      const requestBody = {
+        prompt: prompt,
+        orgId: activeOrg.id
+      };
+
+      // Add screenshot if provided in options
+      if (options.screenshot) {
+        // Convert data URL to base64 if needed
+        let imageData = options.screenshot;
+        if (imageData.startsWith('data:image/')) {
+          imageData = imageData.split(',')[1]; // Remove data URL prefix
+        }
+        
+        requestBody.imageData = imageData;
+        requestBody.imageMimeType = 'image/jpeg'; // Default to JPEG
       }
 
-      const sessionData = await sessionResponse.json();
-      const clientId = sessionData.clientId;
-
-      // Start AI chat session
+      // Start AI chat session in direct response mode (no clientId)
       const chatResponse = await fetch(`${this.baseURL}/streamMobile/startChat/`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Cookie': `__Secure-authjs.session-token=${authData.sessionToken}`
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify({
-          prompt: prompt,
-          clientId: clientId,
-          orgId: activeOrg.id
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!chatResponse.ok) {
-        throw new Error(`Failed to start chat: ${chatResponse.status}`);
+        const errorText = await chatResponse.text();
+        throw new Error(`Failed to start chat: ${chatResponse.status} - ${errorText}`);
       }
 
       const chatData = await chatResponse.json();
       
-      // For now, return a success message since the actual response comes via Ably streaming
-      // In a full implementation, you would need to set up Ably subscription to get the streaming response
-      return `AI chat session started successfully. Response will be streamed via Ably channel: llm-response-${clientId}`;
+      // Return the direct response (not streaming)
+      if (chatData.success && chatData.response) {
+        return chatData.response;
+      } else {
+        throw new Error('No response received from AI service');
+      }
       
     } catch (error) {
       console.error('DeepHUD LLM API error:', error);

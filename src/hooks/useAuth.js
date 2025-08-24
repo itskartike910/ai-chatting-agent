@@ -46,124 +46,12 @@ export const useAuth = () => {
     }
   };
 
-  const authenticateWithPopup = async () => {
-    setAuthState(prev => ({ ...prev, error: null, loading: true }));
-    
-    try {
-      // Open authentication popup
-      const popup = await apiService.openAuthPopup();
-      
-      // Poll for authentication completion
-      const pollInterval = setInterval(async () => {
-        try {
-          const authResult = await apiService.checkAuthentication();
-          
-          if (authResult.isAuthenticated) {
-            clearInterval(pollInterval);
-            
-            // Close the popup
-            if (popup && popup.id) {
-              try {
-                await chrome.windows.remove(popup.id);
-              } catch (e) {
-                console.warn('Could not close popup:', e);
-              }
-            }
-            
-            setAuthState({
-              isLoggedIn: true,
-              user: authResult.user,
-              loading: false,
-              error: null
-            });
-          }
-        } catch (error) {
-          console.error('Error during auth polling:', error);
-        }
-      }, 2000); // Poll every 2 seconds
-      
-      // Timeout after 5 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        setAuthState(prev => ({
-          ...prev,
-          loading: false,
-          error: 'Authentication timeout. Please try again.'
-        }));
-      }, 300000);
-      
-    } catch (error) {
-      console.error('Authentication error:', error);
-      setAuthState(prev => ({
-        ...prev,
-        loading: false,
-        error: error.message
-      }));
-    }
-  };
-
-  const authenticateWithBackgroundTab = async () => {
-    setAuthState(prev => ({ ...prev, error: null, loading: true }));
-    
-    try {
-      // Open authentication background tab
-      const tab = await apiService.openAuthBackgroundTab();
-      
-      // Poll for authentication completion
-      const pollInterval = setInterval(async () => {
-        try {
-          const authResult = await apiService.checkAuthentication();
-          
-          if (authResult.isAuthenticated) {
-            clearInterval(pollInterval);
-            
-            setAuthState({
-              isLoggedIn: true,
-              user: authResult.user,
-              loading: false,
-              error: null
-            });
-            
-            // Optionally close the tab after successful authentication
-            if (tab && tab.id) {
-              try {
-                await chrome.tabs.remove(tab.id);
-              } catch (e) {
-                console.warn('Could not close auth tab:', e);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error during auth polling:', error);
-        }
-      }, 2000); // Poll every 2 seconds
-      
-      // Timeout after 5 minutes
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        setAuthState(prev => ({
-          ...prev,
-          loading: false,
-          error: 'Authentication timeout. Please try again.'
-        }));
-      }, 300000);
-      
-    } catch (error) {
-      console.error('Authentication error:', error);
-      setAuthState(prev => ({
-        ...prev,
-        loading: false,
-        error: error.message
-      }));
-    }
-  };
-
-  const startGitHubLogin = async () => {
+  const startDeepHUDLogin = async () => {
     setAuthState(prev => ({ ...prev, error: null, loading: true }));
     
     try {
       // Use the new API service method that follows the DeepHUD pattern
-      const user = await apiService.startGitHubLogin();
+      const user = await apiService.startDeepHUDLogin();
       
       if (user) {
         setAuthState({
@@ -180,7 +68,7 @@ export const useAuth = () => {
         }));
       }
     } catch (error) {
-      console.error('GitHub login error:', error);
+      console.error('DeepHUD login error:', error);
       setAuthState(prev => ({
         ...prev,
         loading: false,
@@ -190,33 +78,13 @@ export const useAuth = () => {
   };
 
   const login = async (credentials) => {
-    // Check if using background tab authentication
-    if (credentials && credentials.useBackgroundTab) {
-      return await authenticateWithBackgroundTab();
-    }
-    
-    // Check if using GitHub login
-    if (credentials && credentials.useGitHub) {
-      return await startGitHubLogin();
-    }
-    
-    // For Chrome extension, use popup authentication
-    return await authenticateWithPopup();
+    // Use DeepHUD authentication
+    return await startDeepHUDLogin();
   };
 
   const signup = async (userData) => {
-    // Check if using background tab authentication
-    if (userData && userData.useBackgroundTab) {
-      return await authenticateWithBackgroundTab();
-    }
-    
-    // Check if using GitHub login
-    if (userData && userData.useGitHub) {
-      return await startGitHubLogin();
-    }
-    
-    // For Chrome extension, use popup authentication
-    return await authenticateWithPopup();
+    // Use DeepHUD authentication
+    return await startDeepHUDLogin();
   };
 
   const logout = async () => {
@@ -241,8 +109,6 @@ export const useAuth = () => {
     signup,
     logout,
     checkAuthStatus,
-    authenticateWithPopup,
-    authenticateWithBackgroundTab,
-    startGitHubLogin
+    startDeepHUDLogin
   };
 };

@@ -366,7 +366,7 @@ const AuthPage = ({ onLogin }) => {
               setError('');
               setLoading(true);
               try {
-                const result = await onLogin({ useGitHub: true });
+                const result = await onLogin({ useDeepHUD: true });
                 if (!result.success) {
                   throw new Error(result.error || 'Authentication failed');
                 }

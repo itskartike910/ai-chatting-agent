@@ -169,6 +169,11 @@
   100%{transform: rotate(1turn)}
 }
 
+/* New Task Status Loader Animation */
+@keyframes l19{ 
+  100%{transform: rotate(1turn)}
+}
+
 /* Text Loader Animation */
 .text-loader {
   font-weight: bold;

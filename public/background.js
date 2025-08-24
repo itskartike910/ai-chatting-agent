@@ -712,7 +712,7 @@ class MultiAgentExecutor {
           ineffectiveCount = 0;
           break;
         }
-
+        
         // If batch only contains navigation/wait, force replan after execution
         if (this.actionQueue.every(a => ['navigate', 'wait'].includes(a.name))) {
           console.log('🔄 Only navigation/wait actions in batch - forcing replan');
@@ -725,7 +725,7 @@ class MultiAgentExecutor {
         if (this.recentActionKeys.size > this.recentActionKeysMax) {
           this.recentActionKeys = new Set(Array.from(this.recentActionKeys).slice(-this.recentActionKeysMax));
         }
-
+        
         // Small delay between actions
         await this.delay(500);
         
@@ -1581,10 +1581,11 @@ class BackgroundScriptAgent {
         this.taskRouter = new AITaskRouter(this.llmService);
         
         // Broadcast config update to all connected clients
+        const hasValidKey = await this.hasValidApiKey(newConfig);
         this.connectionManager.broadcast({
           type: 'config_updated',
           provider: newConfig.aiProvider,
-          hasValidKey: this.hasValidApiKey(newConfig)
+          hasValidKey: hasValidKey
         });
         
         console.log('✅ Services reinitialized successfully');
@@ -1595,19 +1596,35 @@ class BackgroundScriptAgent {
   }
 
   // Check if current provider has valid API key
-  hasValidApiKey(config) {
-    switch (config.aiProvider) {
-      case 'anthropic':
-        return !!config.anthropicApiKey;
-      case 'openai':
-        return !!config.openaiApiKey;
-      case 'gemini':
-        return !!config.geminiApiKey;
-      case 'llmGenerate':
-        return true; // Always valid for llmGenerate
-      default:
-        return false;
+  async hasValidApiKey(config) {
+    // Check if user prefers personal API
+    const userPreference = await this.getUserAPIPreference();
+    
+    // If user prefers personal API, check for personal API keys
+    if (userPreference) {
+      switch (config.aiProvider) {
+        case 'anthropic':
+          return !!config.anthropicApiKey;
+        case 'openai':
+          return !!config.openaiApiKey;
+        case 'gemini':
+          return !!config.geminiApiKey;
+        default:
+          return false;
+      }
     }
+    
+    // If user prefers DeepHUD API or no personal API keys, always return true
+    // (DeepHUD API doesn't require API keys, it uses session authentication)
+    return true;
+  }
+
+  async getUserAPIPreference() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['userPreferPersonalAPI'], (result) => {
+        resolve(result.userPreferPersonalAPI || false);
+      });
+    });
   }
 
   setupMessageHandlers() {
@@ -2106,6 +2123,86 @@ Something went wrong while processing your request.
           sendResponse(configResult);
           break;
 
+        case 'START_DEEPHUD_LOGIN':
+          // Handle authentication in background script context
+          try {
+            const authUrl = 'https://nextjs-app-410940835135.us-central1.run.app/ext/sign-in';
+            
+            // Create new tab for authentication
+            const tab = await chrome.tabs.create({ 
+              url: authUrl, 
+              active: true 
+            });
+
+            // Poll for authentication success
+            const checkAuth = async () => {
+              try {
+                // Validate session by attempting to fetch user data
+                const response = await fetch('https://nextjs-app-410940835135.us-central1.run.app/api/user/', {
+                  credentials: 'include'
+                });
+                
+                if (response.ok) {
+                  // Authentication successful, close tab
+                  try { 
+                    if (tab?.id) {
+                      await chrome.tabs.remove(tab.id);
+                    }
+                  } catch (closeError) {
+                    console.warn('Could not close auth tab:', closeError);
+                  }
+                  return { success: true };
+                }
+              } catch (error) {
+                console.warn('Error checking auth:', error);
+              }
+              return { success: false };
+            };
+
+            // Poll every 2 seconds
+            const pollInterval = setInterval(async () => {
+              const authResult = await checkAuth();
+              if (authResult.success) {
+                clearInterval(pollInterval);
+                
+                // Get user data and store it
+                try {
+                  const userResponse = await fetch('https://nextjs-app-410940835135.us-central1.run.app/api/user/', {
+                    credentials: 'include'
+                  });
+                  
+                  if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    
+                    // Store user data in chrome.storage.local
+                    await chrome.storage.local.set({
+                      authData: {
+                        user: userData.user,
+                        timestamp: Date.now()
+                      }
+                    });
+                    
+                    sendResponse({ success: true, message: 'Authentication successful', user: userData.user });
+                  } else {
+                    sendResponse({ success: false, error: 'Failed to get user data' });
+                  }
+                } catch (error) {
+                  sendResponse({ success: false, error: 'Failed to get user data: ' + error.message });
+                }
+              }
+            }, 2000);
+
+            // Timeout after 5 minutes
+            setTimeout(() => {
+              clearInterval(pollInterval);
+              sendResponse({ success: false, error: 'Authentication timeout' });
+            }, 300000);
+
+          } catch (error) {
+            sendResponse({ success: false, error: error.message });
+          }
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -2116,6 +2213,8 @@ Something went wrong while processing your request.
 
   async getAgentStatus() {
     const config = await this.getConfig();
+    const hasValidKey = await this.hasValidApiKey(config);
+    
     return {
       isRunning: true,
       hasAgent: true,
@@ -2133,7 +2232,8 @@ Something went wrong while processing your request.
         hasAnthropicKey: !!config.anthropicApiKey,
         hasOpenAIKey: !!config.openaiApiKey,
         hasGeminiKey: !!config.geminiApiKey,
-        aiProvider: config.aiProvider || 'anthropic'
+        aiProvider: config.aiProvider || 'anthropic',
+        hasValidKey: hasValidKey
       }
     };
   }

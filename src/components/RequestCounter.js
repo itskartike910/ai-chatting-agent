@@ -21,26 +21,14 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick }) => {
     try {
       setLoading(true);
 
-      // Get user's organizations to determine current plan
-      const priceId = process.env.REACT_APP_PRICE_ID;
-      const priceIds = [priceId];
-      const orgPromises = priceIds.map((priceId) =>
-        apiService.getOrganizationsForPrice(priceId).catch((error) => {
-          console.log(
-            `RequestCounter: Organization fetch failed for ${priceId}:`,
-            error.message
-          );
-          return null;
-        })
-      );
-
-      const results = await Promise.all(orgPromises);
-      const allOrgs = results
-        .filter((result) => result)
-        .flatMap((result) => result.organizations || []);
-      const activeOrg = allOrgs.find(
-        (org) => org.isActive && org.subscriptionStatus === "active"
-      );
+      // Get user data to get organizations and usage info
+      const userData = await apiService.getCurrentUser();
+      const organizations = userData.organizations || [];
+      
+      // Find the user's selected organization or first active one
+      const activeOrg = organizations.find(org => org.id === userData.selectedOrganizationId) || 
+                       organizations.find(org => org.isActive) || 
+                       organizations[0];
 
       if (activeOrg) {
         // For now, we'll use a default quota based on subscription type
