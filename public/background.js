@@ -2174,8 +2174,13 @@ Something went wrong while processing your request.
                   if (userResponse.ok) {
                     const userData = await userResponse.json();
                     
-                    // Store user data in chrome.storage.local
+                    // Store complete user data in chrome.storage.local
                     await chrome.storage.local.set({
+                      userAuth: {
+                        user: userData.user,
+                        organizations: userData.organizations || [],
+                        timestamp: Date.now()
+                      },
                       authData: {
                         user: userData.user,
                         timestamp: Date.now()

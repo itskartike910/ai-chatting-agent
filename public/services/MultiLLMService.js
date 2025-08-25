@@ -1,12 +1,72 @@
 /* global chrome */
 
 const API_BASE_URL = 'https://nextjs-app-410940835135.us-central1.run.app/api';
-const PRICE_ID = '';
 
 export class MultiLLMService {
     constructor(config = {}) {
       this.config = config;
       console.log('🤖 Universal LLM Service initialized with provider:', this.config.aiProvider || 'anthropic');
+    }
+
+    // Helper function to get cached user data with fallback to API
+    async getCachedUserData() {
+      // Get cached user data instead of making API call
+      const cachedUserData = await new Promise((resolve) => {
+        chrome.storage.local.get(['userAuth', 'authData'], (result) => {
+          // Prefer userAuth (from ProfilePage) as it contains both user and organizations
+          if (result.userAuth && result.userAuth.user && result.userAuth.organizations) {
+            resolve(result.userAuth);
+          } else if (result.authData && result.authData.user) {
+            // If only authData is available, we need to fetch organizations
+            resolve(result.authData);
+          } else {
+            resolve(null);
+          }
+        });
+      });
+
+      // If no cached user data found at all, throw error (don't make API call)
+      if (!cachedUserData || !cachedUserData.user) {
+        throw new Error('Cached user data not found. Please refresh your session.');
+      }
+
+      // Check if we have complete cached data (user + organizations)
+      let organizations = cachedUserData.organizations;
+      if (!organizations) {
+        console.log('⚠️ Organizations not cached, making API call to /user/...');
+        const userResponse = await fetch(`${API_BASE_URL}/user/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (!userResponse.ok) {
+          throw new Error(`Failed to get user data: ${userResponse.status}`);
+        }
+
+        const userData = await userResponse.json();
+        organizations = userData.organizations || [];
+        
+        // Cache the complete data for future use to prevent future API calls
+        await new Promise((resolve) => {
+          chrome.storage.local.set({
+            userAuth: {
+              user: cachedUserData.user,
+              organizations: organizations
+            }
+          }, resolve);
+        });
+        console.log('✅ Cached complete user data for future requests');
+      } else {
+        console.log('✅ Using cached user data (no API call needed)');
+      }
+
+      return {
+        user: cachedUserData.user,
+        organizations: organizations
+      };
     }
 
     // Capture screenshot using Wootz API
@@ -167,6 +227,8 @@ export class MultiLLMService {
               return 'gemini';
             }
             break;
+          default:
+            console.log('No valid personal API key found, falling back to DeepHUD API');
         }
         
         // If no valid personal API key found, fall back to DeepHUD API
@@ -435,28 +497,8 @@ export class MultiLLMService {
       try {
         console.log('🤖 Calling DeepHUD LLM API...');
         
-        // Get authentication data from chrome.storage.local
-        const authData = await this.getAuthData();
-        if (!authData) {
-          throw new Error('Authentication data not found. Please sign in first.');
-        }
-
-        // Get user data to get the priceId from user's selected organization
-        const userResponse = await fetch(`${API_BASE_URL}/user/`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-
-        if (!userResponse.ok) {
-          throw new Error(`Failed to get user data: ${userResponse.status}`);
-        }
-
-        const userData = await userResponse.json();
-        const user = userData.user;
-        const organizations = userData.organizations || [];
+        // Get cached user data with fallback to API if needed
+        const { user, organizations } = await this.getCachedUserData();
         
         if (organizations.length === 0) {
           throw new Error('No organizations found. Please create an organization first.');
