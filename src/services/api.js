@@ -317,7 +317,7 @@ class APIService {
   // User Management APIs
   async getCurrentUser() {
     const response = await this.makeRequest('/user/');
-    return response.user;
+    return response; // Return the full response with both user and organizations
   }
 
   // Organization Management APIs
