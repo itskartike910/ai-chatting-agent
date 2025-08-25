@@ -15,7 +15,7 @@ import {
   FaHistory,
   // FaCog
 } from 'react-icons/fa';
-import RequestCounter from './RequestCounter';
+// import RequestCounter from './RequestCounter';
 import SubscriptionChoice from './SubscriptionChoice';
 import { useNavigate } from 'react-router-dom';
 
@@ -582,12 +582,12 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             {getConnectionIcon()}
             <span>{getConnectionStatusText()}</span>
             {/* {isExecuting && <span>• Working...</span>} */}
-            {!subscription?.usingPersonalAPI && (
+            {/* {!subscription?.usingPersonalAPI && (
               <RequestCounter 
                 subscriptionState={subscription} 
                 onUpgradeClick={() => setShowSubscriptionChoice(true)}
               />
-            )}
+            )} */}
           </div>
         </div>
         <div className="chat-header-buttons" style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>

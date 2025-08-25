@@ -128,12 +128,9 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick }) => {
         }}
       >
         <div
-          className="spinner-loader"
+          className="profile-loader"
           style={{
-            width: "8px",
-            height: "8px",
-            border: "1px solid transparent",
-            borderRightColor: "#FF6B6B",
+            transform: "scale(0.5)",
           }}
         />
         <span style={{ fontSize: "12px", color: "rgba(255, 220, 220, 0.7)" }}>

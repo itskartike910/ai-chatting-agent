@@ -1,11 +1,11 @@
 /* global chrome */
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  FaUser, 
-  FaArrowLeft, 
+import {
+  FaUser,
+  FaArrowLeft,
   FaEnvelope,
-  FaCrown, 
+  FaCrown,
   FaCalendarAlt,
   FaChartBar,
   FaSignOutAlt,
@@ -81,7 +81,9 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         return;
       } else if (storedUserData) {
         // If we have user data but no organizations, clear the storage and fetch fresh data
-        console.log("Stored user data found but no organizations, clearing storage and fetching fresh data");
+        console.log(
+          "Stored user data found but no organizations, clearing storage and fetching fresh data"
+        );
         try {
           await new Promise((resolve) => {
             chrome.storage.local.remove(["userAuth", "authData"], resolve);
@@ -97,15 +99,15 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       console.log("Full API response:", userData);
       console.log("Response type:", typeof userData);
       console.log("Response keys:", Object.keys(userData || {}));
-      
+
       // Extract user and organizations from the API response
       const user = userData?.user || userData;
       const organizations = userData?.organizations || [];
-      
+
       console.log("Extracted user:", user);
       console.log("Extracted organizations:", organizations);
       console.log("Organizations length:", organizations.length);
-      
+
       setUserDetails(user);
       setOrganizations(organizations);
 
@@ -113,12 +115,15 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       if (userData) {
         try {
           await new Promise((resolve) => {
-            chrome.storage.local.set({ 
-              userAuth: { 
-                user: user,
-                organizations: organizations 
-              } 
-            }, resolve);
+            chrome.storage.local.set(
+              {
+                userAuth: {
+                  user: user,
+                  organizations: organizations,
+                },
+              },
+              resolve
+            );
           });
         } catch (storageError) {
           console.log("Could not store user data:", storageError);
@@ -131,7 +136,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       setLoading(false);
     }
   };
-  
+
   // Refresh subscription data when component gains focus (returning from settings)
   useEffect(() => {
     const handleFocus = () => {
@@ -139,7 +144,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         subscription.loadSubscriptionData();
       }
     };
-    
+
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
   }, [subscription]);
@@ -168,7 +173,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       await new Promise((resolve) => {
         chrome.storage.local.remove(["userAuth", "authData"], resolve);
       });
-      
+
       // Reload data
       await loadUserDetails();
     } catch (error) {
@@ -178,22 +183,22 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
   const handleTogglePersonalAPI = async () => {
     if (isToggling) return;
-    
+
     setIsToggling(true);
-    
+
     try {
       const newPreference = !subscription.userPreferPersonalAPI;
-      
+
       // If turning ON and no API keys, redirect to settings
       if (newPreference && !subscription.hasPersonalKeys) {
         navigate("/settings");
         setIsToggling(false);
         return;
       }
-      
+
       // Set the preference
       const success = await subscription.setUserAPIPreference(newPreference);
-      
+
       if (success) {
         console.log(
           `API preference set to: ${
@@ -237,15 +242,15 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
     }
 
     if (subscription.usingPersonalAPI) {
-      return { 
-        text: `Personal API`, 
+      return {
+        text: `Personal API`,
         color: "#17bf63",
         icon: <FaKey />,
       };
     }
 
     if (subscription.status === "trial") {
-      return { 
+      return {
         text: "Free Trial",
         color: "#ffad1f",
         icon: <FaStar />,
@@ -253,14 +258,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
     }
 
     if (subscription.status === "active") {
-      return { 
+      return {
         text: "Premium Subscription",
         color: "#17bf63",
         icon: <FaCrown />,
       };
     }
 
-    return { 
+    return {
       text: "Trial Expired",
       color: "#e0245e",
       icon: <FaClock />,
@@ -402,10 +407,10 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
       {/* Header */}
       <div className="profile-header" style={headerStyle}>
-        <button 
+        <button
           onClick={handleBack}
           className="profile-back-button"
-          style={{ 
+          style={{
             padding: "6px 8px",
             backgroundColor: "rgba(255, 220, 220, 0.2)",
             border: "1px solid rgba(255, 220, 220, 0.3)",
@@ -421,12 +426,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         >
           <FaArrowLeft />
         </button>
-        
+
         <div style={{ minWidth: 0, flex: 1, textAlign: "center" }}>
           <h3
             className="profile-title"
             style={{
-            margin: 0, 
+              margin: 0,
               color: "#FFDCDCFF",
               fontSize: "18px",
               fontWeight: "700",
@@ -443,7 +448,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           <p
             className="profile-subtitle"
             style={{
-            margin: 0, 
+              margin: 0,
               color: "rgba(255, 220, 220, 0.8)",
               fontSize: "12px",
               lineHeight: "14px",
@@ -453,7 +458,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             Account details and usage
           </p>
         </div>
-        
+
         <div
           style={{
             display: "flex",
@@ -461,7 +466,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             justifyContent: "flex-end",
           }}
         >
-          <button 
+          {/* <button 
             onClick={forceRefreshData}
             className="profile-button"
             style={{ 
@@ -479,29 +484,32 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             title="Refresh Data"
           >
             🔄
-          </button>
+          </button> */}
+          {/* Add placeholder div with same width when button is hidden */}
           {subscription.userPreferPersonalAPI &&
-            subscription.hasPersonalKeys && (
-        <button 
-                onClick={() => navigate("/settings")}
-          className="profile-button"
-          style={{ 
-                  padding: "6px 8px",
-                  backgroundColor: "rgba(255, 220, 220, 0.2)",
-                  border: "1px solid rgba(255, 220, 220, 0.3)",
-                  borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "16px",
-              color: "#FFDCDCFF",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-          }}
-          title="Settings"
-        >
-          <FaCog />
-        </button>
-            )}
+          subscription.hasPersonalKeys ? (
+            <button
+              onClick={() => navigate("/settings")}
+              className="profile-button"
+              style={{
+                padding: "6px 8px",
+                backgroundColor: "rgba(255, 220, 220, 0.2)",
+                border: "1px solid rgba(255, 220, 220, 0.3)",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "16px",
+                color: "#FFDCDCFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="Settings"
+            >
+              <FaCog />
+            </button>
+          ) : (
+            <div style={{ width: "35px" }} />
+          )}
         </div>
       </div>
 
@@ -551,8 +559,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             >
               {!userDetails?.image &&
                 (userDetails?.name?.charAt(0) || user?.name?.charAt(0) || "U")}
-              </div>
-              <div className="profile-user-details" style={{ flex: 1 }}>
+            </div>
+            <div className="profile-user-details" style={{ flex: 1 }}>
               <h3
                 className="profile-user-name"
                 style={{
@@ -561,6 +569,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   textAlign: "left",
                   color: "#FFDCDCFF",
                   margin: "0 0 4px 0",
+                  animation: "slideInUp 0.6s ease-out 0.1s both",
                 }}
               >
                 {userDetails?.name || user?.name || "User"}
@@ -575,23 +584,23 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   display: "flex",
                   alignItems: "center",
                   gap: "6px",
+                  animation: "slideInUp 0.6s ease-out 0.2s both",
                 }}
               >
-                <FaEnvelope style={{ fontSize: "12px" }} />
+                {/* <FaEnvelope style={{ fontSize: "12px" }} /> */}
                 {userDetails?.email || user?.email || "user@example.com"}
               </p>
-              </div>
             </div>
+          </div>
 
           {loading ? (
             <div style={{ textAlign: "center", padding: "20px" }}>
-              <div className="spinner-loader" style={{
-                width: "20px",
-                height: "20px",
-                border: "2px solid transparent",
-                borderRightColor: "#FF6B6B",
-                margin: "0 auto",
-              }} />
+              <div
+                className="profile-loader"
+                style={{
+                  margin: "0 auto",
+                }}
+              />
               <p
                 style={{ color: "rgba(255, 220, 220, 0.7)", marginTop: "8px" }}
               >
@@ -619,17 +628,36 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     gap: "8px",
                     marginBottom: "8px",
                     fontSize: "12px",
                     color: "rgba(255, 220, 220, 0.7)",
+                    animation: "slideInUp 0.6s ease-out 0.3s both",
                   }}
                 >
-                  <FaIdCard style={{ fontSize: "10px" }} />
-                  User ID: {userDetails?.id || "N/A"}
+                  <FaIdCard
+                    style={{
+                      fontSize: "10px",
+                      marginTop: "2px",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ textAlign: "left" }}>
+                    <div>User ID:</div>
+                    <div
+                      style={{
+                        wordBreak: "break-all",
+                        fontSize: "11px",
+                        color: "rgba(255, 220, 220, 0.8)",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {userDetails?.id || "N/A"}
+                    </div>
+                  </div>
                 </div>
-                
+
                 {userDetails?.role && (
                   <div
                     style={{
@@ -639,22 +667,26 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                       marginBottom: "8px",
                       fontSize: "12px",
                       color: "rgba(255, 220, 220, 0.7)",
+                      animation: "slideInUp 0.6s ease-out 0.4s both",
                     }}
                   >
                     <FaTag style={{ fontSize: "10px" }} />
-                    Role: {userDetails.role.charAt(0).toUpperCase() + userDetails.role.slice(1)}
+                    Role:{" "}
+                    {userDetails.role.charAt(0).toUpperCase() +
+                      userDetails.role.slice(1)}
                   </div>
                 )}
-                
+
                 {userDetails?.createdAt && (
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
                       gap: "8px",
-                      marginBottom: "8px",
+                      marginBottom: "0px",
                       fontSize: "12px",
                       color: "rgba(255, 220, 220, 0.7)",
+                      animation: "slideInUp 0.6s ease-out 0.5s both",
                     }}
                   >
                     <FaCalendarAlt style={{ fontSize: "10px" }} />
@@ -662,250 +694,6 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   </div>
                 )}
               </div>
-
-              {/* Organizations Section */}
-              {organizations.length > 0 ? (
-                <div style={{ marginTop: "20px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      marginBottom: "16px",
-                    }}
-                  >
-                    <h4
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        color: "#FFDCDCFF",
-                        margin: 0,
-                        textAlign: "left",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      <FaBuilding />
-                      Organizations
-                    </h4>
-                    {organizations.length > 1 && (
-                      <button
-                        onClick={() => setShowAllOrganizations(!showAllOrganizations)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#FFDCDCFF",
-                          cursor: "pointer",
-                          fontSize: "12px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: "4px 8px",
-                          borderRadius: "4px",
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        {showAllOrganizations ? "Show Less" : "View All"}
-                        {showAllOrganizations ? <FaChevronUp /> : <FaChevronDown />}
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div style={{ 
-                    display: "flex", 
-                    flexDirection: "column", 
-                    gap: "12px",
-                    maxHeight: showAllOrganizations ? "none" : "200px",
-                    overflow: "hidden",
-                    transition: "all 0.3s ease",
-                  }}>
-                    {(showAllOrganizations ? organizations : organizations.slice(0, 1)).map((org, index) => (
-                      <div
-                        key={org.id}
-                        style={{
-                          backgroundColor: "rgba(255, 255, 255, 0.03)",
-                          borderRadius: "12px",
-                          padding: "16px",
-                          border: "1px solid rgba(255, 255, 255, 0.05)",
-                          animation: `slideInUp 0.6s ease-out ${index * 0.1}s`,
-                        }}
-                      >
-                        {/* Organization Header */}
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            marginBottom: "12px",
-                          }}
-                        >
-                          <div style={{ flex: 1 }}>
-                            <h5
-                              style={{
-                                fontSize: "16px",
-                                fontWeight: "600",
-                                color: "#FFDCDCFF",
-                                margin: "0 0 4px 0",
-                                textAlign: "left",
-                              }}
-                            >
-                              {org.name}
-                            </h5>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                marginBottom: "8px",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  padding: "2px 8px",
-                                  borderRadius: "12px",
-                                  fontSize: "10px",
-                                  fontWeight: "600",
-                                  backgroundColor: "rgba(255, 173, 31, 0.2)",
-                                  color: "#ffad1f",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                {org.role}
-                              </span>
-                              <span
-                                style={{
-                                  padding: "2px 8px",
-                                  borderRadius: "12px",
-                                  fontSize: "10px",
-                                  fontWeight: "600",
-                                  backgroundColor: org.isActive 
-                                    ? "rgba(76, 175, 80, 0.2)" 
-                                    : "rgba(158, 158, 158, 0.2)",
-                                  color: org.isActive ? "#4CAF50" : "#9E9E9E",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                {org.isActive ? "Active" : "Inactive"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Organization Details */}
-                        <div style={{ 
-                          display: "grid", 
-                          gridTemplateColumns: "1fr 1fr", 
-                          gap: "8px",
-                          fontSize: "11px",
-                          color: "rgba(255, 220, 220, 0.7)",
-                        }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <FaIdCard style={{ fontSize: "8px" }} />
-                            ID: {org.id}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <FaCreditCard style={{ fontSize: "8px" }} />
-                            Product: {org.productId}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <FaCalendarAlt style={{ fontSize: "8px" }} />
-                            Joined: {formatDate(org.joinedAt)}
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <FaCalendarCheck style={{ fontSize: "8px" }} />
-                            Expires: {formatDate(org.subExpiry)}
-                          </div>
-                        </div>
-
-                        {/* Subscription Details */}
-                        <div style={{ 
-                          marginTop: "12px", 
-                          padding: "8px 12px",
-                          backgroundColor: "rgba(255, 255, 255, 0.02)",
-                          borderRadius: "8px",
-                          border: "1px solid rgba(255, 255, 255, 0.05)",
-                        }}>
-                          <div style={{ 
-                            display: "flex", 
-                            alignItems: "center", 
-                            justifyContent: "space-between",
-                            marginBottom: "8px",
-                          }}>
-                            <span style={{ 
-                              fontSize: "12px", 
-                              fontWeight: "600", 
-                              color: "#FFDCDCFF" 
-                            }}>
-                              Subscription Details
-                            </span>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              {org.subscriptionStatus === "active" ? (
-                                <FaCheckCircle style={{ fontSize: "12px", color: "#4CAF50" }} />
-                              ) : (
-                                <FaTimesCircle style={{ fontSize: "12px", color: "#f44336" }} />
-                              )}
-                              <span style={{
-                                fontSize: "10px",
-                                color: org.subscriptionStatus === "active" ? "#4CAF50" : "#f44336",
-                                textTransform: "capitalize",
-                              }}>
-                                {org.subscriptionStatus}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div style={{ 
-                            display: "grid", 
-                            gridTemplateColumns: "1fr 1fr", 
-                            gap: "6px",
-                            fontSize: "10px",
-                            color: "rgba(255, 220, 220, 0.7)",
-                          }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <FaShieldAlt style={{ fontSize: "8px" }} />
-                              Type: {org.subscriptionType}
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <FaCreditCard style={{ fontSize: "8px" }} />
-                              Price ID: {org.priceId?.slice(-8)}...
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div style={{ marginTop: "20px" }}>
-                  <h4
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: "600",
-                      color: "#FFDCDCFF",
-                      margin: "0 0 16px 0",
-                      textAlign: "left",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    <FaBuilding />
-                    Organizations
-                  </h4>
-                  <div style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.03)",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
-                    textAlign: "center",
-                    color: "rgba(255, 220, 220, 0.7)",
-                    fontSize: "14px",
-                  }}>
-                    No organizations found
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -927,7 +715,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             API Configuration
           </h4>
 
-          <div style={cardStyle}>
+          <div
+            style={{
+              ...cardStyle,
+              animation: "slideInUp 0.6s ease-out 0.6s both",
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -993,37 +786,435 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 )}
               </button>
             </div>
-            
+
             {/* Status indicator */}
             <div
               style={{
                 marginTop: "12px",
                 padding: "8px 12px",
                 borderRadius: "6px",
-              backgroundColor: subscription.usingPersonalAPI 
+                backgroundColor: subscription.usingPersonalAPI
                   ? "rgba(23, 191, 99, 0.1)"
-                : subscription.remaining_requests <= 0 
+                  : subscription.remaining_requests <= 0
                   ? "rgba(224, 36, 94, 0.1)"
                   : "rgba(255, 173, 31, 0.1)",
-              border: subscription.usingPersonalAPI 
+                border: subscription.usingPersonalAPI
                   ? "1px solid rgba(23, 191, 99, 0.3)"
-                : subscription.remaining_requests <= 0 
+                  : subscription.remaining_requests <= 0
                   ? "1px solid rgba(224, 36, 94, 0.3)"
                   : "1px solid rgba(255, 173, 31, 0.3)",
                 fontSize: "12px",
-              color: subscription.usingPersonalAPI 
+                color: subscription.usingPersonalAPI
                   ? "#17bf63"
-                : subscription.remaining_requests <= 0 
+                  : subscription.remaining_requests <= 0
                   ? "#e0245e"
                   : "#ffad1f",
               }}
             >
-              {subscription.usingPersonalAPI 
+              {subscription.usingPersonalAPI
                 ? "✅ Currently using your personal API key"
-                : subscription.hasPersonalKeys 
+                : subscription.hasPersonalKeys
                 ? "🔄 Currently using DeepHUD API"
                 : "⚠️ Configure API keys in settings to enable personal API"}
             </div>
+          </div>
+        </div>
+
+        {/* Organizations Section */}
+        <div style={sectionStyle}>
+          <h4
+            style={{
+              color: "#FFDCDCFF",
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: "0 0 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <FaBuilding />
+            Organizations
+          </h4>
+
+          <div
+            style={{
+              ...cardStyle,
+              overflow: "hidden",
+              animation: "slideInUp 0.6s ease-out 0.7s both",
+            }}
+          >
+            {organizations.length > 0 ? (
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "16px",
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "600",
+                        color: "#FFDCDCFF",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Your Organizations
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "rgba(255, 220, 220, 0.8)",
+                        lineHeight: "1.4",
+                      }}
+                    >
+                      Manage your organization memberships and subscriptions
+                    </div>
+                  </div>
+                  {organizations.length > 1 && (
+                    <button
+                      onClick={() =>
+                        setShowAllOrganizations(!showAllOrganizations)
+                      }
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#FFDCDCFF",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {showAllOrganizations ? "Show Less" : "View All"}
+                      {showAllOrganizations ? (
+                        <FaChevronUp />
+                      ) : (
+                        <FaChevronDown />
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                    maxHeight: showAllOrganizations ? "none" : "200px",
+                    overflow: "hidden",
+                    transition: "all 0.3s ease",
+                    paddingRight: "4px", // Add padding to prevent cut-off
+                  }}
+                >
+                  {(showAllOrganizations
+                    ? organizations
+                    : organizations.slice(0, 1)
+                  ).map((org, index) => (
+                    <div
+                      key={org.id}
+                      style={{
+                        backgroundColor: "rgba(255, 255, 255, 0.03)",
+                        borderRadius: "12px",
+                        padding: "16px",
+                        border: "1px solid rgba(255, 255, 255, 0.05)",
+                        animation: `slideInUp 0.6s ease-out ${index * 0.1}s`,
+                        minWidth: 0, // Ensure proper flex behavior
+                        overflow: "hidden", // Prevent content overflow
+                      }}
+                    >
+                      {/* Organization Header */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <div style={{ flex: 1 }}>
+                          <h5
+                            style={{
+                              fontSize: "16px",
+                              fontWeight: "600",
+                              color: "#FFDCDCFF",
+                              margin: "0 0 4px 0",
+                              textAlign: "left",
+                            }}
+                          >
+                            {org.name}
+                          </h5>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              marginBottom: "8px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "12px",
+                                fontSize: "10px",
+                                fontWeight: "600",
+                                backgroundColor: "rgba(255, 173, 31, 0.2)",
+                                color: "#ffad1f",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {org.role}
+                            </span>
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "12px",
+                                fontSize: "10px",
+                                fontWeight: "600",
+                                backgroundColor: org.isActive
+                                  ? "rgba(76, 175, 80, 0.2)"
+                                  : "rgba(158, 158, 158, 0.2)",
+                                color: org.isActive ? "#4CAF50" : "#9E9E9E",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {org.isActive ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Organization Details */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "8px",
+                          fontSize: "11px",
+                          color: "rgba(255, 220, 220, 0.7)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            minWidth: 0,
+                          }}
+                        >
+                          <FaIdCard
+                            style={{ fontSize: "8px", flexShrink: 0 }}
+                          />
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            ID: {org.id}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            minWidth: 0,
+                          }}
+                        >
+                          <FaCreditCard
+                            style={{ fontSize: "8px", flexShrink: 0 }}
+                          />
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Product: {org.productId}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            minWidth: 0,
+                          }}
+                        >
+                          <FaCalendarAlt
+                            style={{ fontSize: "8px", flexShrink: 0 }}
+                          />
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Joined: {formatDate(org.joinedAt)}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            minWidth: 0,
+                          }}
+                        >
+                          <FaCalendarCheck
+                            style={{ fontSize: "8px", flexShrink: 0 }}
+                          />
+                          <span
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Expires: {formatDate(org.subExpiry)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Subscription Details */}
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          padding: "8px 12px",
+                          backgroundColor: "rgba(255, 255, 255, 0.02)",
+                          borderRadius: "8px",
+                          border: "1px solid rgba(255, 255, 255, 0.05)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              color: "#FFDCDCFF",
+                            }}
+                          >
+                            Subscription Details
+                          </span>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            {org.subscriptionStatus === "active" ? (
+                              <FaCheckCircle
+                                style={{ fontSize: "12px", color: "#4CAF50" }}
+                              />
+                            ) : (
+                              <FaTimesCircle
+                                style={{ fontSize: "12px", color: "#f44336" }}
+                              />
+                            )}
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color:
+                                  org.subscriptionStatus === "active"
+                                    ? "#4CAF50"
+                                    : "#f44336",
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {org.subscriptionStatus}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px",
+                            fontSize: "11px",
+                            color: "rgba(255, 220, 220, 0.7)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              minWidth: 0,
+                            }}
+                          >
+                            <FaShieldAlt
+                              style={{ fontSize: "8px", flexShrink: 0 }}
+                            />
+                            <span
+                              style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Type: {org.subscriptionType}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              minWidth: 0,
+                            }}
+                          >
+                            <FaCreditCard
+                              style={{ fontSize: "8px", flexShrink: 0 }}
+                            />
+                            <span
+                              style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Price ID: {org.priceId}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "20px",
+                  color: "rgba(255, 220, 220, 0.7)",
+                  fontSize: "14px",
+                }}
+              >
+                No organizations found
+              </div>
+            )}
           </div>
         </div>
 
@@ -1044,7 +1235,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             Subscription Status
           </h4>
 
-          <div style={cardStyle}>
+          <div
+            style={{
+              ...cardStyle,
+              animation: "slideInUp 0.6s ease-out 0.8s both",
+            }}
+          >
             <div
               style={{
                 display: "flex",
@@ -1073,11 +1269,11 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                     color: "rgba(255, 220, 220, 0.8)",
                   }}
                 >
-                  {subscription.usingPersonalAPI 
+                  {subscription.usingPersonalAPI
                     ? "Unlimited usage with your API key"
                     : subscription.plan_type === "free_trial"
-                      ? `Trial expires ${formatDate(subscription.trial_end)}`
-                      : subscription.current_period_end
+                    ? `Trial expires ${formatDate(subscription.trial_end)}`
+                    : subscription.current_period_end
                     ? `Next billing ${formatDate(
                         subscription.current_period_end
                       )}`
@@ -1108,7 +1304,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         </div>
 
         {/* Usage Stats */}
-        <div style={sectionStyle}>
+        {/* <div style={sectionStyle}>
           <h4
             style={{
               color: "#FFDCDCFF",
@@ -1216,7 +1412,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               </div>
             )}
           </div>
-        </div>
+        </div> */}
 
         {/* Logout Button */}
         <div style={sectionStyle}>
@@ -1226,6 +1422,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               ...buttonStyle,
               backgroundColor: "#e0245e",
               color: "white",
+              animation: "slideInUp 0.6s ease-out 0.9s both",
             }}
           >
             <FaSignOutAlt />
@@ -1237,4 +1434,4 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   );
 };
 
-export default ProfilePage; 
+export default ProfilePage;
