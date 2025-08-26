@@ -205,11 +205,13 @@ class MultiAgentExecutor {
           
           // Broadcast status update if observation exists
           if (initialPlan.observation) {
-            connectionManager.broadcast({
-              type: 'status_update',
-              message: `🧠 Observation: ${initialPlan.observation}\n📋 Strategy: ${initialPlan.strategy}`,
-              details: initialPlan.reasoning || ''
-            });
+            // Show observation and strategy to user
+          connectionManager.broadcast({
+            type: 'observation_strategy',
+            step: this.currentStep,
+            observation: initialPlan.observation,
+            strategy: initialPlan.strategy
+          });
           }
         }
 
@@ -370,10 +372,12 @@ class MultiAgentExecutor {
             
             // Broadcast planner's observation and strategy
             if (plan && plan.observation) {
+              // Show observation and strategy to user
               connectionManager.broadcast({
-                type: 'status_update',
-                message: `🧠 Observation: ${plan.observation}\n📋 Strategy: ${plan.strategy}`,
-                details: plan.reasoning || ''
+                type: 'observation_strategy',
+                step: this.currentStep,
+                observation: plan.observation,
+                strategy: plan.strategy
               });
             }
             
@@ -452,10 +456,12 @@ class MultiAgentExecutor {
         }
 
         if (plan && plan.observation) {
+          // Show observation and strategy to user
           connectionManager.broadcast({
-            type: 'status_update',
-            message: `🧠 Observation: ${plan.observation}\n📋 Strategy: ${plan.strategy}`,
-            details: plan.reasoning || ''
+            type: 'observation_strategy',
+            step: this.currentStep,
+            observation: plan.observation,
+            strategy: plan.strategy
           });
         }
 
@@ -484,15 +490,12 @@ class MultiAgentExecutor {
           this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions);
           this.currentBatchPlan = plan;
           
-          // Show plan to user as single step
+          // Show observation and strategy to user
           connectionManager.broadcast({
-            type: 'plan_display',
+            type: 'observation_strategy',
             step: this.currentStep,
-            strategy: plan.strategy,
-            plannedActions: plan.batch_actions.map(a => ({
-              type: a.action_type,
-              intent: a.parameters?.intent || `${a.action_type} action`
-            }))
+            observation: plan.observation,
+            strategy: plan.strategy
           });
         } else {
           console.log('⚠️ No valid batch actions received from planner');
@@ -1800,10 +1803,21 @@ class BackgroundScriptAgent {
             taskStatus: null
           });
           
+          // Get progress information for cancellation message
+          let progressInfo = '';
+          if (this.currentStep > 0) {
+            progressInfo = `Completed ${this.currentStep} steps`;
+            if (this.executionHistory && this.executionHistory.length > 0) {
+              const successfulSteps = this.executionHistory.filter(h => h.success).length;
+              progressInfo += ` (${successfulSteps} successful)`;
+            }
+          }
+          
           this.connectionManager.broadcast({
             type: 'task_cancelled',
             message: 'Task cancelled by user',
-            cancelled: cancelled
+            cancelled: cancelled,
+            progress: progressInfo || 'No progress made'
           });
           
           console.log(`✅ Task ${activeTaskId} cancelled: ${cancelled}`);

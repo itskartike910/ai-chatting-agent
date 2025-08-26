@@ -595,17 +595,25 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
           {loading ? (
             <div style={{ textAlign: "center", padding: "20px" }}>
-              <div
-                className="profile-loader"
-                style={{
-                  margin: "0 auto",
-                }}
-              />
-              <p
-                style={{ color: "rgba(255, 220, 220, 0.7)", marginTop: "8px" }}
-              >
-                Loading user details...
-              </p>
+              <div style={{ 
+                display: "flex", 
+                flexDirection: "column", 
+                alignItems: "center", 
+                gap: "12px" 
+              }}>
+                <div style={{ transform: "scale(0.7)" }}>
+                  <div className="profile-loader" />
+                </div>
+                <p
+                  style={{ 
+                    color: "rgba(255, 220, 220, 0.7)", 
+                    margin: "0",
+                    fontSize: "13px"
+                  }}
+                >
+                  Loading user details...
+                </p>
+              </div>
             </div>
           ) : error ? (
             <div

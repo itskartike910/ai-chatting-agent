@@ -244,29 +244,25 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               });
               break;
 
-            case 'plan_display':
+            case 'observation_strategy':
               setIsExecuting(true);
               setIsTyping(true);
               setTaskStatus({ 
                 status: 'executing', 
-                message: 'Displaying execution plan...' 
+                message: 'Analyzing current situation...' 
               });
               
-              // Create a more detailed plan display message
-              let planContent = `📋 **Execution Plan (Step ${message.step || 'N/A'})**\n\n`;
-              if (message.strategy) {
-                planContent += `**Strategy:** ${message.strategy}\n\n`;
+              let obsStratContent = '🔍 **Current Analysis:**\n\n';
+              if (message.observation) {
+                obsStratContent += `**Observation:** ${message.observation}\n\n`;
               }
-              if (message.plannedActions && message.plannedActions.length > 0) {
-                planContent += `**Planned Actions:**\n`;
-                message.plannedActions.forEach((action, index) => {
-                  planContent += `${index + 1}. **${action.type}** - ${action.intent}\n`;
-                });
+              if (message.strategy) {
+                obsStratContent += `**Strategy:** ${message.strategy}`;
               }
               
               addMessage({
                 type: 'system',
-                content: planContent,
+                content: obsStratContent,
                 timestamp: Date.now(),
                 isMarkdown: true
               });
@@ -294,8 +290,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               setTaskStatus({ status: 'error', message: message.error });
               addMessage({
                 type: 'error',
-                content: `❌ Error: ${message.error}`,
-                timestamp: Date.now()
+                content: `❌ **Task Error**\n\n${message.error}`,
+                timestamp: Date.now(),
+                isMarkdown: true
               });
               break;
 
@@ -303,10 +300,25 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               setIsExecuting(false);
               setIsTyping(false); // Hide typing indicator
               setTaskStatus({ status: 'cancelled', message: 'Task cancelled' });
+              
+              // Show cancellation message with progress
+              let cancelContent = '🛑 **Task Cancelled**\n\n';
+              if (message.progress) {
+                cancelContent += `**Progress Made:** ${message.progress}\n\n`;
+              }
+              cancelContent += 'The task has been cancelled as requested. You can start a new task anytime.';
+              
               addMessage({
                 type: 'system',
                 content: '🛑 Task cancelled by user',
                 timestamp: Date.now()
+              });
+
+              addMessage({
+                type: 'assistant',
+                content: cancelContent,
+                timestamp: Date.now(),
+                isMarkdown: true
               });
               break;
 
@@ -314,8 +326,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               setIsTyping(false); // Hide typing indicator
               addMessage({
                 type: 'error',
-                content: `❌ ${message.error}`,
-                timestamp: Date.now()
+                content: `❌ **Error**\n\n${message.error}`,
+                timestamp: Date.now(),
+                isMarkdown: true
               });
               break;
               
@@ -564,11 +577,11 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             margin: 0, 
             color: '#FFDCDCFF', 
             fontSize: '15px', 
-            fontWeight: '750',
+            fontWeight: '600',
             lineHeight: '20px', 
             textAlign: 'left'
           }}>
-            SOCIAL SHOPPING AGENT
+            Social Shopping Agent
           </h3>
           <div className="chat-status" style={{ 
             fontSize: '12px', 

@@ -109,6 +109,17 @@
   }
 }
 
+@keyframes taskStatusPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
+}
+
 @keyframes pulseGlow {
   0%, 100% {
     box-shadow: 0 0 5px rgba(255, 220, 220, 0.3);
@@ -181,9 +192,9 @@
 
 /* Profile Page and Request Counter Loader */
 .profile-loader {
-  --d:22px;
-  width: 4px;
-  height: 4px;
+  --d:18px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
   color: #ffe9e9;
   box-shadow: 
