@@ -12,7 +12,7 @@ export class AITaskRouter {
               );
 
     try {
-      const intelligentPrompt = `You are an intelligent AI Agent that specializes in mobile web automation such as SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
+      const intelligentPrompt = `# You are an intelligent AI Agent that specializes in mobile web automation such as SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
       
 ALWAYS OUTPUT THE DELIMITER BLOCKS EXACTLY AS WRITTEN. DO NOT USE MARKDOWN CODE BLOCKS. RESPOND WITH ONLY THE DELIMITED BLOCKS, NO EXTRA TEXT OR FORMATTING.
 
