@@ -169,27 +169,48 @@ class MultiAgentExecutor {
           break;
         }
 
-        if (initialPlan && initialPlan.direct_url && this.currentStep === 1) {
-          console.log(`🎯 Using direct URL: ${initialPlan.direct_url}`);
-          // Use direct_url for navigation as first step
-          this.actionQueue = [{
-            name: 'navigate',
-            parameters: {
-              url: initialPlan.direct_url,
-              intent: 'Navigate directly to search results page'
+        if (initialPlan && this.currentStep === 1) {
+          // Handle navigation if needed
+          if (initialPlan.direct_url && initialPlan.navigation_needed !== false) {
+            console.log(`🎯 Not on the correct page, using direct URL: ${initialPlan.direct_url}`);
+            this.actionQueue = [{
+              name: 'navigate',
+              parameters: {
+                url: initialPlan.direct_url,
+                intent: 'Navigate directly to target page'
+              }
+            }];
+          } else if (initialPlan.navigation_needed === false) {
+            console.log(`🎯 Already on correct page, proceeding with immediate actions`);
+            // Set up action queue based on initial plan parameters
+            if (initialPlan.next_action) {
+              const action = {
+                name: initialPlan.next_action,
+                parameters: {
+                  index: initialPlan.index,
+                  selector: initialPlan.selector,
+                  text: initialPlan.text,
+                  direction: initialPlan.direction,
+                  amount: initialPlan.amount,
+                  duration: initialPlan.duration,
+                  intent: 'Execute immediate action on current page'
+                }
+              };
+              this.actionQueue = [action];
             }
-          }];
+          }
+
+          // Set current batch plan
           this.currentBatchPlan = initialPlan;
           
-          if (initialPlan && initialPlan.observation) {
+          // Broadcast status update if observation exists
+          if (initialPlan.observation) {
             connectionManager.broadcast({
               type: 'status_update',
               message: `🧠 Observation: ${initialPlan.observation}\n📋 Strategy: ${initialPlan.strategy}`,
               details: initialPlan.reasoning || ''
             });
           }
-          
-          // continue; // Execute this batch immediately
         }
 
         // 1. Execute batch actions if available
@@ -554,7 +575,7 @@ class MultiAgentExecutor {
       anySuccess: false,
       criticalFailure: false
     };
-    let ineffectiveCount = 0;
+    // let ineffectiveCount = 0;
     
     console.log(`🚀 Executing ${this.actionQueue.length} actions in batch`);
     
@@ -688,30 +709,30 @@ class MultiAgentExecutor {
         if (pageChanged) {
           console.log('🔄 Page state changed - triggering replanning');
           this.actionQueue = [];
-          ineffectiveCount = 0;
+          // ineffectiveCount = 0;
           break;
         }
         
         // semantic effectiveness check
-        const effective = this.verifyAfterAction(action, beforeState, currentState, actionResult);
-        if (!effective) {
-          ineffectiveCount += 1;
-          console.log(`⚠️ Action deemed ineffective (count=${ineffectiveCount})`);
-          if (ineffectiveCount >= 3) {
-            console.log('🔄 Three ineffective actions - triggering replanning');
-            this.actionQueue = [];
-            break;
-          }
-        } else {
-          ineffectiveCount = 0;
-        }
+        // const effective = this.verifyAfterAction(action, beforeState, currentState, actionResult);
+        // if (!effective) {
+        //   ineffectiveCount += 1;
+        //   console.log(`⚠️ Action deemed ineffective (count=${ineffectiveCount})`);
+        //   if (ineffectiveCount >= 3) {
+        //     console.log('🔄 Three ineffective actions - triggering replanning');
+        //     this.actionQueue = [];
+        //     break;
+        //   }
+        // } else {
+        //   ineffectiveCount = 0;
+        // }
 
-        if (ineffectiveCount >= 2) {
-          console.log('🔄 Multiple ineffective actions - triggering replanning');
-          this.actionQueue = [];
-          ineffectiveCount = 0;
-          break;
-        }
+        // if (ineffectiveCount >= 2) {
+        //   console.log('🔄 Multiple ineffective actions - triggering replanning');
+        //   this.actionQueue = [];
+        //   ineffectiveCount = 0;
+        //   break;
+        // }
         
         // If batch only contains navigation/wait, force replan after execution
         if (this.actionQueue.every(a => ['navigate', 'wait'].includes(a.name))) {
@@ -1399,13 +1420,6 @@ class MultiAgentExecutor {
     const availableSelectors = (currentState.interactiveElements || []).map(el => el.selector);
 
     return batchActions.map(action => {
-      if (['find_click', 'find_type'].includes(action.action_type)) {
-        return {
-          name: action.action_type,
-          parameters: action.parameters
-        };
-      }
-      
       // Only validate exact indices for basic actions
       if (action.action_type === 'click' || action.action_type === 'type' || action.action_type === 'fill') {
         if (action.parameters.index !== undefined && availableIndices.includes(action.parameters.index)) {
@@ -1846,15 +1860,35 @@ class BackgroundScriptAgent {
         
         const initialPlan = {
           observation: intelligentResult.response.observation,
-          done: intelligentResult.response.done || false,
           strategy: intelligentResult.response.strategy,
+          done: intelligentResult.response.done || false,
           next_action: intelligentResult.response.next_action,
-          reasoning: intelligentResult.response.reasoning,
-          completion_criteria: intelligentResult.response.completion_criteria,
           direct_url: intelligentResult.response.direct_url,
-          requires_auth: intelligentResult.response.requires_auth || false,
-          workflow_type: intelligentResult.response.workflow_type
+          index: intelligentResult.response.index || null,
+          selector: intelligentResult.response.selector || null,
+          text: intelligentResult.response.text || "",
+          direction: intelligentResult.response.direction || "",
+          amount: intelligentResult.response.amount || 0,
+          duration: intelligentResult.response.duration || 0,
+          requires_auth: intelligentResult.response.requires_auth,
+          navigation_needed: intelligentResult.response.navigation_needed
         };
+        
+        console.log('🎯 Initial plan created:', {
+          observation: initialPlan.observation,
+          strategy: initialPlan.strategy,
+          done: initialPlan.done,
+          next_action: initialPlan.next_action,
+          direct_url: initialPlan.direct_url,
+          index: initialPlan.index,
+          selector: initialPlan.selector,
+          text: initialPlan.text,
+          direction: initialPlan.direction,
+          amount: initialPlan.amount,
+          duration: initialPlan.duration,
+          requires_auth: initialPlan.requires_auth,
+          navigation_needed: initialPlan.navigation_needed,
+        });
 
         await this.backgroundTaskManager.startTask(
           taskId, 

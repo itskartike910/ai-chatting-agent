@@ -200,19 +200,17 @@ ${failedActionsSummary || 'No recent failures detected - execution proceeding no
   "strategy": "High-level approach using current page elements (2-7 steps)",
   "batch_actions": [
     {
-      "action_type": "navigate|click|type|find_click|find_type|scroll|wait|wait_for_text|go_back",
+      "action_type": "navigate|click|type|scroll|wait|go_back",
       "parameters": {
         "url": "https://example.com/xyz", // for navigate (try to generate the most closest url to the platform which is more closest to the user message or task.)
         "index": 5, // for CLICKABLE and TYPEABLE elements only (PREFERRED over selector)
         "selector": "#simple-id", // ONLY use simple selectors (avoid aria-label with quotes)
-        "text": "search term / button text / post text",
+        "text": "search term / button text / post text", // required text for Type Action
         "purpose": "submit|add-to-cart|product-link",
         "category": "action|form|navigation", 
-        "context": "shopping context like carbonara ingredients", // for find_click
         "direction": "down/up", // for scroll
         "amount": 500, // for scroll
         "duration": 2000, // for wait
-        "timeout": 4000, // for wait_for_text
         "intent": "What this action accomplishes"
       }
     }
