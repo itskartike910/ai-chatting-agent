@@ -4,13 +4,13 @@ import { useNavigate } from "react-router-dom";
 import {
   FaUser,
   FaArrowLeft,
-  FaEnvelope,
+  // FaEnvelope,
   FaCrown,
   FaCalendarAlt,
   FaChartBar,
   FaSignOutAlt,
   FaKey,
-  FaInfinity,
+  // FaInfinity,
   FaClock,
   FaStar,
   FaCog,
@@ -166,20 +166,20 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
     navigate("/chat");
   };
 
-  const forceRefreshData = async () => {
-    console.log("Force refreshing user data...");
-    try {
-      // Clear stored data
-      await new Promise((resolve) => {
-        chrome.storage.local.remove(["userAuth", "authData"], resolve);
-      });
+  // const forceRefreshData = async () => {
+  //   console.log("Force refreshing user data...");
+  //   try {
+  //     // Clear stored data
+  //     await new Promise((resolve) => {
+  //       chrome.storage.local.remove(["userAuth", "authData"], resolve);
+  //     });
 
-      // Reload data
-      await loadUserDetails();
-    } catch (error) {
-      console.error("Error force refreshing data:", error);
-    }
-  };
+  //     // Reload data
+  //     await loadUserDetails();
+  //   } catch (error) {
+  //     console.error("Error force refreshing data:", error);
+  //   }
+  // };
 
   const handleTogglePersonalAPI = async () => {
     if (isToggling) return;
@@ -291,28 +291,6 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   };
 
   const status = getSubscriptionStatus();
-  
-  // Helper function to get active organization for debugging
-  const getActiveOrganization = () => {
-    return organizations.find(org => org.isActive);
-  };
-  
-  // Debug logging to verify data storage
-  useEffect(() => {
-    if (organizations.length > 0) {
-      console.log("ProfilePage - Organizations loaded:", organizations);
-      const activeOrg = getActiveOrganization();
-      console.log("ProfilePage - Active organization:", activeOrg);
-      console.log("ProfilePage - Subscription status:", status);
-      
-      // Additional debugging for expiry date
-      if (activeOrg) {
-        console.log("ProfilePage - Active org subExpiry:", activeOrg.subExpiry);
-        console.log("ProfilePage - Status subExpiry:", status.subExpiry);
-        console.log("ProfilePage - Formatted expiry date:", activeOrg.subExpiry ? formatDate(activeOrg.subExpiry) : "N/A");
-      }
-    }
-  }, [organizations, status]);
 
   // Consistent styling with other pages
   const containerStyle = {
@@ -746,8 +724,210 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           )}
         </div>
 
-        {/* API Key Toggle Section */}
+        {/* Subscription Status */}
         <div style={sectionStyle}>
+          <h4
+            style={{
+              color: "#FFDCDCFF",
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: "0 0 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <FaCrown />
+            Subscription Status
+          </h4>
+
+          <div
+            style={{
+              ...cardStyle,
+              animation: "slideInUp 0.6s ease-out 0.8s both",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ color: status.color, fontSize: "20px", flexShrink: 0 }}>
+                {status.icon}
+              </div>
+              <div style={{ flex: 1, paddingRight: "6px" }}>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    color: "#FFDCDCFF",
+                    marginBottom: "2px",
+                  }}
+                >
+                  {status.text}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 220, 220, 0.8)",
+                  }}
+                >
+                  {subscription.usingPersonalAPI
+                    ? "Unlimited usage with your API key"
+                    : status.text === "Free Plan"
+                    ? "Permanent access with limited quotas"
+                    : status.text === "Premium Subscription"
+                    ? "Monthly/yearly billing with higher quotas"
+                    : status.text === "Free Trial"
+                    ? `30-day trial period - Expires ${formatDate(status.subExpiry)}`
+                    : status.subExpiry
+                    ? `Expires ${formatDate(status.subExpiry)}`
+                    : "No expiry date available"}
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Warning for Free Trial and Free Plan */}
+            {(status.text === "Free Trial" || status.text === "Free Plan") && (
+              <div
+                style={{
+                  marginBottom: "16px",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  backgroundColor: "rgba(255, 173, 31, 0.1)",
+                  border: "1px solid rgba(255, 173, 31, 0.3)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#ffad1f",
+                    fontSize: "16px",
+                    marginTop: "2px",
+                    flexShrink: 0,
+                  }}
+                >
+                  ⚠️
+                </div>
+                <div style={{ flex: 1, paddingRight: "4px" }}>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#ffad1f",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    {status.text === "Free Trial" ? "Trial Period Active" : "Free Plan Active"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(255, 220, 220, 0.8)",
+                      lineHeight: "1.4",
+                    }}
+                  >
+                    {status.text === "Free Trial" 
+                      ? `You are on a free trial. Expires ${formatDate(status.subExpiry)}. Upgrade to continue after trial ends.`
+                      : "You are on the Free plan with limited quotas. Upgrade to a paid plan for higher quotas or use your own API key."
+                    }
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!subscription.usingPersonalAPI && (
+              <>
+                <button
+                  onClick={() => {
+                    chrome.tabs.create({
+                      url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
+                      active: true
+                    });
+                  }}
+                  style={{
+                    ...buttonStyle,
+                    backgroundColor:
+                      status.text === "No Active Subscription" || status.text === "Subscription Expired"
+                        ? "#e0245e"
+                        : "#3b82f6",
+                    color: "white",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <FaChartBar />
+                  {status.text === "No Active Subscription" || status.text === "Subscription Expired"
+                    ? "Upgrade Plan"
+                    : "View Plans"}
+                </button>
+                
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "1px",
+                      backgroundColor: "rgba(255, 220, 220, 0.2)",
+                    }}
+                  />
+                  <span
+                    style={{
+                      padding: "0 10px",
+                      fontSize: "12px",
+                      color: "rgba(255, 220, 220, 0.6)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    or
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "1px",
+                      backgroundColor: "rgba(255, 220, 220, 0.2)",
+                    }}
+                  />
+                </div>
+                
+                <button
+                  onClick={() => {
+                    // Scroll to the API Configuration section
+                    const apiSection = document.querySelector('[data-section="api-config"]');
+                    if (apiSection) {
+                      apiSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                      });
+                    }
+                  }}
+                  style={{
+                    ...buttonStyle,
+                    backgroundColor: "rgba(255, 220, 220, 0.1)",
+                    border: "1px solid rgba(255, 220, 220, 0.3)",
+                    color: "#FFDCDCFF",
+                  }}
+                >
+                  <FaKey />
+                  Use Your Own API Key
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* API Key Toggle Section */}
+        <div style={sectionStyle} data-section="api-config">
           <h4
             style={{
               color: "#FFDCDCFF",
@@ -777,7 +957,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 gap: "12px",
               }}
             >
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, paddingLeft: "6px" }}>
                 <div
                   style={{
                     fontSize: "14px",
@@ -865,98 +1045,6 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 ? "🔄 Currently using DeepHUD API"
                 : "⚠️ Configure API keys in settings to enable personal API"}
             </div>
-          </div>
-        </div>
-
-        {/* Subscription Status */}
-        <div style={sectionStyle}>
-          <h4
-            style={{
-              color: "#FFDCDCFF",
-              fontSize: "16px",
-              fontWeight: "600",
-              margin: "0 0 16px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <FaCrown />
-            Subscription Status
-          </h4>
-
-          <div
-            style={{
-              ...cardStyle,
-              animation: "slideInUp 0.6s ease-out 0.8s both",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                marginBottom: "16px",
-              }}
-            >
-              <div style={{ color: status.color, fontSize: "20px" }}>
-                {status.icon}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#FFDCDCFF",
-                    marginBottom: "2px",
-                  }}
-                >
-                  {status.text}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                  }}
-                >
-                  {subscription.usingPersonalAPI
-                    ? "Unlimited usage with your API key"
-                    : status.text === "Free Plan"
-                    ? "Permanent access with limited quotas"
-                    : status.text === "Premium Subscription"
-                    ? "Monthly/yearly billing with higher quotas"
-                    : status.text === "Free Trial"
-                    ? `30-day trial period - Expires ${formatDate(status.subExpiry)}`
-                    : status.subExpiry
-                    ? `Expires ${formatDate(status.subExpiry)}`
-                    : "No expiry date available"}
-                </div>
-              </div>
-            </div>
-
-            {!subscription.usingPersonalAPI && (
-              <button
-                onClick={() => {
-                  chrome.tabs.create({
-                    url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-                    active: true
-                  });
-                }}
-                style={{
-                  ...buttonStyle,
-                  backgroundColor:
-                    status.text === "No Active Subscription" || status.text === "Subscription Expired"
-                      ? "#e0245e"
-                      : "#3b82f6",
-                  color: "white",
-                }}
-              >
-                <FaChartBar />
-                {status.text === "No Active Subscription" || status.text === "Subscription Expired"
-                  ? "Upgrade Plan"
-                  : "Manage Subscription"}
-              </button>
-            )}
           </div>
         </div>
 
