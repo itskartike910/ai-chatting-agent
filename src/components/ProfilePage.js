@@ -249,30 +249,70 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       };
     }
 
-    if (subscription.status === "trial") {
-      return {
-        text: "Free Trial",
-        color: "#ffad1f",
-        icon: <FaStar />,
-      };
-    }
-
-    if (subscription.status === "active") {
-      return {
-        text: "Premium Subscription",
-        color: "#17bf63",
-        icon: <FaCrown />,
-      };
+    // Get subscription status from active organizations
+    const activeOrganization = organizations.find(org => org.isActive);
+    
+    if (activeOrganization) {
+      const { subscriptionStatus, subscriptionType, subExpiry } = activeOrganization;
+      
+      if (subscriptionStatus === "active") {
+        return {
+          text: subscriptionType === "Paid" ? "Premium Subscription" : "Free Plan",
+          color: "#17bf63",
+          icon: <FaCrown />,
+          subExpiry: subExpiry
+        };
+      }
+      
+      if (subscriptionStatus === "trialing") {
+        return {
+          text: "Free Trial",
+          color: "#ffad1f",
+          icon: <FaStar />,
+          subExpiry: subExpiry
+        };
+      }
+      
+      if (subscriptionStatus === "inactive") {
+        return {
+          text: "Subscription Expired",
+          color: "#e0245e",
+          icon: <FaClock />,
+          subExpiry: subExpiry
+        };
+      }
     }
 
     return {
-      text: "Trial Expired",
+      text: "No Active Subscription",
       color: "#e0245e",
       icon: <FaClock />,
     };
   };
 
   const status = getSubscriptionStatus();
+  
+  // Helper function to get active organization for debugging
+  const getActiveOrganization = () => {
+    return organizations.find(org => org.isActive);
+  };
+  
+  // Debug logging to verify data storage
+  useEffect(() => {
+    if (organizations.length > 0) {
+      console.log("ProfilePage - Organizations loaded:", organizations);
+      const activeOrg = getActiveOrganization();
+      console.log("ProfilePage - Active organization:", activeOrg);
+      console.log("ProfilePage - Subscription status:", status);
+      
+      // Additional debugging for expiry date
+      if (activeOrg) {
+        console.log("ProfilePage - Active org subExpiry:", activeOrg.subExpiry);
+        console.log("ProfilePage - Status subExpiry:", status.subExpiry);
+        console.log("ProfilePage - Formatted expiry date:", activeOrg.subExpiry ? formatDate(activeOrg.subExpiry) : "N/A");
+      }
+    }
+  }, [organizations, status]);
 
   // Consistent styling with other pages
   const containerStyle = {
@@ -828,6 +868,209 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           </div>
         </div>
 
+        {/* Subscription Status */}
+        <div style={sectionStyle}>
+          <h4
+            style={{
+              color: "#FFDCDCFF",
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: "0 0 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <FaCrown />
+            Subscription Status
+          </h4>
+
+          <div
+            style={{
+              ...cardStyle,
+              animation: "slideInUp 0.6s ease-out 0.8s both",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ color: status.color, fontSize: "20px" }}>
+                {status.icon}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    color: "#FFDCDCFF",
+                    marginBottom: "2px",
+                  }}
+                >
+                  {status.text}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 220, 220, 0.8)",
+                  }}
+                >
+                  {subscription.usingPersonalAPI
+                    ? "Unlimited usage with your API key"
+                    : status.text === "Free Plan"
+                    ? "Permanent access with limited quotas"
+                    : status.text === "Premium Subscription"
+                    ? "Monthly/yearly billing with higher quotas"
+                    : status.text === "Free Trial"
+                    ? `30-day trial period - Expires ${formatDate(status.subExpiry)}`
+                    : status.subExpiry
+                    ? `Expires ${formatDate(status.subExpiry)}`
+                    : "No expiry date available"}
+                </div>
+              </div>
+            </div>
+
+            {!subscription.usingPersonalAPI && (
+              <button
+                onClick={() => {
+                  chrome.tabs.create({
+                    url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
+                    active: true
+                  });
+                }}
+                style={{
+                  ...buttonStyle,
+                  backgroundColor:
+                    status.text === "No Active Subscription" || status.text === "Subscription Expired"
+                      ? "#e0245e"
+                      : "#3b82f6",
+                  color: "white",
+                }}
+              >
+                <FaChartBar />
+                {status.text === "No Active Subscription" || status.text === "Subscription Expired"
+                  ? "Upgrade Plan"
+                  : "Manage Subscription"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Usage Stats */}
+        {/* <div style={sectionStyle}>
+          <h4
+            style={{
+              color: "#FFDCDCFF",
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: "0 0 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <FaChartBar />
+            Usage Statistics
+          </h4>
+
+          <div style={cardStyle}>
+            {subscription.usingPersonalAPI ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "20px",
+                  color: "#17bf63",
+                }}
+              >
+                <FaInfinity style={{ fontSize: "32px", marginBottom: "8px" }} />
+                <div style={{ fontSize: "16px", fontWeight: "600" }}>
+                  Unlimited Usage
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 220, 220, 0.8)",
+                  }}
+                >
+                  Using your personal API key
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px", color: "#FFDCDCFF" }}>
+                    Requests Used
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color:
+                        subscription.remaining_requests <= 0
+                          ? "#e0245e"
+                          : "#FFDCDCFF",
+                    }}
+                  >
+                    {subscription.requests_used} /{" "}
+                    {subscription.monthly_request_limit}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    width: "100%",
+                    height: "8px",
+                    backgroundColor: "rgba(255, 220, 220, 0.2)",
+                    borderRadius: "4px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.min(
+                        (subscription.requests_used /
+                          subscription.monthly_request_limit) *
+                          100,
+                        100
+                      )}%`,
+                      height: "100%",
+                      backgroundColor:
+                        subscription.remaining_requests <= 0
+                          ? "#e0245e"
+                          : subscription.remaining_requests <= 2
+                          ? "#ffad1f"
+                          : "#17bf63",
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 220, 220, 0.8)",
+                    marginTop: "8px",
+                    textAlign: "center",
+                  }}
+                >
+                  {subscription.remaining_requests > 0 
+                    ? `${subscription.remaining_requests} requests remaining`
+                    : "Trial expired - upgrade or use personal API"}
+                </div>
+              </div>
+            )}
+          </div>
+        </div> */}
+
         {/* Organizations Section */}
         <div style={sectionStyle}>
           <h4
@@ -1225,202 +1468,6 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             )}
           </div>
         </div>
-
-        {/* Subscription Status */}
-        <div style={sectionStyle}>
-          <h4
-            style={{
-              color: "#FFDCDCFF",
-              fontSize: "16px",
-              fontWeight: "600",
-              margin: "0 0 16px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <FaCrown />
-            Subscription Status
-          </h4>
-
-          <div
-            style={{
-              ...cardStyle,
-              animation: "slideInUp 0.6s ease-out 0.8s both",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                marginBottom: "16px",
-              }}
-            >
-              <div style={{ color: status.color, fontSize: "20px" }}>
-                {status.icon}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#FFDCDCFF",
-                    marginBottom: "2px",
-                  }}
-                >
-                  {status.text}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                  }}
-                >
-                  {subscription.usingPersonalAPI
-                    ? "Unlimited usage with your API key"
-                    : subscription.plan_type === "free_trial"
-                    ? `Trial expires ${formatDate(subscription.trial_end)}`
-                    : subscription.current_period_end
-                    ? `Next billing ${formatDate(
-                        subscription.current_period_end
-                      )}`
-                    : "Active subscription"}
-                </div>
-              </div>
-            </div>
-
-            {!subscription.usingPersonalAPI && (
-              <button
-                onClick={() => navigate("/subscription")}
-                style={{
-                  ...buttonStyle,
-                  backgroundColor:
-                    subscription.remaining_requests <= 0
-                      ? "#e0245e"
-                      : "#3b82f6",
-                  color: "white",
-                }}
-              >
-                <FaChartBar />
-                {subscription.remaining_requests <= 0
-                  ? "Upgrade Plan"
-                  : "Manage Subscription"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Usage Stats */}
-        {/* <div style={sectionStyle}>
-          <h4
-            style={{
-              color: "#FFDCDCFF",
-              fontSize: "16px",
-              fontWeight: "600",
-              margin: "0 0 16px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <FaChartBar />
-            Usage Statistics
-          </h4>
-
-          <div style={cardStyle}>
-            {subscription.usingPersonalAPI ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "20px",
-                  color: "#17bf63",
-                }}
-              >
-                <FaInfinity style={{ fontSize: "32px", marginBottom: "8px" }} />
-                <div style={{ fontSize: "16px", fontWeight: "600" }}>
-                  Unlimited Usage
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                  }}
-                >
-                  Using your personal API key
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <span style={{ fontSize: "14px", color: "#FFDCDCFF" }}>
-                    Requests Used
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color:
-                        subscription.remaining_requests <= 0
-                          ? "#e0245e"
-                          : "#FFDCDCFF",
-                    }}
-                  >
-                    {subscription.requests_used} /{" "}
-                    {subscription.monthly_request_limit}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    width: "100%",
-                    height: "8px",
-                    backgroundColor: "rgba(255, 220, 220, 0.2)",
-                    borderRadius: "4px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${Math.min(
-                        (subscription.requests_used /
-                          subscription.monthly_request_limit) *
-                          100,
-                        100
-                      )}%`,
-                      height: "100%",
-                      backgroundColor:
-                        subscription.remaining_requests <= 0
-                          ? "#e0245e"
-                          : subscription.remaining_requests <= 2
-                          ? "#ffad1f"
-                          : "#17bf63",
-                      transition: "width 0.3s ease",
-                    }}
-                  />
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                    marginTop: "8px",
-                    textAlign: "center",
-                  }}
-                >
-                  {subscription.remaining_requests > 0 
-                    ? `${subscription.remaining_requests} requests remaining`
-                    : "Trial expired - upgrade or use personal API"}
-                </div>
-              </div>
-            )}
-          </div>
-        </div> */}
 
         {/* Logout Button */}
         <div style={sectionStyle}>
