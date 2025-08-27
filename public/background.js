@@ -1093,7 +1093,7 @@ class MultiAgentExecutor {
     }
   }
 
-  // Process elements directly without any filtering since API already sends filtered data
+  // Process elements directly and filter out HTML tag (0th index element)
   processElementsDirectly(elements) {
     if (!elements || !Array.isArray(elements)) {
       console.log('🔍 Elements not array or null:', elements);
@@ -1103,8 +1103,20 @@ class MultiAgentExecutor {
     
     console.log(`🔍 Processing ${elements.length} elements directly from Wootz API`);
     
-    // Process ALL elements directly - no filtering needed since API already sends the right format
-    const processed = elements.map((el, arrayIndex) => {
+    // Filter out HTML tag (0th index element) and process remaining elements
+    const filteredElements = elements.filter((el, arrayIndex) => {
+      // Skip the 0th index element if it's an HTML tag
+      if (arrayIndex === 0 && (el.tagName?.toLowerCase() === 'html' || el.index === 0)) {
+        console.log('🔍 Filtering out HTML tag (0th index element)');
+        return false;
+      }
+      return true;
+    });
+    
+    console.log(`🔍 After filtering HTML tag: ${filteredElements.length} elements remaining`);
+    
+    // Process filtered elements
+    const processed = filteredElements.map((el, arrayIndex) => {
       // console.log(`🔍 Processing element ${arrayIndex}:`, el);
       
       return {
