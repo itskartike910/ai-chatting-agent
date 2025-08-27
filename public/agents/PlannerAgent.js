@@ -83,11 +83,11 @@ Based on the previous execution, continue with the next logical step. If the las
     const progressAnalysis = this.analyzeProgress(context, executionHistory);
     
     // Extract failed actions for replan guidance
-    const failedActionsSummary = executionHistory
-      .slice(-5)
-      .filter(h => !h.success)
-      .map(h => `Step ${h.step}: ${h.action} - ${h.navigation || ''} (${h.results?.[0]?.result?.error || 'unknown error'})`)
-      .join('\n');
+    // const failedActionsSummary = executionHistory
+    //   .slice(-5)
+    //   .filter(h => !h.success)
+    //   .map(h => `Step ${h.step}: ${h.action} - ${h.navigation || ''} (${h.results?.[0]?.result?.error || 'unknown error'})`)
+    //   .join('\n');
     
     const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
     const elements = this.formatCompleteElements(currentState.interactiveElements?.slice(0, 100) || []);
@@ -222,7 +222,7 @@ ${progressAnalysis}
 
 {
   "observation": "Current situation analysis focused on this page",
-  "done": false/true, // true ONLY if entire task is completely finished
+  "done": false/true, // true ONLY if entire task is completely finished after this batch
   "strategy": "High-level approach using current page elements (2-7 steps)",
   "batch_actions": [
     {

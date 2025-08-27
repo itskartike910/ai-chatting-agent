@@ -465,8 +465,8 @@ class MultiAgentExecutor {
           });
         }
 
-        // 5. Check if AI says task is complete
-        if (plan.done) {
+        // If planner says done AND there are no batch actions to execute, complete the task
+        if (plan.done && (!this.actionQueue || this.actionQueue.length === 0)) {
           console.log('🎯 Task marked as complete by planner');
           taskCompleted = true;
           finalResult = {
