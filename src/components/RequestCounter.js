@@ -51,20 +51,61 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
       setLoading(true);
       setError("");
 
-      // Get user data to get organizations and usage info
-      const userData = await apiService.getCurrentUser();
-      const organizations = userData.organizations || [];
+      // First, try to get stored user data from chrome.storage.local
+      let storedUserData = null;
+      let storedOrganizations = [];
+      let activeOrg = null;
 
-      // Find the user's selected organization or first active one
-      const activeOrg =
-        organizations.find(
-          (org) => org.id === userData.selectedOrganizationId
-        ) ||
-        organizations.find((org) => org.isActive) ||
-        organizations[0];
+      try {
+        const storageData = await new Promise((resolve) => {
+          chrome.storage.local.get(["userAuth", "authData"], (result) => {
+            resolve({
+              userAuth: result.userAuth || null,
+              authData: result.authData || null,
+            });
+          });
+        });
+
+        // Use stored data if available
+        if (storageData.userAuth?.user && storageData.userAuth?.organizations) {
+          storedUserData = storageData.userAuth.user;
+          storedOrganizations = storageData.userAuth.organizations;
+        } else if (storageData.authData?.user && storageData.authData?.organizations) {
+          storedUserData = storageData.authData.user;
+          storedOrganizations = storageData.authData.organizations;
+        }
+      } catch (storageError) {
+        console.log("Could not get stored user data:", storageError);
+      }
+
+      // If we have stored organizations, use them
+      if (storedOrganizations.length > 0) {
+        console.log("Using stored organizations for quota lookup");
+        activeOrg =
+          storedOrganizations.find(
+            (org) => org.id === storedUserData?.selectedOrganizationId
+          ) ||
+          storedOrganizations.find((org) => org.isActive) ||
+          storedOrganizations[0];
+      }
+
+      // If no stored data or no active org found, fallback to API call
+      if (!activeOrg) {
+        console.log("No stored organization data found, making API call");
+        const userData = await apiService.getCurrentUser();
+        const organizations = userData.organizations || [];
+
+        activeOrg =
+          organizations.find(
+            (org) => org.id === userData.selectedOrganizationId
+          ) ||
+          organizations.find((org) => org.isActive) ||
+          organizations[0];
+      }
 
       if (activeOrg) {
-        // Get quota information from the API
+        console.log("Using organization ID:", activeOrg.id);
+        // Get quota information from the API using the org ID
         const quotaResponse = await apiService.getUserQuota(activeOrg.id);
         
         if (quotaResponse && quotaResponse.quotas) {

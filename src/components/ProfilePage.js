@@ -158,11 +158,12 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       try {
         setQuotaLoading(true);
 
-        // Find the active organization
+        // Use the organizations from state (which are loaded from stored data)
         const activeOrg = organizations.find(org => org.isActive) || organizations[0];
         
         if (activeOrg) {
-          // Get quota information from the API
+          console.log("Using organization ID for quota:", activeOrg.id);
+          // Get quota information from the API using the org ID
           const quotaResponse = await apiService.getUserQuota(activeOrg.id);
           
           if (quotaResponse && quotaResponse.quotas) {
