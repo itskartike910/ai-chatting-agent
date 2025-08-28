@@ -567,15 +567,15 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 color: "white",
                 marginRight: "16px",
                 overflow: "hidden",
-                backgroundImage: userDetails?.image
-                  ? `url(${userDetails.image})`
+                backgroundImage: userDetails?.avatarUrl
+                  ? `url(${userDetails.avatarUrl})`
                   : "none",
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 flexShrink: 0,
               }}
             >
-              {!userDetails?.image &&
+              {!userDetails?.avatarUrl &&
                 (userDetails?.name?.charAt(0) || user?.name?.charAt(0) || "U")}
             </div>
             <div className="profile-user-details" style={{ flex: 1 }}>
@@ -846,10 +846,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               <>
                 <button
                   onClick={() => {
-                    chrome.tabs.create({
-                      url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-                      active: true
-                    });
+                    navigate('/subscription');
                   }}
                   style={{
                     ...buttonStyle,
@@ -949,11 +946,11 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               <div
                 style={{
                   textAlign: "center",
-                  padding: "20px",
+                  padding: "10px",
                   color: "#17bf63",
                 }}
               >
-                <FaInfinity style={{ fontSize: "32px", marginBottom: "8px" }} />
+                <FaInfinity style={{ fontSize: "28px", marginBottom: "6px" }} />
                 <div style={{ fontSize: "16px", fontWeight: "600" }}>
                   Unlimited Usage
                 </div>
@@ -1186,61 +1183,56 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           >
             {organizations.length > 0 ? (
               <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: "16px",
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: "600",
-                        color: "#FFDCDCFF",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      Your Organizations
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "rgba(255, 220, 220, 0.8)",
-                        lineHeight: "1.4",
-                      }}
-                    >
-                      Manage your organization memberships and subscriptions
-                    </div>
+                <div style={{ marginBottom: "16px" }}>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#FFDCDCFF",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    Your Organizations
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(255, 220, 220, 0.8)",
+                      lineHeight: "1.4",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Manage your organization memberships and subscriptions
                   </div>
                   {organizations.length > 1 && (
-                    <button
-                      onClick={() =>
-                        setShowAllOrganizations(!showAllOrganizations)
-                      }
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#FFDCDCFF",
-                        cursor: "pointer",
-                        fontSize: "12px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      {showAllOrganizations ? "Show Less" : "View All"}
-                      {showAllOrganizations ? (
-                        <FaChevronUp />
-                      ) : (
-                        <FaChevronDown />
-                      )}
-                    </button>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <button
+                        onClick={() =>
+                          setShowAllOrganizations(!showAllOrganizations)
+                        }
+                        style={{
+                          background: "rgba(255, 107, 107, 0.1)",
+                          border: "1px solid rgba(255, 107, 107, 0.3)",
+                          color: "#FF6B6B",
+                          cursor: "pointer",
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {showAllOrganizations ? "Show Less" : "View All"}
+                        {showAllOrganizations ? (
+                          <FaChevronUp />
+                        ) : (
+                          <FaChevronDown />
+                        )}
+                      </button>
+                    </div>
                   )}
                 </div>
 

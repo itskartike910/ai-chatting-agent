@@ -331,6 +331,20 @@ class APIService {
     });
   }
 
+  // Pricing APIs
+  async getProductsByCurrency(currency) {
+    return await this.makeRequest('/pricing/currency', {
+      method: 'POST',
+      body: JSON.stringify({ currency })
+    });
+  }
+
+  // Quota APIs
+  async getUserQuota(orgId = null) {
+    const endpoint = orgId ? `/user/quota?orgId=${orgId}` : '/user/quota';
+    return await this.makeRequest(endpoint);
+  }
+
   // Mobile Streaming APIs
   async createStreamingSession() {
     const response = await this.makeRequest('/streamMobile/createSession/', {

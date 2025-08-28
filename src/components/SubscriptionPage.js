@@ -1,111 +1,313 @@
 /* global chrome */
-import React, { useState } from "react";
-import { 
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
   FaArrowLeft,
   FaCheck,
   FaStar,
-  FaCrown, 
-  // FaRocket,
+  FaCrown,
   FaShieldAlt,
-  // FaInfinity,
+  FaExclamationTriangle,
 } from "react-icons/fa";
+import apiService from "../services/api";
 import "../styles/SubscriptionPageAnimations.css";
 
 const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [plansLoading, setPlansLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [error, setError] = useState("");
+  const [plans, setPlans] = useState([]);
+  const [currentPlan, setCurrentPlan] = useState(null);
+  const [userData, setUserData] = useState(null);
+  // eslint-disable-next-line no-unused-vars
+  const [activeOrganization, setActiveOrganization] = useState(null);
 
-  const handleSubscribe = async (planName) => {
+  useEffect(() => {
+    loadSubscriptionData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadSubscriptionData = async () => {
     try {
-    setLoading(true);
+      setLoading(true);
       setError("");
 
-      // Open pricing page in new tab using chrome.tabs.create
-      if (typeof chrome !== "undefined" && chrome.tabs) {
-        chrome.tabs.create({
-          url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-          active: true,
-        });
+      // Get current user data to find active organization
+      const userResponse = await apiService.getCurrentUser();
+      console.log("User response:", userResponse);
+
+      if (!userResponse || !userResponse.user) {
+        throw new Error("Failed to load user data");
       }
+
+      setUserData(userResponse.user);
+
+      // Find active organization
+      const organizations = userResponse.organizations || [];
+      const activeOrg =
+        organizations.find((org) => org.isActive) || organizations[0];
+
+      if (!activeOrg) {
+        throw new Error("No active organization found");
+      }
+
+      setActiveOrganization(activeOrg);
+      setCurrentPlan(activeOrg);
+
+      console.log("Current plan details:", {
+        productId: activeOrg.productId,
+        subscriptionType: activeOrg.subscriptionType,
+        subscriptionStatus: activeOrg.subscriptionStatus,
+        name: activeOrg.name,
+      });
+
+      // Determine currency from organization or default to USD
+      // Since the API documentation shows currency is passed in the request body,
+      // we'll default to USD for now
+      const currency = "usd";
+
+      // Fetch pricing data from API
+      await loadPricingData(currency);
     } catch (error) {
-      console.error("Subscription error:", error);
-      setError(error.message || "Failed to subscribe to plan");
+      console.error("Error loading subscription data:", error);
+      setError(error.message || "Failed to load subscription data");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTrial = async (planName) => {
+  const loadPricingData = async (currency) => {
     try {
-    setLoading(true);
-      setError("");
+      setPlansLoading(true);
 
-      // Open pricing page in new tab using chrome.tabs.create
-      if (typeof chrome !== "undefined" && chrome.tabs) {
-        chrome.tabs.create({
-          url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-          active: true,
-        });
+      const pricingResponse = await apiService.getProductsByCurrency(currency);
+      console.log("Pricing response:", pricingResponse);
+      console.log("Pricing response structure:", {
+        hasResponse: !!pricingResponse,
+        hasProducts: !!(pricingResponse && pricingResponse.products),
+        productsLength: pricingResponse?.products?.length,
+        productsStructure: pricingResponse?.products?.[0]
+          ? Object.keys(pricingResponse.products[0])
+          : "No products",
+        sampleProduct: pricingResponse?.products?.[0]
+          ? {
+              name: pricingResponse.products[0].name,
+              price: pricingResponse.products[0].price,
+              priceKeys: pricingResponse.products[0].price
+                ? Object.keys(pricingResponse.products[0].price)
+                : null,
+            }
+          : null,
+      });
+
+      if (!pricingResponse || !pricingResponse.products) {
+        throw new Error("Failed to load pricing data");
       }
+
+      console.log(
+        "All products from API:",
+        pricingResponse.products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          hasPrice: !!(p.price && typeof p.price === "object"),
+          priceStructure: p.price ? Object.keys(p.price) : "No price",
+          priceInterval: p.price?.interval || "No interval",
+        }))
+      );
+
+      if (!pricingResponse || !pricingResponse.products) {
+        throw new Error("Failed to load pricing data");
+      }
+
+      // Organize products into separate sections
+      const mobileAppProducts = pricingResponse.products.filter((product) =>
+        product.name.toLowerCase().includes("mobile app")
+      );
+
+      const webAppProducts = pricingResponse.products.filter((product) =>
+        product.name.toLowerCase().includes("web app")
+      );
+
+      const apiAccessProducts = pricingResponse.products.filter((product) =>
+        product.name.toLowerCase().includes("api access")
+      );
+
+      // Combine all relevant products
+      const relevantProducts = [
+        ...mobileAppProducts,
+        ...webAppProducts,
+        ...apiAccessProducts,
+      ];
+
+      console.log("Filtered products:", {
+        mobileApp: mobileAppProducts.length,
+        webApp: webAppProducts.length,
+        apiAccess: apiAccessProducts.length,
+        total: relevantProducts.length,
+      });
+
+      // If no products found, create a fallback plan based on current subscription
+      if (relevantProducts.length === 0) {
+        console.log("No relevant products found, creating fallback plan");
+        const fallbackPlan = {
+          id: "fallback",
+          name:
+            currentPlan?.subscriptionType === "Free"
+              ? "Free Plan"
+              : "Current Plan",
+          description: "Your current subscription plan",
+          prices: [],
+          monthlyPrice: null,
+          yearlyPrice: null,
+          features: getFeaturesForPlan(currentPlan?.subscriptionType || "Free"),
+          icon: getIconForPlan(currentPlan?.subscriptionType || "Free"),
+          color: getColorForPlan(currentPlan?.subscriptionType || "Free"),
+          popular: false,
+          currentPlan: true,
+        };
+
+        setPlans([fallbackPlan]);
+        return;
+      }
+
+      // Transform products and organize by sections
+      const transformProduct = (product) => {
+        // Handle the correct API structure where price is an object (not prices array)
+        const price = product.price || {};
+
+        // Add safety check for price object
+        if (!price || typeof price !== "object") {
+          console.warn(
+            `Product ${product.name} has invalid price structure:`,
+            price
+          );
+          return null;
+        }
+
+        // The API returns a single price object with formattedAmount
+        const monthlyPrice = price.interval === "month" ? price : null;
+        const yearlyPrice = price.interval === "year" ? price : null;
+
+        return {
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          prices: [price].filter(Boolean),
+          monthlyPrice: monthlyPrice
+            ? {
+                amount:
+                  (monthlyPrice.unitAmount || monthlyPrice.unit_amount || 0) /
+                  100, // Convert from cents
+                currency: monthlyPrice.currency.toUpperCase(),
+                interval: monthlyPrice.interval,
+                priceId: monthlyPrice.id,
+                formattedAmount: monthlyPrice.formattedAmount, // Use the formatted amount from API
+              }
+            : null,
+          yearlyPrice: yearlyPrice
+            ? {
+                amount:
+                  (yearlyPrice.unitAmount || yearlyPrice.unit_amount || 0) /
+                  100, // Convert from cents
+                currency: yearlyPrice.currency.toUpperCase(),
+                interval: yearlyPrice.interval,
+                priceId: yearlyPrice.id,
+                formattedAmount: yearlyPrice.formattedAmount, // Use the formatted amount from API
+              }
+            : null,
+          features: getFeaturesForPlan(product.name),
+          icon: getIconForPlan(product.name),
+          color: getColorForPlan(product.name),
+          popular: product.name.toLowerCase().includes("pro"),
+          currentPlan:
+            currentPlan &&
+            (currentPlan.productId === product.id ||
+              (currentPlan.subscriptionType === "Free" &&
+                product.name.toLowerCase().includes("free"))),
+        };
+      };
+
+      // Transform all products into a flat array
+      const allProducts = [
+        ...mobileAppProducts,
+        ...webAppProducts,
+        ...apiAccessProducts,
+      ];
+
+      const transformedPlans = allProducts
+        .map(transformProduct)
+        .filter(Boolean);
+
+      console.log("Transformed plans:", {
+        total: transformedPlans.length,
+        mobileApp: mobileAppProducts.length,
+        webApp: webAppProducts.length,
+        apiAccess: apiAccessProducts.length,
+        samplePlan: transformedPlans[0]
+          ? {
+              name: transformedPlans[0].name,
+              monthlyPrice: transformedPlans[0].monthlyPrice,
+              formattedAmount:
+                transformedPlans[0].monthlyPrice?.formattedAmount,
+            }
+          : null,
+      });
+
+      setPlans(transformedPlans);
     } catch (error) {
-      console.error("Trial error:", error);
-      setError(error.message || "Failed to start trial");
+      console.error("Error loading pricing data:", error);
+
+      // If API fails, create default plans based on current subscription
+      console.log("Creating fallback plans due to API error");
+
+      // Create a fallback plan based on current subscription
+      const fallbackPlan = {
+        id: "fallback",
+        name:
+          currentPlan?.subscriptionType === "Free"
+            ? "Free Plan"
+            : "Current Plan",
+        description: "Your current subscription plan",
+        prices: [],
+        monthlyPrice: null,
+        yearlyPrice: null,
+        features: getFeaturesForPlan(currentPlan?.subscriptionType || "Free"),
+        icon: getIconForPlan(currentPlan?.subscriptionType || "Free"),
+        color: getColorForPlan(currentPlan?.subscriptionType || "Free"),
+        popular: false,
+        currentPlan: true,
+      };
+
+      setPlans([fallbackPlan]);
+      setError("Using fallback pricing - API temporarily unavailable");
     } finally {
-      setLoading(false);
+      setPlansLoading(false);
     }
   };
 
-  const getCurrentPlan = () => {
-    // For now, return null since we're not using organizations API
-    return null;
-  };
+  const getFeaturesForPlan = (planName) => {
+    const name = planName.toLowerCase();
 
-  const currentPlan = getCurrentPlan();
-
-  const plans = [
-    {
-      id: "free",
-      name: "Web App - Free Plan",
-      price: "₹0",
-      period: "forever",
-      description: "Free tier for web users with basic features",
-      features: [
+    if (name.includes("free")) {
+      return [
         "100 Chat Completions/month",
         "10 Image Generations/month",
         "Community Support",
         "Basic API Access",
-      ],
-      icon: FaStar,
-      color: "#4ECDC4",
-      popular: false,
-      currentPlan: true,
-    },
-    {
-      id: "pro",
-      name: "Web App - Pro Plan",
-      price: "₹999.00",
-      period: "month",
-      description: "Professional plan for web users with enhanced features",
-      features: [
+      ];
+    } else if (name.includes("pro")) {
+      return [
         "10,000 Chat Completions/month",
         "500 Image Generations/month",
         "Priority Support",
         "Advanced API Access",
         "Usage Analytics",
         "SuperMemory Access",
-      ],
-      icon: FaCrown,
-      color: "#FF6B6B",
-      popular: true,
-    },
-    {
-      id: "team",
-      name: "Web App - Team Plan",
-      price: "₹2,499.00",
-      period: "month",
-      description: "Team plan for web users with collaboration features",
-      features: [
+      ];
+    } else if (name.includes("team")) {
+      return [
         "25,000 Chat Completions/month",
         "1,000 Image Generations/month",
         "Priority Support",
@@ -113,12 +315,102 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         "Team Management",
         "SuperMemory Access",
         "Advanced Analytics",
-      ],
-      icon: FaShieldAlt,
-      color: "#45B7D1",
-      popular: false,
-    },
-  ];
+      ];
+    } else {
+      return [
+        "Unlimited Chat Completions",
+        "Unlimited Image Generations",
+        "Priority Support",
+        "Advanced API Access",
+        "Usage Analytics",
+        "SuperMemory Access",
+      ];
+    }
+  };
+
+  const getIconForPlan = (planName) => {
+    const name = planName.toLowerCase();
+
+    if (name.includes("free")) return FaStar;
+    if (name.includes("pro")) return FaCrown;
+    if (name.includes("team")) return FaShieldAlt;
+    return FaCrown;
+  };
+
+  const getColorForPlan = (planName) => {
+    const name = planName.toLowerCase();
+
+    if (name.includes("free")) return "#4ECDC4";
+    if (name.includes("pro")) return "#FF6B6B";
+    if (name.includes("team")) return "#45B7D1";
+    return "#FF6B6B";
+  };
+
+  const handleSubscribe = async (plan, interval = "month") => {
+    try {
+      setPlansLoading(true);
+      setError("");
+
+      const priceData =
+        interval === "month" ? plan.monthlyPrice : plan.yearlyPrice;
+
+      if (!priceData) {
+        throw new Error(`No ${interval} pricing available for this plan`);
+      }
+
+      // Create organization for the selected price
+      const organizationData = {
+        name: `${userData.name}'s Organization`,
+        description: `Organization for ${plan.name} subscription`,
+      };
+
+      const response = await apiService.createOrganizationForPrice(
+        priceData.priceId,
+        organizationData
+      );
+
+      if (response && response.organization) {
+        // Refresh subscription data
+        await loadSubscriptionData();
+
+        // Show success message
+        setError(""); // Clear any previous errors
+        alert(`Successfully subscribed to ${plan.name}!`);
+
+        // Navigate back to profile
+        navigate("/profile");
+      } else {
+        throw new Error("Failed to create subscription");
+      }
+    } catch (error) {
+      console.error("Subscription error:", error);
+      setError(error.message || "Failed to subscribe to plan");
+    } finally {
+      setPlansLoading(false);
+    }
+  };
+
+  const formatPrice = (priceData) => {
+    if (!priceData) return "N/A";
+
+    // If we have formattedAmount from the API, use it
+    if (priceData.formattedAmount) {
+      return priceData.formattedAmount;
+    }
+
+    // Fallback to manual formatting if no formattedAmount
+    if (typeof priceData.amount !== "number") return "N/A";
+
+    const currencySymbols = {
+      USD: "$",
+      EUR: "€",
+      GBP: "£",
+      INR: "₹",
+    };
+
+    const symbol = currencySymbols[priceData.currency] || priceData.currency;
+    return `${symbol}${priceData.amount.toFixed(2)}`;
+  };
 
   const planCardStyle = (isSelected, isRecommended) => ({
     backgroundColor: isSelected
@@ -129,18 +421,66 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
       : "1px solid rgba(255, 255, 255, 0.1)",
     borderRadius: "12px",
     padding: "16px",
-    marginBottom: "12px",
+    marginBottom: "8px",
     cursor: "pointer",
-    transition: "all 0.3s ease",
     position: "relative",
     backdropFilter: "blur(10px)",
     animation: "slideInUp 0.8s ease-out",
-    animationDelay: `${
-      plans.indexOf(plans.find((p) => p.id === plans[0]?.id)) * 0.1
-    }s`,
   });
 
+  if (loading) {
     return (
+      <div
+        className="subscription-container"
+        style={{
+          width: "100vw",
+          height: "100vh",
+          maxWidth: "500px",
+          maxHeight: "600px",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily:
+            '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          backgroundColor: "#002550FF",
+          overflow: "hidden",
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          touchAction: "manipulation",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            color: "#FFDCDCFF",
+          }}
+        >
+          <div
+            className="spinner-loader"
+            style={{
+              width: "48px",
+              height: "48px",
+              marginBottom: "20px",
+              border: "4px solid transparent",
+              borderRightColor: "#FFDCDCFF",
+            }}
+          />
+          <div style={{ fontSize: "16px", fontWeight: "500" }}>
+            Loading subscription plans...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <div
       className="subscription-container"
       style={{
@@ -168,10 +508,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         className="background-animation"
         style={{
           position: "absolute",
-        top: 0,           
-        left: 0,          
-        right: 0,         
-        bottom: 0,        
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           pointerEvents: "none",
           zIndex: 0,
         }}
@@ -240,10 +580,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
           zIndex: 1,
         }}
       >
-          <button 
-          onClick={() => window.history.back()}
-            className="subscription-back-button"
-            style={{ 
+        <button
+          onClick={() => navigate("/profile")}
+          className="subscription-back-button"
+          style={{
             padding: "6px 8px",
             backgroundColor: "rgba(255, 220, 220, 0.2)",
             border: "1px solid rgba(255, 220, 220, 0.3)",
@@ -254,12 +594,12 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            }}
-            title="Back to Profile"
-          >
-            <FaArrowLeft />
-          </button>
-          
+          }}
+          title="Back to Profile"
+        >
+          <FaArrowLeft />
+        </button>
+
         <div style={{ minWidth: 0, flex: 1, textAlign: "center" }}>
           <h1
             className="subscription-title"
@@ -284,22 +624,53 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             }}
           >
             Select the perfect plan for your needs
-        </p>
+          </p>
+        </div>
+
+        <button
+          onClick={() => loadSubscriptionData()}
+          className="subscription-refresh-button"
+          style={{
+            padding: "6px 8px",
+            backgroundColor: "rgba(255, 220, 220, 0.2)",
+            border: "1px solid rgba(255, 220, 220, 0.3)",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "16px",
+            color: "#FFDCDCFF",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "32px",
+            height: "32px",
+          }}
+          title="Refresh Plans"
+          disabled={loading || plansLoading}
+        >
+          <span
+            style={{
+              animation:
+                loading || plansLoading ? "spin 1s linear infinite" : "none",
+              opacity: loading || plansLoading ? 0.6 : 1,
+              fontSize: "14px",
+            }}
+          >
+            🔄
+          </span>
+        </button>
       </div>
 
-        <div style={{ width: "32px" }}></div>
-          </div>
-
-      {/* Scrollable Content */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "16px",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
+             {/* Scrollable Content */}
+       <div
+         style={{
+           flex: 1,
+           overflowY: "auto",
+           padding: "16px",
+           scrollbarWidth: "none",
+           msOverflowStyle: "none",
+           paddingTop: "20px", // Increased padding at top for popular badges
+         }}
+       >
         {/* Current Plan Banner */}
         {currentPlan && (
           <div
@@ -308,7 +679,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
               border: "1px solid rgba(76, 175, 80, 0.3)",
               borderRadius: "12px",
               padding: "12px",
-              marginBottom: "16px",
+              marginBottom: "12px",
               textAlign: "center",
               animation: "slideInUp 0.6s ease-out",
             }}
@@ -321,9 +692,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                 fontWeight: "600",
               }}
             >
-              ✅ Currently on {currentPlan.name} plan ({currentPlan.status})
+              ✅ Currently on {currentPlan.subscriptionType} plan (
+              {currentPlan.subscriptionStatus})
             </p>
-              </div>
+          </div>
         )}
 
         {/* Error Message */}
@@ -340,10 +712,20 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
               textAlign: "center",
             }}
           >
-            {error}
-                </div>
-              )}
-              
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              <FaExclamationTriangle />
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
+
         {/* Plans Grid */}
         <div
           className="subscription-plans"
@@ -352,223 +734,258 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             zIndex: 1,
             display: "flex",
             flexDirection: "column",
-            gap: "16px",
+            gap: "8px",
           }}
         >
-          {plans.map((plan, index) => {
-            const IconComponent = plan.icon;
-            const isCurrentPlan = plan.currentPlan;
-
-            return (
+          {plansLoading ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "40px 20px",
+                color: "#FFDCDCFF",
+              }}
+            >
               <div
-                key={plan.id}
-                className="subscription-plan"
+                className="spinner-loader"
                 style={{
-                  ...planCardStyle(selectedPlan === plan.id, plan.popular),
-                  animationDelay: `${index * 0.1}s`,
-                  marginTop: plan.popular ? "40px" : "0px", // Further increased margin for popular plan to show banner completely
+                  width: "36px",
+                  height: "36px",
+                  marginBottom: "16px",
+                  border: "3px solid transparent",
+                  borderRightColor: "#FFDCDCFF",
                 }}
-                onClick={() => setSelectedPlan(plan.id)}
-              >
-                {plan.popular && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "-25px",
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      backgroundColor: "#FF6B6B",
-                      color: "white",
-                      padding: "10px 28px",
-                      borderRadius: "20px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      zIndex: 10,
-                      boxShadow: "0 2px 8px rgba(255, 107, 107, 0.3)",
-                    }}
-                  >
-                    MOST POPULAR
-                    </div>
-                  )}
+              />
+              <div style={{ fontSize: "14px", fontWeight: "500" }}>
+                Loading plans...
+              </div>
+            </div>
+          ) : plans.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "40px 20px",
+                color: "rgba(255, 220, 220, 0.7)",
+                textAlign: "center",
+              }}
+            >
+              <FaExclamationTriangle
+                style={{ fontSize: "32px", marginBottom: "12px" }}
+              />
+              <div>No plans available</div>
+              <div style={{ fontSize: "12px", marginTop: "4px" }}>
+                Please try again later or contact support
+              </div>
+            </div>
+          ) : (
+            plans.map((plan, index) => {
+              const IconComponent = plan.icon;
+              const isCurrentPlan = plan.currentPlan;
 
+              return (
                 <div
-                  className="plan-header"
-                  style={{ textAlign: "center", marginBottom: "16px" }}
+                  key={plan.id}
+                  className="subscription-plan"
+                  style={{
+                    ...planCardStyle(selectedPlan === plan.id, plan.popular),
+                    animationDelay: `${index * 0.1}s`,
+                    marginTop: plan.popular ? "20px" : "0px",
+                    position: "relative",
+                  }}
+                  onClick={() => setSelectedPlan(plan.id)}
                 >
+                                     {plan.popular && (
+                     <div
+                       style={{
+                         position: "absolute",
+                         top: "-15px",
+                         left: "50%",
+                         transform: "translateX(-50%)",
+                         backgroundColor: "#FF6B6B",
+                         color: "white",
+                         padding: "6px 20px",
+                         borderRadius: "16px",
+                         fontSize: "10px",
+                         fontWeight: "700",
+                         zIndex: 25,
+                         boxShadow: "0 3px 10px rgba(255, 107, 107, 0.6)",
+                         whiteSpace: "nowrap",
+                         minWidth: "100px",
+                         textAlign: "center",
+                         letterSpacing: "0.3px",
+                         border: "1px solid rgba(255, 255, 255, 0.4)",
+                       }}
+                     >
+                       MOST POPULAR
+                     </div>
+                   )}
+
                   <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "40px",
-                      height: "40px",
-                      borderRadius: "50%",
-                      backgroundColor: `${plan.color}20`,
-                      color: plan.color,
-                      fontSize: "16px",
-                      marginBottom: "8px",
-                    }}
+                    className="plan-header"
+                    style={{ textAlign: "center", marginBottom: "16px" }}
                   >
-                    <IconComponent />
-                </div>
-
-                  <h3
-                    className="plan-title"
-                    style={{
-                      fontSize: "18px",
-                      fontWeight: "700",
-                      color: "#FFDCDCFF",
-                      margin: "0 0 4px 0",
-                    }}
-                  >
-                    {plan.name}
-                  </h3>
-
-                  <div className="plan-price" style={{ marginBottom: "4px" }}>
-                    <span
+                    <div
                       style={{
-                        fontSize: "24px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        backgroundColor: `${plan.color}20`,
+                        color: plan.color,
+                        fontSize: "16px",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <IconComponent />
+                    </div>
+
+                    <h3
+                      className="plan-title"
+                      style={{
+                        fontSize: "18px",
                         fontWeight: "700",
                         color: "#FFDCDCFF",
+                        margin: "0 0 4px 0",
                       }}
                     >
-                      {plan.price}
-                    </span>
-                    {plan.price !== "Custom" && (
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: "rgba(255, 220, 220, 0.7)",
-                          marginLeft: "4px",
-                        }}
-                      >
-                        /{plan.period}
-                    </span>
-                  )}
-                </div>
+                      {plan.name}
+                    </h3>
 
-                  <p
-                    className="plan-description"
-                    style={{
-                      fontSize: "12px",
-                      color: "rgba(255, 220, 220, 0.8)",
-                      margin: 0,
-                    }}
+                    <div className="plan-price" style={{ marginBottom: "4px" }}>
+                      {plan.monthlyPrice ? (
+                        <div>
+                          <span
+                            style={{
+                              fontSize: "24px",
+                              fontWeight: "700",
+                              color: "#FFDCDCFF",
+                            }}
+                          >
+                            {plan.monthlyPrice.amount === 0
+                              ? "Free"
+                              : formatPrice(plan.monthlyPrice)}
+                          </span>
+                          {plan.monthlyPrice.amount > 0 && (
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "rgba(255, 220, 220, 0.7)",
+                                marginLeft: "4px",
+                              }}
+                            >
+                              /month
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: "24px",
+                            fontWeight: "700",
+                            color: "#FFDCDCFF",
+                          }}
+                        >
+                          Custom
+                        </span>
+                      )}
+                    </div>
+
+                    <p
+                      className="plan-description"
+                      style={{
+                        fontSize: "12px",
+                        color: "rgba(255, 220, 220, 0.8)",
+                        margin: 0,
+                      }}
+                    >
+                      {plan.description}
+                    </p>
+                  </div>
+
+                  <div
+                    className="plan-features"
+                    style={{ marginBottom: "16px" }}
                   >
-                    {plan.description}
-                  </p>
-              </div>
-
-                <div className="plan-features" style={{ marginBottom: "16px" }}>
-                  {plan.features.map((feature, featureIndex) => (
-                    <div
-                      key={featureIndex}
-                      className="plan-feature"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        marginBottom: "8px",
-                        fontSize: "12px",
-                        color: "#FFDCDCFF",
-                      }}
-                    >
-                      <FaCheck
+                    {plan.features.map((feature, featureIndex) => (
+                      <div
+                        key={featureIndex}
+                        className="plan-feature"
                         style={{
-                          color: "#4CAF50",
-                          marginRight: "8px",
-                          flexShrink: 0,
-                          fontSize: "10px",
-                        }}
-                      />
-                      <span>{feature}</span>
-            </div>
-          ))}
-        </div>
-
-                <div className="plan-actions" style={{ textAlign: "center" }}>
-                  {isCurrentPlan ? (
-                    <div
-                      style={{
-                        backgroundColor: "rgba(76, 175, 80, 0.1)",
-                        border: "1px solid rgba(76, 175, 80, 0.3)",
-                        borderRadius: "8px",
-                        padding: "12px",
-                        color: "#4CAF50",
-                        fontSize: "14px",
-                        fontWeight: "600",
-                      }}
-                    >
-                      Current Plan
-          </div>
-                  ) : plan.id === "free" ? (
-        <button
-                      onClick={() => handleSubscribe(plan.name)}
-          disabled={loading}
-                      className="plan-button"
-          style={{
-                        width: "100%",
-                        padding: "8px 16px",
-                        backgroundColor: "#4ECDC4",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        cursor: loading ? "not-allowed" : "pointer",
-                        opacity: loading ? 0.6 : 1,
-                        transition: "all 0.3s ease",
-                      }}
-                    >
-                      {loading ? "Processing..." : "Get Started"}
-                    </button>
-                  ) : (
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button
-                        onClick={() => handleTrial(plan.name)}
-                        disabled={loading}
-                        className="plan-button"
-                        style={{
-                          flex: 1,
-                          padding: "8px 12px",
-                          backgroundColor: "transparent",
-                          color: "#FF6B6B",
-                          border: "1px solid #FF6B6B",
-                          borderRadius: "8px",
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          cursor: loading ? "not-allowed" : "pointer",
-                          opacity: loading ? 0.6 : 1,
-                          transition: "all 0.3s ease",
+                          display: "flex",
+                          alignItems: "center",
+                          marginBottom: "8px",
+                          fontSize: "12px",
+                          color: "#FFDCDCFF",
                         }}
                       >
-                        {loading ? "Processing..." : "Start Trial"}
-        </button>
-        <button
-                        onClick={() => handleSubscribe(plan.name)}
-          disabled={loading}
+                        <FaCheck
+                          style={{
+                            color: "#4CAF50",
+                            marginRight: "8px",
+                            flexShrink: 0,
+                            fontSize: "10px",
+                          }}
+                        />
+                        <span>{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="plan-actions" style={{ textAlign: "center" }}>
+                    {isCurrentPlan ? (
+                      <div
+                        style={{
+                          backgroundColor: "rgba(76, 175, 80, 0.15)",
+                          border: "1px solid rgba(76, 175, 80, 0.4)",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          color: "#4CAF50",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        Your Current Plan
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Open pricing page in new tab
+                          chrome.tabs.create({
+                            url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
+                            active: true,
+                          });
+                        }}
+                        disabled={plansLoading}
                         className="plan-button"
-          style={{
-                          flex: 1,
-                          padding: "8px 12px",
+                        style={{
+                          width: "100%",
+                          padding: "10px 16px",
                           backgroundColor: "#FF6B6B",
                           color: "white",
                           border: "none",
                           borderRadius: "8px",
-                          fontSize: "11px",
+                          fontSize: "12px",
                           fontWeight: "600",
-                          cursor: loading ? "not-allowed" : "pointer",
-                          opacity: loading ? 0.6 : 1,
-                          transition: "all 0.3s ease",
+                          cursor: plansLoading ? "not-allowed" : "pointer",
+                          opacity: plansLoading ? 0.6 : 1,
                         }}
                       >
-                        {loading ? "Processing..." : "Subscribe"}
+                        {plansLoading ? "Processing..." : "Subscribe"}
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
 
           {/* OR Separator */}
           <div
@@ -637,9 +1054,9 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
             >
               Configure your personal API keys for unlimited usage
             </p>
-        <button
-          onClick={onOpenSettings}
-          style={{
+            <button
+              onClick={onOpenSettings}
+              style={{
                 width: "100%",
                 padding: "10px 16px",
                 backgroundColor: "transparent",
@@ -649,11 +1066,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                 fontSize: "12px",
                 fontWeight: "600",
                 cursor: "pointer",
-                transition: "all 0.3s ease",
               }}
             >
               Open Settings
-        </button>
+            </button>
           </div>
         </div>
 
