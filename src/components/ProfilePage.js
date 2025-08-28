@@ -747,48 +747,49 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               animation: "slideInUp 0.6s ease-out 0.8s both",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                marginBottom: "16px",
-              }}
-            >
-              <div style={{ color: status.color, fontSize: "20px", flexShrink: 0 }}>
-                {status.icon}
-              </div>
-              <div style={{ flex: 1, paddingRight: "6px" }}>
-                <div
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#FFDCDCFF",
-                    marginBottom: "2px",
-                  }}
-                >
-                  {status.text}
+            {/* Only show status display if NOT on Free Plan */}
+            {status.text !== "Free Plan" && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div style={{ color: status.color, fontSize: "20px", flexShrink: 0 }}>
+                  {status.icon}
                 </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                  }}
-                >
-                  {subscription.usingPersonalAPI
-                    ? "Unlimited usage with your API key"
-                    : status.text === "Free Plan"
-                    ? "Permanent access with limited quotas"
-                    : status.text === "Premium Subscription"
-                    ? "Monthly/yearly billing with higher quotas"
-                    : status.text === "Free Trial"
-                    ? `30-day trial period - Expires ${formatDate(status.subExpiry)}`
-                    : status.subExpiry
-                    ? `Expires ${formatDate(status.subExpiry)}`
-                    : "No expiry date available"}
+                <div style={{ flex: 1, paddingRight: "6px" }}>
+                  <div
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "600",
+                      color: "#FFDCDCFF",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    {status.text}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(255, 220, 220, 0.8)",
+                    }}
+                  >
+                    {subscription.usingPersonalAPI
+                      ? "Unlimited usage with your API key"
+                      : status.text === "Premium Subscription"
+                      ? "Monthly/yearly billing with higher quotas"
+                      : status.text === "Free Trial"
+                      ? `30-day trial period - Expires ${formatDate(status.subExpiry)}`
+                      : status.subExpiry
+                      ? `Expires ${formatDate(status.subExpiry)}`
+                      : "No expiry date available"}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Subscription Warning for Free Trial and Free Plan */}
             {(status.text === "Free Trial" || status.text === "Free Plan") && (
@@ -814,16 +815,16 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                 >
                   ⚠️
                 </div>
-                <div style={{ flex: 1, paddingRight: "4px" }}>
+                <div style={{ flex: 1, paddingRight: "6px" }}>
                   <div
-                    style={{
+                    style={{ 
                       fontSize: "14px",
                       fontWeight: "600",
                       color: "#ffad1f",
                       marginBottom: "4px",
                     }}
                   >
-                    {status.text === "Free Trial" ? "Trial Period Active" : "Free Plan Active"}
+                    {status.text === "Free Trial" ? "Trial Period" : "Free Plan"}
                   </div>
                   <div
                     style={{
@@ -834,7 +835,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   >
                     {status.text === "Free Trial" 
                       ? `You are on a free trial. Expires ${formatDate(status.subExpiry)}. Upgrade to continue after trial ends.`
-                      : "You are on the Free plan with limited quotas. Upgrade to a paid plan for higher quotas or use your own API key."
+                      : "You are on the Free plan with limited quotas. Upgrade to a paid plan for higher quotas."
                     }
                   </div>
                 </div>
