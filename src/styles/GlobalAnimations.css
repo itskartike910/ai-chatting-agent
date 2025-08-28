@@ -190,7 +190,7 @@
   100%{transform: rotate(1turn)}
 }
 
-/* Profile Page and Request Counter Loader */
+/* Profile Page Loader */
 .profile-loader {
   --d:18px;
   width: 3px;
@@ -206,6 +206,21 @@
     calc(-0.707*var(--d)) calc(-0.707*var(--d))0 5px,
     calc(0*var(--d))      calc(-1*var(--d))    0 6px;
   animation: l27 1s infinite steps(8);
+}
+
+/* Request Counter Loader Animation */
+@keyframes l3{ 
+  to{transform: rotate(1turn)}
+}
+
+/* Request Counter Loader */
+.request-counter-loader {
+  width: 12px;
+  height: 12px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: l3 1s infinite linear;
 }
 
 /* Text Loader Animation */

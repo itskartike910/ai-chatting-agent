@@ -10,7 +10,7 @@ import {
   FaChartBar,
   FaSignOutAlt,
   FaKey,
-  // FaInfinity,
+  FaInfinity,
   FaClock,
   FaStar,
   FaCog,
@@ -927,6 +927,117 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
           </div>
         </div>
 
+        {/* Usage Stats */}
+        <div style={sectionStyle}>
+          <h4
+            style={{
+              color: "#FFDCDCFF",
+              fontSize: "16px",
+              fontWeight: "600",
+              margin: "0 0 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <FaChartBar />
+            Usage Statistics
+          </h4>
+
+          <div style={cardStyle}>
+            {subscription.usingPersonalAPI ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "20px",
+                  color: "#17bf63",
+                }}
+              >
+                <FaInfinity style={{ fontSize: "32px", marginBottom: "8px" }} />
+                <div style={{ fontSize: "16px", fontWeight: "600" }}>
+                  Unlimited Usage
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 220, 220, 0.8)",
+                  }}
+                >
+                  Using your personal API key
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px", color: "#FFDCDCFF" }}>
+                    Requests Used
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color:
+                        subscription.remaining_requests <= 0
+                          ? "#e0245e"
+                          : "#FFDCDCFF",
+                    }}
+                  >
+                    {subscription.requests_used} /{" "}
+                    {subscription.monthly_request_limit}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    width: "100%",
+                    height: "8px",
+                    backgroundColor: "rgba(255, 220, 220, 0.2)",
+                    borderRadius: "4px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.min(
+                        (subscription.requests_used /
+                          subscription.monthly_request_limit) *
+                          100,
+                        100
+                      )}%`,
+                      height: "100%",
+                      backgroundColor:
+                        subscription.remaining_requests <= 0
+                          ? "#e0245e"
+                          : subscription.remaining_requests <= 2
+                          ? "#ffad1f"
+                          : "#17bf63",
+                      transition: "width 0.3s ease",
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "rgba(255, 220, 220, 0.8)",
+                    marginTop: "8px",
+                    textAlign: "center",
+                  }}
+                >
+                  {subscription.remaining_requests > 0 
+                    ? `${subscription.remaining_requests} requests remaining`
+                    : "Trial expired - upgrade or use personal API"}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* API Key Toggle Section */}
         <div style={sectionStyle} data-section="api-config">
           <h4
@@ -1048,117 +1159,6 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             </div>
           </div>
         </div>
-
-        {/* Usage Stats */}
-        {/* <div style={sectionStyle}>
-          <h4
-            style={{
-              color: "#FFDCDCFF",
-              fontSize: "16px",
-              fontWeight: "600",
-              margin: "0 0 16px 0",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <FaChartBar />
-            Usage Statistics
-          </h4>
-
-          <div style={cardStyle}>
-            {subscription.usingPersonalAPI ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "20px",
-                  color: "#17bf63",
-                }}
-              >
-                <FaInfinity style={{ fontSize: "32px", marginBottom: "8px" }} />
-                <div style={{ fontSize: "16px", fontWeight: "600" }}>
-                  Unlimited Usage
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                  }}
-                >
-                  Using your personal API key
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <span style={{ fontSize: "14px", color: "#FFDCDCFF" }}>
-                    Requests Used
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "600",
-                      color:
-                        subscription.remaining_requests <= 0
-                          ? "#e0245e"
-                          : "#FFDCDCFF",
-                    }}
-                  >
-                    {subscription.requests_used} /{" "}
-                    {subscription.monthly_request_limit}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    width: "100%",
-                    height: "8px",
-                    backgroundColor: "rgba(255, 220, 220, 0.2)",
-                    borderRadius: "4px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${Math.min(
-                        (subscription.requests_used /
-                          subscription.monthly_request_limit) *
-                          100,
-                        100
-                      )}%`,
-                      height: "100%",
-                      backgroundColor:
-                        subscription.remaining_requests <= 0
-                          ? "#e0245e"
-                          : subscription.remaining_requests <= 2
-                          ? "#ffad1f"
-                          : "#17bf63",
-                      transition: "width 0.3s ease",
-                    }}
-                  />
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "rgba(255, 220, 220, 0.8)",
-                    marginTop: "8px",
-                    textAlign: "center",
-                  }}
-                >
-                  {subscription.remaining_requests > 0 
-                    ? `${subscription.remaining_requests} requests remaining`
-                    : "Trial expired - upgrade or use personal API"}
-                </div>
-              </div>
-            )}
-          </div>
-        </div> */}
 
         {/* Organizations Section */}
         <div style={sectionStyle}>

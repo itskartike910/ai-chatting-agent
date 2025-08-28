@@ -24,11 +24,14 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick }) => {
       // Get user data to get organizations and usage info
       const userData = await apiService.getCurrentUser();
       const organizations = userData.organizations || [];
-      
+
       // Find the user's selected organization or first active one
-      const activeOrg = organizations.find(org => org.id === userData.selectedOrganizationId) || 
-                       organizations.find(org => org.isActive) || 
-                       organizations[0];
+      const activeOrg =
+        organizations.find(
+          (org) => org.id === userData.selectedOrganizationId
+        ) ||
+        organizations.find((org) => org.isActive) ||
+        organizations[0];
 
       if (activeOrg) {
         // For now, we'll use a default quota based on subscription type
@@ -128,9 +131,9 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick }) => {
         }}
       >
         <div
-          className="profile-loader"
+          className="request-counter-loader"
           style={{
-            transform: "scale(0.5)",
+            color: "#ffe9e9",
           }}
         />
         <span style={{ fontSize: "12px", color: "rgba(255, 220, 220, 0.7)" }}>
@@ -209,7 +212,7 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick }) => {
           fontWeight: isLow || isFree ? "600" : "400",
         }}
       >
-        {usageData?.remaining || 0} requests
+        {usageData?.used || 0}/{usageData?.limit || 100} used
       </span>
     </div>
   );
