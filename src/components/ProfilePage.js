@@ -1,5 +1,5 @@
 /* global chrome */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaUser,
@@ -37,10 +37,18 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAllOrganizations, setShowAllOrganizations] = useState(false);
+  const [quotaData, setQuotaData] = useState(null);
+  const [quotaLoading, setQuotaLoading] = useState(true);
 
   useEffect(() => {
     loadUserDetails();
   }, []);
+
+  useEffect(() => {
+    if (organizations.length > 0) {
+      loadQuotaData();
+    }
+  }, [organizations.length]); // Only depend on length, not the array itself
 
   const loadUserDetails = async () => {
     try {
@@ -137,23 +145,113 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
     }
   };
 
+  // Add rate limiting for quota data loading
+  const quotaLoadTimeoutRef = useRef(null);
+  
+  const loadQuotaData = async () => {
+    // Prevent multiple simultaneous calls
+    if (quotaLoadTimeoutRef.current) {
+      clearTimeout(quotaLoadTimeoutRef.current);
+    }
+    
+    quotaLoadTimeoutRef.current = setTimeout(async () => {
+      try {
+        setQuotaLoading(true);
+
+        // Find the active organization
+        const activeOrg = organizations.find(org => org.isActive) || organizations[0];
+        
+        if (activeOrg) {
+          // Get quota information from the API
+          const quotaResponse = await apiService.getUserQuota(activeOrg.id);
+          
+          if (quotaResponse && quotaResponse.quotas) {
+            // Find the chat quota
+            const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat') || {
+              featureKey: 'chat',
+              featureName: 'Chat',
+              currentUsage: 0,
+              limit: 100,
+              remaining: 100,
+              usagePercentage: 0,
+              isUnlimited: false
+            };
+
+            setQuotaData({
+              plan: activeOrg.subscriptionType,
+              limit: chatQuota.limit,
+              used: chatQuota.currentUsage,
+              remaining: chatQuota.remaining,
+              status: activeOrg.subscriptionStatus,
+              isUnlimited: chatQuota.isUnlimited
+            });
+          } else {
+            // Fallback to default quota
+            const quotas = {
+              Free: { limit: 100, used: 0 },
+              Paid: { limit: 1000, used: 0 },
+              Trial: { limit: 1000, used: 0 },
+            };
+
+            const quota = quotas[activeOrg.subscriptionType] || quotas["Free"];
+            setQuotaData({
+              plan: activeOrg.subscriptionType,
+              limit: quota.limit,
+              used: quota.used,
+              remaining: quota.limit - quota.used,
+              status: activeOrg.subscriptionStatus,
+              isUnlimited: false
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error loading quota data:", error);
+        // Set default quota data on error
+        setQuotaData({
+          plan: "Free",
+          limit: 100,
+          used: 0,
+          remaining: 100,
+          status: "active",
+          isUnlimited: false
+        });
+      } finally {
+        setQuotaLoading(false);
+        quotaLoadTimeoutRef.current = null;
+      }
+    }, 300); // 300ms debounce
+  };
+
   // Refresh subscription data when component gains focus (returning from settings)
   useEffect(() => {
     const handleFocus = () => {
       if (subscription.loadSubscriptionData) {
         subscription.loadSubscriptionData();
       }
+      // Also refresh quota data
+      if (organizations.length > 0) {
+        loadQuotaData();
+      }
     };
 
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [subscription]);
+  }, [subscription, organizations.length]); // Only depend on organizations.length
 
   // Monitor subscription changes for toggle button updates
   useEffect(() => {
     // This effect will run whenever subscription data changes
     // The toggle button state will automatically update based on subscription.hasPersonalKeys
   }, [subscription.hasPersonalKeys, subscription.userPreferPersonalAPI]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (quotaLoadTimeoutRef.current) {
+        clearTimeout(quotaLoadTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Refresh subscription data when component mounts or when returning from settings
   useEffect(() => {
@@ -963,7 +1061,29 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   Using your personal API key
                 </div>
               </div>
-            ) : (
+            ) : quotaLoading ? (
+              <div style={{ textAlign: "center", padding: "20px" }}>
+                <div style={{ 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  alignItems: "center", 
+                  gap: "12px" 
+                }}>
+                  <div style={{ transform: "scale(0.7)" }}>
+                    <div className="profile-loader" />
+                  </div>
+                  <p
+                    style={{ 
+                      color: "rgba(255, 220, 220, 0.7)", 
+                      margin: "0",
+                      fontSize: "13px"
+                    }}
+                  >
+                    Loading usage data...
+                  </p>
+                </div>
+              </div>
+            ) : quotaData ? (
               <div>
                 <div
                   style={{
@@ -981,13 +1101,13 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                       fontSize: "14px",
                       fontWeight: "600",
                       color:
-                        subscription.remaining_requests <= 0
+                        quotaData.remaining <= 0
                           ? "#e0245e"
                           : "#FFDCDCFF",
                     }}
                   >
-                    {subscription.requests_used} /{" "}
-                    {subscription.monthly_request_limit}
+                    {quotaData.used} /{" "}
+                    {quotaData.isUnlimited ? "∞" : quotaData.limit}
                   </span>
                 </div>
                 <div
@@ -1002,16 +1122,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   <div
                     style={{
                       width: `${Math.min(
-                        (subscription.requests_used /
-                          subscription.monthly_request_limit) *
-                          100,
+                        quotaData.isUnlimited ? 0 : (quotaData.used / quotaData.limit) * 100,
                         100
                       )}%`,
                       height: "100%",
                       backgroundColor:
-                        subscription.remaining_requests <= 0
+                        quotaData.remaining <= 0
                           ? "#e0245e"
-                          : subscription.remaining_requests <= 2
+                          : quotaData.remaining <= 2
                           ? "#ffad1f"
                           : "#17bf63",
                       transition: "width 0.3s ease",
@@ -1026,10 +1144,16 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                     textAlign: "center",
                   }}
                 >
-                  {subscription.remaining_requests > 0 
-                    ? `${subscription.remaining_requests} requests remaining`
-                    : "Trial expired - upgrade or use personal API"}
+                  {quotaData.isUnlimited 
+                    ? "Unlimited requests available"
+                    : quotaData.remaining > 0 
+                    ? `${quotaData.remaining} requests remaining`
+                    : "No requests remaining - upgrade or use personal API"}
                 </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", padding: "20px", color: "rgba(255, 220, 220, 0.7)" }}>
+                Unable to load usage data
               </div>
             )}
           </div>

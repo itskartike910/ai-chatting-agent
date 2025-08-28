@@ -18,6 +18,7 @@ import {
 import RequestCounter from './RequestCounter';
 import SubscriptionChoice from './SubscriptionChoice';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/api';
 
 const ChatInterface = ({ user, subscription, onLogout }) => {
   const navigate = useNavigate();
@@ -51,12 +52,36 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     if (subscription?.loadSubscriptionData) {
       subscription.loadSubscriptionData();
     }
+    // Load latest usage data when component mounts
+    refreshQuotaData();
   }, [subscription]);
+
+  // Load latest usage data when component mounts
+  useEffect(() => {
+    refreshQuotaData();
+  }, []);
 
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);
   };
+
+  // Function to refresh quota data after API calls with debouncing
+  const refreshQuotaData = async () => {
+    // Clear quota cache to ensure fresh data
+    apiService.clearQuotaCache();
+    
+    // Debounce the refresh to prevent excessive API calls
+    if (subscription?.loadSubscriptionData) {
+      // Add a small delay to prevent rapid successive calls
+      setTimeout(async () => {
+        await subscription.loadSubscriptionData();
+      }, 100);
+    }
+  };
+
+  // State to store the request counter refresh function
+  const [requestCounterRefresh, setRequestCounterRefresh] = useState(null);
 
   // Helper function to detect markdown content
   const hasMarkdownContent = (content) => {
@@ -282,6 +307,12 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 isMarkdown: message.result.isMarkdown || hasMarkdownContent(responseContent), // Use flag from backend first
                 actions: message.result.actions
               });
+
+              // Refresh quota data after successful API call
+              refreshQuotaData();
+              if (requestCounterRefresh) {
+                requestCounterRefresh();
+              }
               break;
               
             case 'task_error':
@@ -294,6 +325,12 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 timestamp: Date.now(),
                 isMarkdown: true
               });
+              
+              // Refresh quota data after API call (even if it failed)
+              refreshQuotaData();
+              if (requestCounterRefresh) {
+                requestCounterRefresh();
+              }
               break;
 
             case 'task_cancelled':
@@ -320,6 +357,12 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 timestamp: Date.now(),
                 isMarkdown: true
               });
+              
+              // Refresh quota data after task cancellation
+              refreshQuotaData();
+              if (requestCounterRefresh) {
+                requestCounterRefresh();
+              }
               break;
 
             case 'error':
@@ -418,8 +461,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     const shouldShowSubscription = subscription && 
                                   !subscription.usingPersonalAPI && 
                                   !subscription.hasPersonalKeys && 
-                                  subscription.isTrialExpired() && 
-                                  subscription.remaining_requests <= 0;
+                                  (subscription.isTrialExpired() || subscription.remaining_requests <= 0);
 
     if (shouldShowSubscription) {
       setShowSubscriptionChoice(true);
@@ -599,6 +641,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               <RequestCounter 
                 subscriptionState={subscription} 
                 onUpgradeClick={() => setShowSubscriptionChoice(true)}
+                onRefresh={setRequestCounterRefresh}
               />
             )}
           </div>

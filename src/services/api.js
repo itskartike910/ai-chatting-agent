@@ -340,9 +340,39 @@ class APIService {
   }
 
   // Quota APIs
+  // Cache for quota data to prevent excessive API calls
+  quotaCache = new Map();
+  quotaCacheTimeout = 3000; // 3 seconds
+
   async getUserQuota(orgId = null) {
+    const cacheKey = orgId || 'default';
+    const now = Date.now();
+    
+    // Check if we have cached data that's still valid
+    const cached = this.quotaCache.get(cacheKey);
+    if (cached && (now - cached.timestamp) < this.quotaCacheTimeout) {
+      return cached.data;
+    }
+    
     const endpoint = orgId ? `/user/quota?orgId=${orgId}` : '/user/quota';
-    return await this.makeRequest(endpoint);
+    const data = await this.makeRequest(endpoint);
+    
+    // Cache the result
+    this.quotaCache.set(cacheKey, {
+      data,
+      timestamp: now
+    });
+    
+    return data;
+  }
+
+  // Method to clear quota cache (call this after operations that might change quota)
+  clearQuotaCache(orgId = null) {
+    if (orgId) {
+      this.quotaCache.delete(orgId);
+    } else {
+      this.quotaCache.clear();
+    }
   }
 
   // Mobile Streaming APIs
