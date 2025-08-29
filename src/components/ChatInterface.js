@@ -49,14 +49,20 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add state for typing indicator
   const [isTyping, setIsTyping] = useState(false);
 
-  // Refresh subscription data when component mounts
+  // Simple refresh function for request counter
+  const [requestCounterRefresh, setRequestCounterRefresh] = useState(null);
+
+  // Refresh on mount - simple approach
   useEffect(() => {
-    if (subscription?.loadSubscriptionData) {
-      subscription.loadSubscriptionData();
+    if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
+      // Add a small delay to ensure component is fully mounted
+      setTimeout(() => {
+        if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
+          requestCounterRefresh();
+        }
+      }, 100);
     }
-    // Load latest usage data when component mounts
-    refreshQuotaData();
-  }, [subscription]);
+  }, [requestCounterRefresh]);
 
   // Check if subscription choice should be shown on mount - only after subscription data is loaded
   useEffect(() => {
@@ -69,20 +75,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);
-  };
-
-  // Function to refresh quota data after API calls with debouncing
-  const refreshQuotaData = async () => {
-    // Clear quota cache to ensure fresh data
-    apiService.clearQuotaCache();
-    
-    // Debounce the refresh to prevent excessive API calls
-    if (subscription?.loadSubscriptionData) {
-      // Add a small delay to prevent rapid successive calls
-      setTimeout(async () => {
-        await subscription.loadSubscriptionData();
-      }, 100);
-    }
   };
 
   // Function to check if subscription popup should be shown
@@ -116,16 +108,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       console.error('Error checking subscription status:', error);
     }
   };
-
-  // State to store the request counter refresh function
-  const [requestCounterRefresh, setRequestCounterRefresh] = useState(null);
-
-  // Effect to handle request counter refresh when it's available
-  useEffect(() => {
-    if (requestCounterRefresh) {
-      requestCounterRefresh();
-    }
-  }, [requestCounterRefresh]);
 
   // Helper function to detect markdown content
   const hasMarkdownContent = (content) => {
@@ -352,10 +334,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 actions: message.result.actions
               });
 
-              // Refresh quota data after successful API call
-              refreshQuotaData();
-              // Call request counter refresh immediately
-              if (requestCounterRefresh) {
+              // Simple refresh after API response
+              if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
                 requestCounterRefresh();
               }
               
@@ -376,13 +356,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 isMarkdown: true
               });
               
-              // Refresh quota data after API call (even if it failed)
-              refreshQuotaData();
-              // Call request counter refresh immediately
-              if (requestCounterRefresh) {
+              // Simple refresh after API response (even if it failed)
+              if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
                 requestCounterRefresh();
               }
-              
               // Check if subscription popup should be shown after task error
               setTimeout(() => {
                 checkAndShowSubscriptionPopup();
@@ -414,10 +391,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 isMarkdown: true
               });
               
-              // Refresh quota data after task cancellation
-              refreshQuotaData();
-              // Call request counter refresh immediately
-              if (requestCounterRefresh) {
+              // Simple refresh after API response
+              if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
                 requestCounterRefresh();
               }
               
@@ -535,13 +510,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
     // Show typing indicator
     setIsTyping(true);
-
-    // Refresh quota data after sending a message to get latest usage
-    refreshQuotaData();
-    // Call request counter refresh immediately
-    if (requestCounterRefresh) {
-      requestCounterRefresh();
-    }
 
     // Fallback to background script (existing logic)
     if (portRef.current && connectionStatus === 'connected' && !isExecuting) {

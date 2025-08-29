@@ -8,59 +8,17 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    // Always load fresh data on component mount
-    loadUsageData();
-  }, []); // Only run on mount
-
-  // Refresh data when subscription state changes
-  useEffect(() => {
-    if (subscriptionState && subscriptionState.remaining_requests !== undefined) {
-      setUsageData({
-        plan: subscriptionState.plan_type || "Free",
-        limit: subscriptionState.monthly_request_limit || 100,
-        used: subscriptionState.requests_used || 0,
-        remaining: subscriptionState.remaining_requests || 100,
-        status: subscriptionState.status || "active",
-        isUnlimited: subscriptionState.monthly_request_limit === -1
-      });
-      setLoading(false);
-    }
-  }, [subscriptionState?.remaining_requests, subscriptionState?.requests_used, subscriptionState?.monthly_request_limit]);
-
-  // Expose refresh function to parent component with debouncing
-  useEffect(() => {
-    if (onRefresh) {
-      const debouncedLoadUsageData = () => {
-        // Clear cache and load fresh data immediately
-        apiService.clearQuotaCache();
-        loadUsageData();
-      };
-      onRefresh(debouncedLoadUsageData);
-    }
-  }, [onRefresh]);
-
-  // Hide request counter when using personal API key
-  if (subscriptionState?.usingPersonalAPI) {
-    return null;
-  }
-
+  // Simple load function
   const loadUsageData = async () => {
     try {
       setLoading(true);
       setError("");
 
-      // Use the new method to get quota for active organization
-      console.log("RequestCounter - calling getActiveOrganizationQuota");
+      console.log("RequestCounter - loading usage data");
       const quotaResponse = await apiService.getActiveOrganizationQuota();
       
-      console.log("RequestCounter - quota response:", quotaResponse);
-      
       if (quotaResponse && quotaResponse.quotas) {
-        // Find the chat quota
         const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
-        
-        console.log("Chat quota found:", chatQuota);
         
         if (chatQuota) {
           const usageDataObj = {
@@ -68,11 +26,11 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
             limit: chatQuota.limit,
             used: chatQuota.currentUsage,
             remaining: chatQuota.remaining,
+            usagePercentage: chatQuota.usagePercentage,
             status: quotaResponse.subscriptionStatus,
             isUnlimited: chatQuota.isUnlimited
           };
           
-          console.log("Setting usage data:", usageDataObj);
           setUsageData(usageDataObj);
         } else {
           setError("Chat quota not found");
@@ -87,6 +45,23 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
       setLoading(false);
     }
   };
+
+  // Load on mount
+  useEffect(() => {
+    loadUsageData();
+  }, []);
+
+  // Expose refresh function to parent
+  useEffect(() => {
+    if (onRefresh) {
+      onRefresh(loadUsageData);
+    }
+  }, [onRefresh]);
+
+  // Hide request counter when using personal API key
+  if (subscriptionState?.usingPersonalAPI) {
+    return null;
+  }
 
   const getIcon = () => {
     if (loading) return null;
@@ -111,10 +86,6 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
     } else {
       // Refresh quota data when clicked
       loadUsageData();
-      // Also trigger parent refresh if available
-      if (onRefresh) {
-        onRefresh();
-      }
     }
   };
 

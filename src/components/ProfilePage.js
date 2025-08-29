@@ -160,14 +160,27 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
   // Add rate limiting for quota data loading
   const quotaLoadTimeoutRef = useRef(null);
+  const quotaLoadRunningRef = useRef(false);
   
   const loadQuotaData = async () => {
     // Prevent multiple simultaneous calls
+    if (quotaLoadRunningRef.current) {
+      return;
+    }
+    
+    // Clear any pending timeout
     if (quotaLoadTimeoutRef.current) {
       clearTimeout(quotaLoadTimeoutRef.current);
     }
     
     quotaLoadTimeoutRef.current = setTimeout(async () => {
+      // Double-check if already running
+      if (quotaLoadRunningRef.current) {
+        return;
+      }
+      
+      quotaLoadRunningRef.current = true;
+      
       try {
         setQuotaLoading(true);
 
@@ -230,26 +243,30 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         });
       } finally {
         setQuotaLoading(false);
+        quotaLoadRunningRef.current = false;
         quotaLoadTimeoutRef.current = null;
       }
-    }, 300); // 300ms debounce
+    }, 500); // Increased debounce to 500ms
   };
 
   // Refresh subscription data when component gains focus (returning from settings)
   useEffect(() => {
     const handleFocus = () => {
-      if (subscription.loadSubscriptionData) {
-        subscription.loadSubscriptionData();
+      // Add debouncing to prevent excessive calls
+      if (subscription.loadSubscriptionData && !subscription.loading) {
+        setTimeout(() => {
+          subscription.loadSubscriptionData();
+        }, 100);
       }
-      // Also refresh quota data
+      // Also refresh quota data with debouncing
       if (organizations.length > 0) {
         loadQuotaData();
       }
     };
 
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [subscription, organizations.length]); // Only depend on organizations.length
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [subscription, organizations.length]);
 
   // Monitor subscription changes for toggle button updates
   useEffect(() => {
