@@ -660,7 +660,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         </button>
       </div>
 
-             {/* Scrollable Content */}
+        {/* Scrollable Content */}
        <div
          style={{
            flex: 1,
@@ -668,7 +668,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
            padding: "16px",
            scrollbarWidth: "none",
            msOverflowStyle: "none",
-           paddingTop: "20px", // Increased padding at top for popular badges
+           paddingTop: "24px", // Increased padding at top for popular badges
          }}
        >
         {/* Current Plan Banner */}
@@ -794,36 +794,32 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                   style={{
                     ...planCardStyle(selectedPlan === plan.id, plan.popular),
                     animationDelay: `${index * 0.1}s`,
-                    marginTop: plan.popular ? "20px" : "0px",
+                    marginTop: "0px",
                     position: "relative",
                   }}
                   onClick={() => setSelectedPlan(plan.id)}
                 >
-                                     {plan.popular && (
-                     <div
-                       style={{
-                         position: "absolute",
-                         top: "-15px",
-                         left: "50%",
-                         transform: "translateX(-50%)",
-                         backgroundColor: "#FF6B6B",
-                         color: "white",
-                         padding: "6px 20px",
-                         borderRadius: "16px",
-                         fontSize: "10px",
-                         fontWeight: "700",
-                         zIndex: 25,
-                         boxShadow: "0 3px 10px rgba(255, 107, 107, 0.6)",
-                         whiteSpace: "nowrap",
-                         minWidth: "100px",
-                         textAlign: "center",
-                         letterSpacing: "0.3px",
-                         border: "1px solid rgba(255, 255, 255, 0.4)",
-                       }}
-                     >
-                       MOST POPULAR
-                     </div>
-                   )}
+                  {plan.popular && (
+                    <div
+                      style={{
+                        backgroundColor: "#FF6B6B",
+                        color: "white",
+                        padding: "6px 16px",
+                        borderRadius: "12px",
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        textAlign: "center",
+                        letterSpacing: "0.3px",
+                        border: "1px solid rgba(255, 255, 255, 0.3)",
+                        lineHeight: "1.2",
+                        marginBottom: "12px",
+                        display: "inline-block",
+                        boxShadow: "0 2px 8px rgba(255, 107, 107, 0.4)",
+                      }}
+                    >
+                      MOST POPULAR
+                    </div>
+                  )}
 
                   <div
                     className="plan-header"
