@@ -1,6 +1,6 @@
 /* global chrome */
 import React, { useState, useEffect } from "react";
-import { FaCrown, FaExclamationTriangle, FaCheckCircle } from "react-icons/fa";
+import { FaCrown, FaExclamationTriangle, FaCheckCircle, FaSync } from "react-icons/fa";
 import apiService from "../services/api";
 
 const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
@@ -205,11 +205,11 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
         }}
         title="Click to refresh usage data"
       >
-        <div
-          className="request-counter-loader"
+        <FaSync
           style={{
             color: "#ffe9e9",
             animation: "spin 1s linear infinite",
+            fontSize: "12px",
           }}
         />
         <span style={{ fontSize: "12px", color: "rgba(255, 220, 220, 0.7)" }}>
@@ -235,7 +235,7 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
         }}
         title="Click to refresh usage data"
       >
-        <FaExclamationTriangle style={{ color: "#FF6B6B", fontSize: "12px" }} />
+        <FaSync style={{ color: "#FF6B6B", fontSize: "12px" }} />
         <span style={{ fontSize: "12px", color: "#FF6B6B" }}>Refresh Usage</span>
       </div>
     );

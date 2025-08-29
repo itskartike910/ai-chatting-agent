@@ -63,13 +63,13 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
   // Check if subscription choice should be shown on mount
   useEffect(() => {
-    if (subscription && !subscription.usingPersonalAPI && !subscription.hasPersonalKeys) {
-      const shouldShowSubscription = subscription.isTrialExpired() || subscription.remaining_requests <= 0;
-      if (shouldShowSubscription) {
-        setShowSubscriptionChoice(true);
-      }
+    if (subscription && 
+        !subscription.usingPersonalAPI && 
+        !subscription.loading && 
+        subscription.remaining_requests <= 0) {
+      setShowSubscriptionChoice(true);
     }
-  }, [subscription]);
+  }, [subscription?.usingPersonalAPI, subscription?.loading, subscription?.remaining_requests]);
 
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
@@ -323,6 +323,15 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               if (requestCounterRefresh) {
                 requestCounterRefresh();
               }
+              
+              setTimeout(() => {
+                if (subscription && 
+                    !subscription.usingPersonalAPI && 
+                    !subscription.loading && 
+                    subscription.remaining_requests <= 0) {
+                  setShowSubscriptionChoice(true);
+                }
+              }, 500);
               break;
               
             case 'task_error':
@@ -341,6 +350,16 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               if (requestCounterRefresh) {
                 requestCounterRefresh();
               }
+              
+              // Check if subscription popup should be shown after task error
+              setTimeout(() => {
+                if (subscription && 
+                    !subscription.usingPersonalAPI && 
+                    !subscription.loading && 
+                    subscription.remaining_requests <= 0) {
+                  setShowSubscriptionChoice(true);
+                }
+              }, 500);
               break;
 
             case 'task_cancelled':
@@ -373,6 +392,16 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               if (requestCounterRefresh) {
                 requestCounterRefresh();
               }
+              
+              // Check if subscription popup should be shown after task cancellation
+              setTimeout(() => {
+                if (subscription && 
+                    !subscription.usingPersonalAPI && 
+                    !subscription.loading && 
+                    subscription.remaining_requests <= 0) {
+                  setShowSubscriptionChoice(true);
+                }
+              }, 500);
               break;
 
             case 'error':
@@ -467,11 +496,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
   const handleSendMessage = async (message) => {
 
-    // Check subscription status and trial expiration
     const shouldShowSubscription = subscription && 
                                   !subscription.usingPersonalAPI && 
-                                  !subscription.hasPersonalKeys && 
-                                  (subscription.isTrialExpired() || subscription.remaining_requests <= 0);
+                                  subscription.remaining_requests <= 0;
 
     if (shouldShowSubscription) {
       setShowSubscriptionChoice(true);

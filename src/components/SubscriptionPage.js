@@ -8,6 +8,7 @@ import {
   FaCrown,
   FaShieldAlt,
   FaExclamationTriangle,
+  FaSync,
 } from "react-icons/fa";
 import apiService from "../services/api";
 import "../styles/SubscriptionPageAnimations.css";
@@ -437,7 +438,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
       : "rgba(255, 255, 255, 0.05)",
     border: isSelected
       ? "2px solid #FF6B6B"
-      : "1px solid rgba(255, 255, 255, 0.1)",
+      : "1px solid rgba(255, 173, 31, 0.3)",
     borderRadius: "12px",
     padding: "16px",
     marginBottom: "8px",
@@ -646,7 +647,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
           </p>
         </div>
 
-        <button
+        {/* <button
           onClick={() => loadSubscriptionData()}
           className="subscription-refresh-button"
           style={{
@@ -666,17 +667,15 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
           title="Refresh Plans"
           disabled={loading || plansLoading}
         >
-          <span
+          <FaSync
             style={{
               animation:
                 loading || plansLoading ? "spin 1s linear infinite" : "none",
               opacity: loading || plansLoading ? 0.6 : 1,
               fontSize: "14px",
             }}
-          >
-            🔄
-          </span>
-        </button>
+          />
+        </button> */}
       </div>
 
         {/* Scrollable Content */}

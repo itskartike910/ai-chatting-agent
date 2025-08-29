@@ -26,6 +26,7 @@ import {
   FaCreditCard,
   FaCalendarCheck,
   FaShieldAlt,
+  FaSync,
 } from "react-icons/fa";
 import apiService from "../services/api";
 
@@ -1070,12 +1071,10 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               }}
               title="Sync usage data"
             >
-              <span style={{ 
+              <FaSync style={{ 
                 animation: quotaLoading ? "spin 1s linear infinite" : "none",
                 fontSize: "10px"
-              }}>
-                🔄
-              </span>
+              }} />
               Sync
             </button>
           </h4>
