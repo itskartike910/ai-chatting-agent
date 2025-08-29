@@ -51,84 +51,35 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
       setLoading(true);
       setError("");
 
-      // First, try to get stored user data from chrome.storage.local
-      let storedUserData = null;
-      let storedOrganizations = [];
-      let activeOrg = null;
-
-      try {
-        const storageData = await new Promise((resolve) => {
-          chrome.storage.local.get(["userAuth", "authData"], (result) => {
-            resolve({
-              userAuth: result.userAuth || null,
-              authData: result.authData || null,
-            });
-          });
-        });
-
-        // Use stored data if available
-        if (storageData.userAuth?.user && storageData.userAuth?.organizations) {
-          storedUserData = storageData.userAuth.user;
-          storedOrganizations = storageData.userAuth.organizations;
-        } else if (storageData.authData?.user && storageData.authData?.organizations) {
-          storedUserData = storageData.authData.user;
-          storedOrganizations = storageData.authData.organizations;
-        }
-      } catch (storageError) {
-        console.log("Could not get stored user data:", storageError);
-      }
-
-      // If we have stored organizations, use them
-      if (storedOrganizations.length > 0) {
-        console.log("Using stored organizations for quota lookup");
-        activeOrg =
-          storedOrganizations.find(
-            (org) => org.id === storedUserData?.selectedOrganizationId
-          ) ||
-          storedOrganizations.find((org) => org.isActive) ||
-          storedOrganizations[0];
-      }
-
-      // If no stored data or no active org found, fallback to API call
-      if (!activeOrg) {
-        console.log("No stored organization data found, making API call");
-        const userData = await apiService.getCurrentUser();
-        const organizations = userData.organizations || [];
-
-        activeOrg =
-          organizations.find(
-            (org) => org.id === userData.selectedOrganizationId
-          ) ||
-          organizations.find((org) => org.isActive) ||
-          organizations[0];
-      }
-
-      if (activeOrg) {
-        console.log("Using organization ID:", activeOrg.id);
-        // Get quota information from the API using the org ID
-        const quotaResponse = await apiService.getUserQuota(activeOrg.id);
+      // Use the new method to get quota for active organization
+      console.log("RequestCounter - calling getActiveOrganizationQuota");
+      const quotaResponse = await apiService.getActiveOrganizationQuota();
+      
+      console.log("RequestCounter - quota response:", quotaResponse);
+      
+      if (quotaResponse && quotaResponse.quotas) {
+        // Find the chat quota
+        const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
         
-        if (quotaResponse && quotaResponse.quotas) {
-          // Find the chat quota
-          const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
+        console.log("Chat quota found:", chatQuota);
+        
+        if (chatQuota) {
+          const usageDataObj = {
+            plan: quotaResponse.subscriptionStatus === 'active' ? 'Paid' : 'Free',
+            limit: chatQuota.limit,
+            used: chatQuota.currentUsage,
+            remaining: chatQuota.remaining,
+            status: quotaResponse.subscriptionStatus,
+            isUnlimited: chatQuota.isUnlimited
+          };
           
-          if (chatQuota) {
-            setUsageData({
-              plan: activeOrg.subscriptionType,
-              limit: chatQuota.limit,
-              used: chatQuota.currentUsage,
-              remaining: chatQuota.remaining,
-              status: activeOrg.subscriptionStatus,
-              isUnlimited: chatQuota.isUnlimited
-            });
-          } else {
-            setError("Chat quota not found");
-          }
+          console.log("Setting usage data:", usageDataObj);
+          setUsageData(usageDataObj);
         } else {
-          setError("No quota data available");
+          setError("Chat quota not found");
         }
       } else {
-        setError("No active organization found");
+        setError("No quota data available");
       }
     } catch (error) {
       console.error("Error loading usage data:", error);

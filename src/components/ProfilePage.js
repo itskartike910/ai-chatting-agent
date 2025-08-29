@@ -171,52 +171,50 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       try {
         setQuotaLoading(true);
 
-        // Use the organizations from state (which are loaded from stored data)
-        const activeOrg = organizations.find(org => org.isActive) || organizations[0];
+        // Use the new method to get quota for active organization
+        console.log("ProfilePage - calling getActiveOrganizationQuota");
+        const quotaResponse = await apiService.getActiveOrganizationQuota();
         
-        if (activeOrg) {
-          console.log("Using organization ID for quota:", activeOrg.id);
-          // Get quota information from the API using the org ID
-          const quotaResponse = await apiService.getUserQuota(activeOrg.id);
+        console.log("ProfilePage - quota response:", quotaResponse);
+        
+        if (quotaResponse && quotaResponse.quotas) {
+          // Find the chat quota
+          const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat') || {
+            featureKey: 'chat',
+            featureName: 'Chat',
+            currentUsage: 0,
+            limit: 100,
+            remaining: 100,
+            usagePercentage: 0,
+            isUnlimited: false
+          };
+
+          console.log("ProfilePage chat quota:", chatQuota);
+
+          const quotaDataObj = {
+            plan: quotaResponse.subscriptionStatus === 'active' ? 'Paid' : 'Free',
+            limit: chatQuota.limit,
+            used: chatQuota.currentUsage,
+            remaining: chatQuota.remaining,
+            status: quotaResponse.subscriptionStatus,
+            isUnlimited: chatQuota.isUnlimited
+          };
           
-          if (quotaResponse && quotaResponse.quotas) {
-            // Find the chat quota
-            const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat') || {
-              featureKey: 'chat',
-              featureName: 'Chat',
-              currentUsage: 0,
-              limit: 100,
-              remaining: 100,
-              usagePercentage: 0,
-              isUnlimited: false
-            };
-
-            setQuotaData({
-              plan: activeOrg.subscriptionType,
-              limit: chatQuota.limit,
-              used: chatQuota.currentUsage,
-              remaining: chatQuota.remaining,
-              status: activeOrg.subscriptionStatus,
-              isUnlimited: chatQuota.isUnlimited
-            });
-          } else {
-            // Fallback to default quota
-            const quotas = {
-              Free: { limit: 100, used: 0 },
-              Paid: { limit: 1000, used: 0 },
-              Trial: { limit: 1000, used: 0 },
-            };
-
-            const quota = quotas[activeOrg.subscriptionType] || quotas["Free"];
-            setQuotaData({
-              plan: activeOrg.subscriptionType,
-              limit: quota.limit,
-              used: quota.used,
-              remaining: quota.limit - quota.used,
-              status: activeOrg.subscriptionStatus,
-              isUnlimited: false
-            });
-          }
+          console.log("ProfilePage setting quota data:", quotaDataObj);
+          setQuotaData(quotaDataObj);
+        } else {
+          // Fallback to default quota
+          const fallbackQuota = {
+            plan: "Free",
+            limit: 100,
+            used: 0,
+            remaining: 100,
+            status: "active",
+            isUnlimited: false
+          };
+          
+          console.log("ProfilePage using fallback quota:", fallbackQuota);
+          setQuotaData(fallbackQuota);
         }
       } catch (error) {
         console.error("Error loading quota data:", error);
@@ -1053,30 +1051,32 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               <FaChartBar />
               Usage Statistics
             </div>
-            <button
-              onClick={loadQuotaData}
-              disabled={quotaLoading}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "rgba(255, 220, 220, 0.1)",
-                border: "1px solid rgba(255, 220, 220, 0.3)",
-                borderRadius: "6px",
-                cursor: quotaLoading ? "not-allowed" : "pointer",
-                fontSize: "12px",
-                color: "#FFDCDCFF",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                opacity: quotaLoading ? 0.6 : 1,
-              }}
-              title="Sync usage data"
-            >
-              <FaSync style={{ 
-                animation: quotaLoading ? "spin 1s linear infinite" : "none",
-                fontSize: "10px"
-              }} />
-              Sync
-            </button>
+            {!subscription.usingPersonalAPI && (
+              <button
+                onClick={loadQuotaData}
+                disabled={quotaLoading}
+                style={{
+                  padding: "4px 8px",
+                  backgroundColor: "rgba(255, 220, 220, 0.1)",
+                  border: "1px solid rgba(255, 220, 220, 0.3)",
+                  borderRadius: "6px",
+                  cursor: quotaLoading ? "not-allowed" : "pointer",
+                  fontSize: "12px",
+                  color: "#FFDCDCFF",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  opacity: quotaLoading ? 0.6 : 1,
+                }}
+                title="Sync usage data"
+              >
+                <FaSync style={{ 
+                  animation: quotaLoading ? "spin 1s linear infinite" : "none",
+                  fontSize: "10px"
+                }} />
+                Sync
+              </button>
+            )}
           </h4>
 
           <div style={cardStyle}>

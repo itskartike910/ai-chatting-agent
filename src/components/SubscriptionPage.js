@@ -192,6 +192,18 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         const monthlyPrice = price.interval === "month" ? price : null;
         const yearlyPrice = price.interval === "year" ? price : null;
 
+        // Check if this product matches the current active plan
+        const isCurrentPlan = currentPlan && (
+          // Match by productId if available
+          (currentPlan.productId && currentPlan.productId === product.id) ||
+          // Match by priceId if available
+          (currentPlan.priceId && currentPlan.priceId === price.id) ||
+          // Match by subscription type for free plans
+          (currentPlan.subscriptionType === "Free" && product.name.toLowerCase().includes("free")) ||
+          // Match by subscription type for paid plans
+          (currentPlan.subscriptionType === "Paid" && product.name.toLowerCase().includes("pro"))
+        );
+
         return {
           id: product.id,
           name: product.name,
@@ -223,11 +235,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
           icon: getIconForPlan(product.name),
           color: getColorForPlan(product.name),
           popular: product.name.toLowerCase().includes("pro"),
-          currentPlan:
-            currentPlan &&
-            (currentPlan.productId === product.id ||
-              (currentPlan.subscriptionType === "Free" &&
-                product.name.toLowerCase().includes("free"))),
+          currentPlan: isCurrentPlan,
         };
       };
 
@@ -364,16 +372,16 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
       const activeOrg = activeOrganization || currentPlan;
       if (!activeOrg || !activeOrg.id) {
         // If no active organization, try to get it from user data
-        if (userData && userData.selectedOrganizationId) {
+        if (userData && userData.user && userData.user.selectedOrganizationId) {
           // Use the selected organization ID from user data
-          const orgId = userData.selectedOrganizationId;
+          const orgId = userData.user.selectedOrganizationId;
           console.log("Using selected organization ID:", orgId);
         } else {
           throw new Error("No active organization found. Please try refreshing the page.");
         }
       }
 
-      const organizationId = activeOrg?.id || userData?.selectedOrganizationId;
+      const organizationId = activeOrg?.id || userData?.user?.selectedOrganizationId;
       if (!organizationId) {
         throw new Error("No organization ID available for checkout");
       }
@@ -711,7 +719,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
               }}
             >
               ✅ Currently on {currentPlan.subscriptionType} plan (
-              {currentPlan.subscriptionStatus})
+              {currentPlan.subscriptionStatus}) - {currentPlan.name}
             </p>
           </div>
         )}

@@ -505,7 +505,7 @@ export class MultiLLMService {
         }
 
         // Use the user's selected organization or the first active one
-        const activeOrg = organizations.find(org => org.id === user.selectedOrganizationId) || 
+        const activeOrg = organizations.find(org => org.id === user?.selectedOrganizationId) || 
                          organizations.find(org => org.isActive) || 
                          organizations[0];
 

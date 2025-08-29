@@ -315,7 +315,9 @@ class APIService {
 
   // User Management APIs
   async getCurrentUser() {
-    const response = await this.makeRequest('/user/');
+    console.log("API getCurrentUser - making request to /user/");
+    const response = await this.makeRequest(`/user/?_t=${Date.now()}`);
+    console.log("API getCurrentUser - response:", response);
     return response; // Return the full response with both user and organizations
   }
 
@@ -356,13 +358,17 @@ class APIService {
     const cacheKey = orgId || 'default';
     const now = Date.now();
     
+    console.log("API getUserQuota - called with orgId:", orgId, "cacheKey:", cacheKey);
+    
     // Check if we have cached data that's still valid
     const cached = this.quotaCache.get(cacheKey);
     if (cached && (now - cached.timestamp) < this.quotaCacheTimeout) {
+      console.log("API getUserQuota - returning cached data for orgId:", orgId);
       return cached.data;
     }
     
-    const endpoint = orgId ? `/user/quota?orgId=${orgId}` : '/user/quota';
+    const endpoint = orgId ? `/user/quota?orgId=${orgId}&_t=${Date.now()}` : `/user/quota?_t=${Date.now()}`;
+    console.log("API getUserQuota - making request to endpoint:", endpoint);
     const data = await this.makeRequest(endpoint);
     
     // Cache the result
@@ -371,15 +377,64 @@ class APIService {
       timestamp: now
     });
     
+    console.log("API getUserQuota - cached data for orgId:", orgId, "data:", data);
     return data;
+  }
+
+  // Get quota for active organization specifically
+  async getActiveOrganizationQuota() {
+    try {
+      // Clear all quota cache first to ensure we get fresh data
+      this.clearQuotaCache();
+      
+      // First get user data to find the active organization
+      const userData = await this.getCurrentUser();
+      console.log("API getActiveOrganizationQuota - userData:", userData);
+      
+      const organizations = userData?.organizations || [];
+      console.log("API getActiveOrganizationQuota - organizations:", organizations);
+      
+      // Find the active organization - prioritize selectedOrganizationId from user data
+      let activeOrg = null;
+      const selectedOrgId = userData?.user?.selectedOrganizationId;
+      console.log("API getActiveOrganizationQuota - selectedOrgId from userData.user:", selectedOrgId);
+      
+      if (selectedOrgId) {
+        activeOrg = organizations.find(org => org.id === selectedOrgId);
+        console.log("API getActiveOrganizationQuota - found org by selectedOrganizationId:", activeOrg);
+      }
+      
+      // Fallback to isActive or first organization
+      if (!activeOrg) {
+        activeOrg = organizations.find(org => org.isActive) || organizations[0];
+        console.log("API getActiveOrganizationQuota - fallback activeOrg:", activeOrg);
+      }
+      
+      if (!activeOrg) {
+        throw new Error('No active organization found');
+      }
+      
+      console.log("API getActiveOrganizationQuota - using activeOrg.id:", activeOrg.id);
+      
+      // Get quota for the specific active organization
+      const quotaResponse = await this.getUserQuota(activeOrg.id);
+      console.log("API getActiveOrganizationQuota - quotaResponse:", quotaResponse);
+      
+      return quotaResponse;
+    } catch (error) {
+      console.error('Error getting active organization quota:', error);
+      throw error;
+    }
   }
 
   // Method to clear quota cache (call this after operations that might change quota)
   clearQuotaCache(orgId = null) {
     if (orgId) {
       this.quotaCache.delete(orgId);
+      console.log("API clearQuotaCache - cleared cache for orgId:", orgId);
     } else {
       this.quotaCache.clear();
+      console.log("API clearQuotaCache - cleared all quota cache");
     }
   }
 
@@ -451,7 +506,7 @@ class APIService {
       }
 
       // Use the user's selected organization or the first active one
-      const activeOrg = organizations.find(org => org.id === user.selectedOrganizationId) || 
+      const activeOrg = organizations.find(org => org.id === user?.selectedOrganizationId) || 
                        organizations.find(org => org.isActive) || 
                        organizations[0];
 

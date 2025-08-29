@@ -514,6 +514,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     // Show typing indicator
     setIsTyping(true);
 
+    // Refresh quota data after sending a message to get latest usage
+    refreshQuotaData();
+
     // Fallback to background script (existing logic)
     if (portRef.current && connectionStatus === 'connected' && !isExecuting) {
       try {
