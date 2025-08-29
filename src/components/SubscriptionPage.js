@@ -48,8 +48,10 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
 
       // Find active organization
       const organizations = userResponse.organizations || [];
-      const activeOrg =
-        organizations.find((org) => org.isActive) || organizations[0];
+      const selectedOrgId = userResponse.user?.selectedOrganizationId;
+      const activeOrg = selectedOrgId 
+        ? organizations.find(org => org.id === selectedOrgId)
+        : organizations.find((org) => org.isActive) || organizations[0];
 
       if (!activeOrg) {
         throw new Error("No active organization found");
@@ -65,10 +67,22 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         name: activeOrg.name,
       });
 
-      // Determine currency from organization or default to USD
-      // Since the API documentation shows currency is passed in the request body,
-      // we'll default to USD for now
-      const currency = "usd";
+      // Get currency from the active organization's priceId
+      // We'll need to fetch the price details to get the currency
+      let currency = "usd"; // Default fallback
+      
+      if (activeOrg.priceId) {
+        try {
+          // Get price details to extract currency
+          const priceResponse = await apiService.getOrganizationsForPrice(activeOrg.priceId);
+          if (priceResponse && priceResponse.priceInfo && priceResponse.priceInfo.currency) {
+            currency = priceResponse.priceInfo.currency;
+            console.log("Using currency from organization:", currency);
+          }
+        } catch (error) {
+          console.warn("Failed to get price details, using default currency:", error);
+        }
+      }
 
       // Fetch pricing data from API
       await loadPricingData(currency);
@@ -697,6 +711,50 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
            paddingTop: "24px", // Increased padding at top for popular badges
          }}
        >
+        {/* Billing Organization Banner */}
+        {currentPlan && (
+          <div
+            style={{
+              backgroundColor: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 220, 220, 0.2)",
+              borderRadius: "12px",
+              padding: "12px",
+              marginBottom: "12px",
+              animation: "slideInUp 0.6s ease-out",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "4px",
+              }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  color: "#FFDCDCFF",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                }}
+              >
+                Billing Organization
+              </p>
+              <p
+                style={{
+                  margin: 0,
+                  color: "rgba(255, 220, 220, 0.8)",
+                  fontSize: "11px",
+                  fontWeight: "500",
+                }}
+              >
+                {currentPlan.name} • {currentPlan.subscriptionStatus}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Current Plan Banner */}
         {currentPlan && (
           <div

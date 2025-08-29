@@ -359,11 +359,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
       };
     }
 
-    // Get subscription status from active organizations
-    const activeOrganization = organizations.find(org => org.isActive);
+    // Get subscription status from selected organization
+    const selectedOrgId = userDetails?.selectedOrganizationId;
+    const selectedOrganization = selectedOrgId 
+      ? organizations.find(org => org.id === selectedOrgId)
+      : organizations.find(org => org.isActive) || organizations[0];
     
-    if (activeOrganization) {
-      const { subscriptionStatus, subscriptionType, subExpiry } = activeOrganization;
+    if (selectedOrganization) {
+      const { subscriptionStatus, subscriptionType, subExpiry } = selectedOrganization;
       
       if (subscriptionStatus === "active") {
         return {
@@ -1500,14 +1503,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                                 borderRadius: "12px",
                                 fontSize: "10px",
                                 fontWeight: "600",
-                                backgroundColor: org.isActive
+                                backgroundColor: (userDetails?.selectedOrganizationId === org.id)
                                   ? "rgba(76, 175, 80, 0.2)"
                                   : "rgba(158, 158, 158, 0.2)",
-                                color: org.isActive ? "#4CAF50" : "#9E9E9E",
+                                color: (userDetails?.selectedOrganizationId === org.id) ? "#4CAF50" : "#9E9E9E",
                                 textTransform: "uppercase",
                               }}
                             >
-                              {org.isActive ? "Active" : "Inactive"}
+                              {(userDetails?.selectedOrganizationId === org.id) ? "Selected" : "Inactive"}
                             </span>
                           </div>
                         </div>

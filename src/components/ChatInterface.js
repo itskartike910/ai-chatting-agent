@@ -63,13 +63,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
   // Check if subscription choice should be shown on mount
   useEffect(() => {
-    if (subscription && 
-        !subscription.usingPersonalAPI && 
-        !subscription.loading && 
-        subscription.remaining_requests <= 0) {
-      setShowSubscriptionChoice(true);
+    if (subscription && !subscription.loading) {
+      checkAndShowSubscriptionPopup();
     }
-  }, [subscription?.usingPersonalAPI, subscription?.loading, subscription?.remaining_requests]);
+  }, [subscription?.loading, subscription?.usingPersonalAPI]);
 
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
@@ -87,6 +84,22 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       setTimeout(async () => {
         await subscription.loadSubscriptionData();
       }, 100);
+    }
+  };
+
+  // Function to check if subscription popup should be shown
+  const checkAndShowSubscriptionPopup = async () => {
+    try {
+      // Get fresh quota data directly from API
+      const quotaResponse = await apiService.getActiveOrganizationQuota();
+      if (quotaResponse && quotaResponse.quotas) {
+        const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
+        if (chatQuota && chatQuota.remaining <= 0 && !subscription?.usingPersonalAPI) {
+          setShowSubscriptionChoice(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
     }
   };
 
@@ -320,17 +333,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
               // Refresh quota data after successful API call
               refreshQuotaData();
+              // Call request counter refresh immediately
               if (requestCounterRefresh) {
                 requestCounterRefresh();
               }
               
+              // Check if subscription popup should be shown after task completion
               setTimeout(() => {
-                if (subscription && 
-                    !subscription.usingPersonalAPI && 
-                    !subscription.loading && 
-                    subscription.remaining_requests <= 0) {
-                  setShowSubscriptionChoice(true);
-                }
+                checkAndShowSubscriptionPopup();
               }, 500);
               break;
               
@@ -347,18 +357,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               
               // Refresh quota data after API call (even if it failed)
               refreshQuotaData();
+              // Call request counter refresh immediately
               if (requestCounterRefresh) {
                 requestCounterRefresh();
               }
               
               // Check if subscription popup should be shown after task error
               setTimeout(() => {
-                if (subscription && 
-                    !subscription.usingPersonalAPI && 
-                    !subscription.loading && 
-                    subscription.remaining_requests <= 0) {
-                  setShowSubscriptionChoice(true);
-                }
+                checkAndShowSubscriptionPopup();
               }, 500);
               break;
 
@@ -389,18 +395,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               
               // Refresh quota data after task cancellation
               refreshQuotaData();
+              // Call request counter refresh immediately
               if (requestCounterRefresh) {
                 requestCounterRefresh();
               }
               
               // Check if subscription popup should be shown after task cancellation
               setTimeout(() => {
-                if (subscription && 
-                    !subscription.usingPersonalAPI && 
-                    !subscription.loading && 
-                    subscription.remaining_requests <= 0) {
-                  setShowSubscriptionChoice(true);
-                }
+                checkAndShowSubscriptionPopup();
               }, 500);
               break;
 
@@ -496,12 +498,11 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
   const handleSendMessage = async (message) => {
 
-    const shouldShowSubscription = subscription && 
-                                  !subscription.usingPersonalAPI && 
-                                  subscription.remaining_requests <= 0;
-
-    if (shouldShowSubscription) {
-      setShowSubscriptionChoice(true);
+    // Check if subscription popup should be shown before sending message
+    await checkAndShowSubscriptionPopup();
+    
+    // If popup is shown, don't send the message
+    if (showSubscriptionChoice) {
       return; 
     }
 
@@ -516,6 +517,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
     // Refresh quota data after sending a message to get latest usage
     refreshQuotaData();
+    // Call request counter refresh immediately
+    if (requestCounterRefresh) {
+      requestCounterRefresh();
+    }
 
     // Fallback to background script (existing logic)
     if (portRef.current && connectionStatus === 'connected' && !isExecuting) {

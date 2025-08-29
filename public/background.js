@@ -1919,6 +1919,11 @@ class BackgroundScriptAgent {
       }
 
       const currentState = await this.multiAgentExecutor.getCurrentState();
+      try {
+        await this.multiAgentExecutor.clearElementHighlighting();
+      } catch (error) {
+        console.error('Failed to clear element highlighting:', error);
+      }
       
       console.log('🧠 Making single intelligent routing call with detailed page state...');
       const intelligentResult = await this.taskRouter.analyzeAndRoute(task, currentState);

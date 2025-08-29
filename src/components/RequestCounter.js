@@ -32,10 +32,9 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
   useEffect(() => {
     if (onRefresh) {
       const debouncedLoadUsageData = () => {
-        // Debounce to prevent excessive API calls
-        setTimeout(() => {
-          loadUsageData();
-        }, 200);
+        // Clear cache and load fresh data immediately
+        apiService.clearQuotaCache();
+        loadUsageData();
       };
       onRefresh(debouncedLoadUsageData);
     }
