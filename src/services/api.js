@@ -339,6 +339,14 @@ class APIService {
     });
   }
 
+  // Payment APIs
+  async createCheckoutSession(priceId, organizationId) {
+    return await this.makeRequest('/payments/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ priceId, organizationId })
+    });
+  }
+
   // Quota APIs
   // Cache for quota data to prevent excessive API calls
   quotaCache = new Map();

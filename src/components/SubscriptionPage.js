@@ -23,6 +23,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
   const [userData, setUserData] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [activeOrganization, setActiveOrganization] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState({});
 
   useEffect(() => {
     loadSubscriptionData();
@@ -348,7 +349,7 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
 
   const handleSubscribe = async (plan, interval = "month") => {
     try {
-      setPlansLoading(true);
+      setCheckoutLoading(prev => ({ ...prev, [plan.id]: true }));
       setError("");
 
       const priceData =
@@ -358,35 +359,53 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
         throw new Error(`No ${interval} pricing available for this plan`);
       }
 
-      // Create organization for the selected price
-      const organizationData = {
-        name: `${userData.name}'s Organization`,
-        description: `Organization for ${plan.name} subscription`,
-      };
+      // Get the active organization ID
+      const activeOrg = activeOrganization || currentPlan;
+      if (!activeOrg || !activeOrg.id) {
+        // If no active organization, try to get it from user data
+        if (userData && userData.selectedOrganizationId) {
+          // Use the selected organization ID from user data
+          const orgId = userData.selectedOrganizationId;
+          console.log("Using selected organization ID:", orgId);
+        } else {
+          throw new Error("No active organization found. Please try refreshing the page.");
+        }
+      }
 
-      const response = await apiService.createOrganizationForPrice(
+      const organizationId = activeOrg?.id || userData?.selectedOrganizationId;
+      if (!organizationId) {
+        throw new Error("No organization ID available for checkout");
+      }
+
+      console.log("Creating checkout session for:", {
+        planName: plan.name,
+        priceId: priceData.priceId,
+        organizationId: organizationId,
+        priceData: priceData
+      });
+
+      // Create checkout session using the payment API
+      const checkoutResponse = await apiService.createCheckoutSession(
         priceData.priceId,
-        organizationData
+        organizationId
       );
 
-      if (response && response.organization) {
-        // Refresh subscription data
-        await loadSubscriptionData();
+      console.log("Checkout response:", checkoutResponse);
 
-        // Show success message
-        setError(""); // Clear any previous errors
-        alert(`Successfully subscribed to ${plan.name}!`);
-
-        // Navigate back to profile
-        navigate("/profile");
+      if (checkoutResponse && checkoutResponse.url) {
+        // Open the checkout URL in a new tab
+        chrome.tabs.create({
+          url: checkoutResponse.url,
+          active: true,
+        });
       } else {
-        throw new Error("Failed to create subscription");
+        throw new Error("Failed to create checkout session");
       }
     } catch (error) {
-      console.error("Subscription error:", error);
-      setError(error.message || "Failed to subscribe to plan");
+      console.error("Checkout error:", error);
+      setError(error.message || "Failed to create checkout session");
     } finally {
-      setPlansLoading(false);
+      setCheckoutLoading(prev => ({ ...prev, [plan.id]: false }));
     }
   };
 
@@ -953,13 +972,9 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Open pricing page in new tab
-                          chrome.tabs.create({
-                            url: "https://nextjs-app-410940835135.us-central1.run.app/pricing",
-                            active: true,
-                          });
+                          handleSubscribe(plan);
                         }}
-                        disabled={plansLoading}
+                        disabled={checkoutLoading[plan.id] || plansLoading}
                         className="plan-button"
                         style={{
                           width: "100%",
@@ -970,11 +985,24 @@ const SubscriptionPage = ({ onSubscribe, onLogout, onOpenSettings, user }) => {
                           borderRadius: "8px",
                           fontSize: "12px",
                           fontWeight: "600",
-                          cursor: plansLoading ? "not-allowed" : "pointer",
-                          opacity: plansLoading ? 0.6 : 1,
+                          cursor: (checkoutLoading[plan.id] || plansLoading) ? "not-allowed" : "pointer",
+                          opacity: (checkoutLoading[plan.id] || plansLoading) ? 0.6 : 1,
                         }}
                       >
-                        {plansLoading ? "Processing..." : "Subscribe"}
+                        {checkoutLoading[plan.id] ? (
+                          <>
+                            <div className="spinner-loader" style={{
+                              width: "12px",
+                              height: "12px",
+                              border: "2px solid transparent",
+                              borderRightColor: "#ffffff",
+                              marginRight: "6px"
+                            }} />
+                            Creating Checkout...
+                          </>
+                        ) : (
+                          "Subscribe"
+                        )}
                       </button>
                     )}
                   </div>

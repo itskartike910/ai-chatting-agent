@@ -1741,7 +1741,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         </div>
 
         {/* Manage Organizations Button */}
-        <div style={sectionStyle}>
+        {/* <div style={sectionStyle}>
           <button
             onClick={() => {
               chrome.tabs.create({
@@ -1762,7 +1762,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             <FaBuilding />
             Manage Organizations
           </button>
-        </div>
+        </div> */}
 
         {/* Logout Button */}
         <div style={sectionStyle}>
