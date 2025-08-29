@@ -1,60 +1,112 @@
 /* global chrome */
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaCrown, FaExclamationTriangle, FaCheckCircle, FaSync } from "react-icons/fa";
 import apiService from "../services/api";
+
+// Singleton to prevent multiple instances
+let requestCounterInstance = null;
 
 const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
   const [usageData, setUsageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const refreshTimeoutRef = useRef(null);
 
-  // Simple load function
-  const loadUsageData = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      console.log("RequestCounter - loading usage data");
-      const quotaResponse = await apiService.getActiveOrganizationQuota();
-      
-      if (quotaResponse && quotaResponse.quotas) {
-        const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
-        
-        if (chatQuota) {
-          const usageDataObj = {
-            plan: quotaResponse.subscriptionStatus === 'active' ? 'Paid' : 'Free',
-            limit: chatQuota.limit,
-            used: chatQuota.currentUsage,
-            remaining: chatQuota.remaining,
-            usagePercentage: chatQuota.usagePercentage,
-            status: quotaResponse.subscriptionStatus,
-            isUnlimited: chatQuota.isUnlimited
-          };
-          
-          setUsageData(usageDataObj);
-        } else {
-          setError("Chat quota not found");
+  // Ensure only one instance
+  useEffect(() => {
+    if (requestCounterInstance) {
+      console.log("RequestCounter: Multiple instances detected, cleaning up");
+      return () => {
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current);
         }
-      } else {
-        setError("No quota data available");
-      }
-    } catch (error) {
-      console.error("Error loading usage data:", error);
-      setError("Failed to load usage information");
-    } finally {
-      setLoading(false);
+      };
     }
+    requestCounterInstance = true;
+    
+    return () => {
+      requestCounterInstance = null;
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Simple load function with debouncing
+  const loadUsageData = async (forceRefresh = false) => {
+    const now = Date.now();
+    
+    // Prevent multiple simultaneous calls unless forced
+    if (!forceRefresh && now - lastRefreshTime < 1000) {
+      console.log("RequestCounter: Skipping refresh, too soon");
+      return;
+    }
+
+    // Clear any pending timeout
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
+    // Debounce the actual API call
+    refreshTimeoutRef.current = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError("");
+        setLastRefreshTime(Date.now());
+
+        console.log("RequestCounter - loading usage data (debounced)");
+        
+        // Clear any cached data to ensure fresh response
+        const quotaResponse = await apiService.getActiveOrganizationQuota();
+        
+        if (quotaResponse && quotaResponse.quotas) {
+          const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
+          
+          if (chatQuota) {
+            const usageDataObj = {
+              plan: quotaResponse.subscriptionStatus === 'active' ? 'Paid' : 'Free',
+              limit: chatQuota.limit,
+              used: chatQuota.currentUsage,
+              remaining: chatQuota.remaining,
+              usagePercentage: chatQuota.usagePercentage,
+              status: quotaResponse.subscriptionStatus,
+              isUnlimited: chatQuota.isUnlimited
+            };
+            
+            console.log("RequestCounter - setting new usage data:", usageDataObj);
+            setUsageData(usageDataObj);
+          } else {
+            setError("Chat quota not found");
+          }
+        } else {
+          setError("No quota data available");
+        }
+      } catch (error) {
+        console.error("Error loading usage data:", error);
+        setError("Failed to load usage information");
+      } finally {
+        setLoading(false);
+        refreshTimeoutRef.current = null;
+      }
+    }, forceRefresh ? 0 : 100); // No delay for forced refresh
   };
 
   // Load on mount
   useEffect(() => {
-    loadUsageData();
+    loadUsageData(true); // Force initial load
   }, []);
 
   // Expose refresh function to parent
   useEffect(() => {
+    console.log("RequestCounter: onRefresh prop changed:", !!onRefresh);
     if (onRefresh) {
-      onRefresh(loadUsageData);
+      const refreshFunction = () => {
+        console.log("RequestCounter: Parent requested refresh");
+        loadUsageData(true); // Force refresh when parent calls
+      };
+      console.log("RequestCounter: Setting refresh function for parent");
+      onRefresh(refreshFunction);
     }
   }, [onRefresh]);
 
@@ -85,7 +137,8 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
       onUpgradeClick?.();
     } else {
       // Refresh quota data when clicked
-      loadUsageData();
+      console.log("RequestCounter: User clicked, refreshing");
+      loadUsageData(true); // Force refresh on click
     }
   };
 
@@ -113,7 +166,7 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
   if (loading) {
     return (
       <div
-        onClick={loadUsageData}
+        onClick={() => loadUsageData(true)}
         style={{
           display: "flex",
           alignItems: "center",
@@ -143,7 +196,7 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
   if (error) {
     return (
       <div
-        onClick={loadUsageData}
+        onClick={() => loadUsageData(true)}
         style={{
           display: "flex",
           alignItems: "center",

@@ -49,20 +49,25 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   // Add state for typing indicator
   const [isTyping, setIsTyping] = useState(false);
 
-  // Simple refresh function for request counter
-  const [requestCounterRefresh, setRequestCounterRefresh] = useState(null);
+  // Simple refresh function for request counter - use ref to avoid re-render issues
+  const requestCounterRefreshRef = useRef(null);
+  
+  // Debug: Log when refresh function is set
+  useEffect(() => {
+    console.log("ChatInterface: requestCounterRefresh function set:", !!requestCounterRefreshRef.current);
+  }, []);
 
   // Refresh on mount - simple approach
   useEffect(() => {
-    if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
+    if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
       // Add a small delay to ensure component is fully mounted
       setTimeout(() => {
-        if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
-          requestCounterRefresh();
+        if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+          requestCounterRefreshRef.current();
         }
       }, 100);
     }
-  }, [requestCounterRefresh]);
+  }, []);
 
   // Check if subscription choice should be shown on mount - only after subscription data is loaded
   useEffect(() => {
@@ -335,8 +340,19 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               });
 
               // Simple refresh after API response
-              if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
-                requestCounterRefresh();
+              console.log("ChatInterface: task_complete received, requestCounterRefresh exists:", !!requestCounterRefreshRef.current);
+              if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+                // Add small delay to ensure API response is fully processed
+                setTimeout(() => {
+                  if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+                    console.log("ChatInterface: Refreshing after task_complete");
+                    requestCounterRefreshRef.current();
+                  } else {
+                    console.log("ChatInterface: requestCounterRefresh not available after delay");
+                  }
+                }, 200);
+              } else {
+                console.log("ChatInterface: requestCounterRefresh not available for task_complete");
               }
               
               // Check if subscription popup should be shown after task completion
@@ -357,8 +373,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               });
               
               // Simple refresh after API response (even if it failed)
-              if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
-                requestCounterRefresh();
+              if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+                // Add small delay to ensure API response is fully processed
+                setTimeout(() => {
+                  if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+                    console.log("ChatInterface: Refreshing after task_error");
+                    requestCounterRefreshRef.current();
+                  }
+                }, 200);
               }
               // Check if subscription popup should be shown after task error
               setTimeout(() => {
@@ -392,8 +414,14 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               });
               
               // Simple refresh after API response
-              if (requestCounterRefresh && typeof requestCounterRefresh === 'function') {
-                requestCounterRefresh();
+              if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+                // Add small delay to ensure API response is fully processed
+                setTimeout(() => {
+                  if (requestCounterRefreshRef.current && typeof requestCounterRefreshRef.current === 'function') {
+                    console.log("ChatInterface: Refreshing after task_cancelled");
+                    requestCounterRefreshRef.current();
+                  }
+                }, 200);
               }
               
               // Check if subscription popup should be shown after task cancellation
@@ -675,7 +703,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               <RequestCounter 
                 subscriptionState={subscription} 
                 onUpgradeClick={() => setShowSubscriptionChoice(true)}
-                onRefresh={setRequestCounterRefresh}
+                onRefresh={(func) => { requestCounterRefreshRef.current = func; }}
               />
             )}
           </div>
