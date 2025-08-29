@@ -40,6 +40,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
   // Add state for subscription choice modal
   const [showSubscriptionChoice, setShowSubscriptionChoice] = useState(false);
+  // Add state to track if popup has been shown for current session
+  const [hasShownPopupThisSession, setHasShownPopupThisSession] = useState(false);
 
   // Add state for message input
   const [messageInput, setMessageInput] = useState('');
@@ -56,17 +58,13 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     refreshQuotaData();
   }, [subscription]);
 
-  // Load latest usage data when component mounts
+  // Check if subscription choice should be shown on mount - only after subscription data is loaded
   useEffect(() => {
-    refreshQuotaData();
-  }, []);
-
-  // Check if subscription choice should be shown on mount
-  useEffect(() => {
-    if (subscription && !subscription.loading) {
+    if (subscription && !subscription.loading && !hasShownPopupThisSession) {
+      // Only check subscription popup if we haven't shown it this session
       checkAndShowSubscriptionPopup();
     }
-  }, [subscription?.loading, subscription?.usingPersonalAPI]);
+  }, [subscription?.loading, subscription?.usingPersonalAPI, hasShownPopupThisSession]);
 
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
@@ -88,14 +86,30 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   };
 
   // Function to check if subscription popup should be shown
-  const checkAndShowSubscriptionPopup = async () => {
+  const checkAndShowSubscriptionPopup = async (isUserAction = false) => {
     try {
+      // Only check if this is a user action (sending message) or if popup hasn't been shown this session
+      if (!isUserAction && hasShownPopupThisSession) {
+        return;
+      }
+
+      // Don't check if subscription is still loading
+      if (subscription?.loading) {
+        return;
+      }
+
+      // Don't check if using personal API
+      if (subscription?.usingPersonalAPI) {
+        return;
+      }
+
       // Get fresh quota data directly from API
       const quotaResponse = await apiService.getActiveOrganizationQuota();
       if (quotaResponse && quotaResponse.quotas) {
         const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
-        if (chatQuota && chatQuota.remaining <= 0 && !subscription?.usingPersonalAPI) {
+        if (chatQuota && chatQuota.remaining <= 0) {
           setShowSubscriptionChoice(true);
+          setHasShownPopupThisSession(true);
         }
       }
     } catch (error) {
@@ -105,6 +119,13 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
 
   // State to store the request counter refresh function
   const [requestCounterRefresh, setRequestCounterRefresh] = useState(null);
+
+  // Effect to handle request counter refresh when it's available
+  useEffect(() => {
+    if (requestCounterRefresh) {
+      requestCounterRefresh();
+    }
+  }, [requestCounterRefresh]);
 
   // Helper function to detect markdown content
   const hasMarkdownContent = (content) => {
@@ -499,7 +520,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   const handleSendMessage = async (message) => {
 
     // Check if subscription popup should be shown before sending message
-    await checkAndShowSubscriptionPopup();
+    await checkAndShowSubscriptionPopup(true);
     
     // If popup is shown, don't send the message
     if (showSubscriptionChoice) {
@@ -795,13 +816,18 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         <SubscriptionChoice 
           onSubscribe={() => {
             setShowSubscriptionChoice(false);
+            setHasShownPopupThisSession(false); // Reset session state
             navigate('/subscription');
           }}
           onUseAPI={() => {
             setShowSubscriptionChoice(false);
+            setHasShownPopupThisSession(false); // Reset session state
             navigate('/settings');
           }}
-          onClose={() => setShowSubscriptionChoice(false)}
+          onClose={() => {
+            setShowSubscriptionChoice(false);
+            setHasShownPopupThisSession(false); // Reset session state
+          }}
           onRefreshSubscription={() => subscription.loadSubscriptionData()}
           user={user}
         />

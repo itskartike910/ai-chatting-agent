@@ -196,6 +196,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
             limit: chatQuota.limit,
             used: chatQuota.currentUsage,
             remaining: chatQuota.remaining,
+            usagePercentage: chatQuota.usagePercentage,
             status: quotaResponse.subscriptionStatus,
             isUnlimited: chatQuota.isUnlimited
           };
@@ -1190,7 +1191,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   {quotaData.isUnlimited 
                     ? "Unlimited requests available"
                     : quotaData.remaining > 0 
-                    ? `${quotaData.remaining} requests remaining`
+                    ? `${quotaData.remaining} requests remaining (${quotaData.usagePercentage || Math.round((quotaData.used / quotaData.limit) * 100)}% used)`
                     : "No requests remaining - upgrade or use personal API"}
                 </div>
               </div>
