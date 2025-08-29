@@ -61,6 +61,16 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     refreshQuotaData();
   }, []);
 
+  // Check if subscription choice should be shown on mount
+  useEffect(() => {
+    if (subscription && !subscription.usingPersonalAPI && !subscription.hasPersonalKeys) {
+      const shouldShowSubscription = subscription.isTrialExpired() || subscription.remaining_requests <= 0;
+      if (shouldShowSubscription) {
+        setShowSubscriptionChoice(true);
+      }
+    }
+  }, [subscription]);
+
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);

@@ -39,6 +39,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   const [showAllOrganizations, setShowAllOrganizations] = useState(false);
   const [quotaData, setQuotaData] = useState(null);
   const [quotaLoading, setQuotaLoading] = useState(true);
+  const [lastProfileUpdate, setLastProfileUpdate] = useState(0);
+  const PROFILE_CACHE_DURATION = 30000; // 30 seconds
 
   useEffect(() => {
     loadUserDetails();
@@ -53,6 +55,14 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
   const loadUserDetails = async () => {
     try {
       setLoading(true);
+
+      // Check if we need to refresh based on cache duration
+      const now = Date.now();
+      if (now - lastProfileUpdate < PROFILE_CACHE_DURATION && userDetails && organizations.length > 0) {
+        console.log("Using cached profile data");
+        setLoading(false);
+        return;
+      }
 
       // First, check if we have user data in chrome.storage.local
       let storedUserData = null;
@@ -85,6 +95,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
         console.log("Using stored organizations:", storedOrganizations);
         setUserDetails(storedUserData);
         setOrganizations(storedOrganizations);
+        setLastProfileUpdate(now);
         setLoading(false);
         return;
       } else if (storedUserData) {
@@ -118,6 +129,7 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
 
       setUserDetails(user);
       setOrganizations(organizations);
+      setLastProfileUpdate(now);
 
       // Store the fetched data for future use
       if (userData) {
@@ -1033,11 +1045,39 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               margin: "0 0 16px 0",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              justifyContent: "space-between",
             }}
           >
-            <FaChartBar />
-            Usage Statistics
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <FaChartBar />
+              Usage Statistics
+            </div>
+            <button
+              onClick={loadQuotaData}
+              disabled={quotaLoading}
+              style={{
+                padding: "4px 8px",
+                backgroundColor: "rgba(255, 220, 220, 0.1)",
+                border: "1px solid rgba(255, 220, 220, 0.3)",
+                borderRadius: "6px",
+                cursor: quotaLoading ? "not-allowed" : "pointer",
+                fontSize: "12px",
+                color: "#FFDCDCFF",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                opacity: quotaLoading ? 0.6 : 1,
+              }}
+              title="Sync usage data"
+            >
+              <span style={{ 
+                animation: quotaLoading ? "spin 1s linear infinite" : "none",
+                fontSize: "10px"
+              }}>
+                🔄
+              </span>
+              Sync
+            </button>
           </h4>
 
           <div style={cardStyle}>
@@ -1329,8 +1369,8 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                   >
                     Manage your organization memberships and subscriptions
                   </div>
-                  {organizations.length > 1 && (
-                    <div style={{ display: "flex", justifyContent: "center" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    {organizations.length > 1 && (
                       <button
                         onClick={() =>
                           setShowAllOrganizations(!showAllOrganizations)
@@ -1357,8 +1397,33 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
                           <FaChevronDown />
                         )}
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <button
+                      onClick={() => {
+                        chrome.tabs.create({
+                          url: "https://nextjs-app-410940835135.us-central1.run.app/dashboard",
+                          active: true,
+                        });
+                      }}
+                      style={{
+                        background: "rgba(255, 220, 220, 0.1)",
+                        border: "1px solid rgba(255, 220, 220, 0.3)",
+                        color: "#FFDCDCFF",
+                        cursor: "pointer",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "6px 12px",
+                        borderRadius: "6px",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <FaBuilding />
+                      Manage
+                    </button>
+                  </div>
                 </div>
 
                 <div
@@ -1673,6 +1738,30 @@ const ProfilePage = ({ user, subscription, onLogout }) => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Manage Organizations Button */}
+        <div style={sectionStyle}>
+          <button
+            onClick={() => {
+              chrome.tabs.create({
+                url: "https://nextjs-app-410940835135.us-central1.run.app/dashboard",
+                active: true,
+              });
+            }}
+            style={{
+              ...buttonStyle,
+              backgroundColor: "rgba(255, 220, 220, 0.1)",
+              border: "1px solid rgba(255, 220, 220, 0.3)",
+              color: "#FFDCDCFF",
+              animation: "slideInUp 0.6s ease-out 0.8s both",
+              padding: "10px 16px",
+              fontSize: "13px",
+            }}
+          >
+            <FaBuilding />
+            Manage Organizations
+          </button>
         </div>
 
         {/* Logout Button */}
