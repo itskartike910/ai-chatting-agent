@@ -230,6 +230,7 @@ const RequestCounter = ({ subscriptionState, onUpgradeClick, onRefresh }) => {
         alignItems: "center",
         gap: "4px",
         padding: "4px 8px",
+        marginLeft: "4px",
         backgroundColor: isExhausted
           ? "rgba(220, 53, 69, 0.2)"
           : isLow

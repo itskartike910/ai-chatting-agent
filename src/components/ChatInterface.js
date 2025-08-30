@@ -75,6 +75,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
       // Only check subscription popup if we haven't shown it this session
       checkAndShowSubscriptionPopup();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subscription?.loading, subscription?.usingPersonalAPI, hasShownPopupThisSession]);
 
   // Add function to handle template clicks
