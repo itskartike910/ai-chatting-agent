@@ -379,6 +379,11 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                   }
                 }, 200);
               }
+              
+              // Check if subscription popup should be shown after task error
+              setTimeout(() => {
+                checkAndShowSubscriptionPopupAfterError();
+              }, 500);
               break;
 
             case 'task_cancelled':
@@ -426,6 +431,11 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 timestamp: Date.now(),
                 isMarkdown: true
               });
+              
+              // Check if subscription popup should be shown after error
+              setTimeout(() => {
+                checkAndShowSubscriptionPopupAfterError();
+              }, 500);
               break;
               
             default:
@@ -799,17 +809,17 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         <SubscriptionChoice 
           onSubscribe={() => {
             setShowSubscriptionChoice(false);
-            setHasShownPopupThisSession(false); // Reset session state
+            // setHasShownPopupThisSession(false); // Reset session state
             navigate('/subscription');
           }}
           onUseAPI={() => {
             setShowSubscriptionChoice(false);
-            setHasShownPopupThisSession(false); // Reset session state
+            // setHasShownPopupThisSession(false); // Reset session state
             navigate('/settings');
           }}
           onClose={() => {
             setShowSubscriptionChoice(false);
-            setHasShownPopupThisSession(false); // Reset session state
+            // setHasShownPopupThisSession(false); // Reset session state
           }}
           onRefreshSubscription={() => subscription.loadSubscriptionData()}
           user={user}
