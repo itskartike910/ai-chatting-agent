@@ -18,7 +18,6 @@ import {
 import RequestCounter from './RequestCounter';
 import SubscriptionChoice from './SubscriptionChoice';
 import { useNavigate } from 'react-router-dom';
-import apiService from '../services/api';
 
 const ChatInterface = ({ user, subscription, onLogout }) => {
   const navigate = useNavigate();
@@ -42,6 +41,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   const [showSubscriptionChoice, setShowSubscriptionChoice] = useState(false);
   // Add state to track if popup has been shown for current session
   const [hasShownPopupThisSession, setHasShownPopupThisSession] = useState(false);
+  // Add state to store usage data from RequestCounter
+  const [usageData, setUsageData] = useState(null);
 
   // Add state for message input
   const [messageInput, setMessageInput] = useState('');
@@ -69,51 +70,51 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
     }
   }, []);
 
-  // Check if subscription choice should be shown on mount - only after subscription data is loaded
+  // Check if subscription choice should be shown on mount - only once when component mounts
   useEffect(() => {
-    if (subscription && !subscription.loading && !hasShownPopupThisSession) {
-      // Only check subscription popup if we haven't shown it this session
-      checkAndShowSubscriptionPopup();
+    if (subscription && !subscription.loading && !hasShownPopupThisSession && !subscription.usingPersonalAPI) {
+      // Only check subscription popup on mount if we haven't shown it this session
+      // and if usage data shows 0 remaining requests
+      if (usageData && usageData.remaining <= 0) {
+        setShowSubscriptionChoice(true);
+        setHasShownPopupThisSession(true);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscription?.loading, subscription?.usingPersonalAPI, hasShownPopupThisSession]);
+  }, [subscription?.loading, subscription?.usingPersonalAPI, hasShownPopupThisSession, usageData]);
 
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
     setMessageInput(templateCommand);
   };
 
-  // Function to check if subscription popup should be shown
-  const checkAndShowSubscriptionPopup = async (isUserAction = false) => {
-    try {
-      // Only check if this is a user action (sending message) or if popup hasn't been shown this session
-      if (!isUserAction && hasShownPopupThisSession) {
-        return;
-      }
 
-      // Don't check if subscription is still loading
-      if (subscription?.loading) {
-        return;
-      }
 
-      // Don't check if using personal API
-      if (subscription?.usingPersonalAPI) {
-        return;
-      }
+  // Function to check if subscription popup should be shown after error
+  const checkAndShowSubscriptionPopupAfterError = () => {
+    // Don't check if subscription is still loading
+    if (subscription?.loading) {
+      return;
+    }
 
-      // Get fresh quota data directly from API
-      const quotaResponse = await apiService.getActiveOrganizationQuota();
-      if (quotaResponse && quotaResponse.quotas) {
-        const chatQuota = quotaResponse.quotas.find(q => q.featureKey === 'chat');
-        if (chatQuota && chatQuota.remaining <= 0) {
-          setShowSubscriptionChoice(true);
-          setHasShownPopupThisSession(true);
-        }
-      }
-    } catch (error) {
-      console.error('Error checking subscription status:', error);
+    // Don't check if using personal API
+    if (subscription?.usingPersonalAPI) {
+      return;
+    }
+
+    // Don't check if popup has already been shown this session
+    if (hasShownPopupThisSession) {
+      return;
+    }
+
+    // Use existing usage data to check if remaining requests is 0
+    if (usageData && usageData.remaining <= 0) {
+      setShowSubscriptionChoice(true);
+      setHasShownPopupThisSession(true);
     }
   };
+
+
 
   // Helper function to detect markdown content
   const hasMarkdownContent = (content) => {
@@ -355,11 +356,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               } else {
                 console.log("ChatInterface: requestCounterRefresh not available for task_complete");
               }
-              
-              // Check if subscription popup should be shown after task completion
-              setTimeout(() => {
-                checkAndShowSubscriptionPopup();
-              }, 500);
               break;
               
             case 'task_error':
@@ -383,10 +379,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                   }
                 }, 200);
               }
-              // Check if subscription popup should be shown after task error
-              setTimeout(() => {
-                checkAndShowSubscriptionPopup();
-              }, 500);
               break;
 
             case 'task_cancelled':
@@ -424,11 +416,6 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                   }
                 }, 200);
               }
-              
-              // Check if subscription popup should be shown after task cancellation
-              setTimeout(() => {
-                checkAndShowSubscriptionPopup();
-              }, 500);
               break;
 
             case 'error':
@@ -522,15 +509,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   }, []);
 
   const handleSendMessage = async (message) => {
-
-    // Check if subscription popup should be shown before sending message
-    await checkAndShowSubscriptionPopup(true);
-    
-    // If popup is shown, don't send the message
-    if (showSubscriptionChoice) {
-      return; 
-    }
-
+    // Send message immediately without any subscription checks
     addMessage({
       type: 'user',
       content: message,
@@ -557,6 +536,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           timestamp: Date.now()
         });
         setConnectionStatus('disconnected');
+        
+        // Check subscription popup after error
+        checkAndShowSubscriptionPopupAfterError();
       }
     } else {
       setIsTyping(false); // Hide typing indicator if can't send
@@ -569,6 +551,9 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         content: statusMessage,
         timestamp: Date.now()
       });
+      
+      // Check subscription popup after error
+      checkAndShowSubscriptionPopupAfterError();
     }
   };
 
@@ -705,6 +690,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                 subscriptionState={subscription} 
                 onUpgradeClick={() => setShowSubscriptionChoice(true)}
                 onRefresh={(func) => { requestCounterRefreshRef.current = func; }}
+                onUsageDataChange={setUsageData}
               />
             )}
           </div>
