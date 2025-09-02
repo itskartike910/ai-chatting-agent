@@ -8,13 +8,14 @@ import { useChat } from '../hooks/useChat';
 import { useLocation } from 'react-router-dom';
 // import { useConfig } from '../hooks/useConfig';
 import { 
-  FaEdit, 
+  // FaEdit, 
   FaUser, 
   FaWifi,
   FaExclamationTriangle,
   FaHistory,
   // FaCog
 } from 'react-icons/fa';
+import { RiChatNewFill } from 'react-icons/ri';
 import RequestCounter from './RequestCounter';
 import SubscriptionChoice from './SubscriptionChoice';
 import { useNavigate } from 'react-router-dom';
@@ -721,7 +722,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
             }}
             title="New Chat"
           >
-            <FaEdit />
+            <RiChatNewFill />
           </button>
           
           <button 
