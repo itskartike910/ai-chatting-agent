@@ -1846,6 +1846,18 @@ class BackgroundScriptAgent {
     });
   }
 
+  // Helper function to notify content scripts about agent status
+  async notifyContentScripts(messageType) {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: messageType });
+      }
+    } catch (error) {
+      console.log('Could not notify content script:', error.message);
+    }
+  }
+
   async handlePortMessage(message, port, connectionId) {
     const { type } = message;
     console.log('Handling:', type, 'from:', connectionId);
@@ -1871,6 +1883,9 @@ class BackgroundScriptAgent {
           sessionId: this.connectionManager.getCurrentSession()
         });
         
+        // Notify content scripts to show popup
+        await this.notifyContentScripts('__agent_show_popup');
+        
         await this.executeTaskWithBackgroundManager(message.task, taskId);
         break;
 
@@ -1891,6 +1906,9 @@ class BackgroundScriptAgent {
             sessionId: null,
             taskStatus: null
           });
+          
+          // Notify content scripts to hide popup
+          await this.notifyContentScripts('__agent_hide_popup');
           
           // Get progress information for cancellation message
           let progressInfo = '';
@@ -1935,6 +1953,9 @@ class BackgroundScriptAgent {
           isTyping: false,
           chatHistory: [] // Only clear current chat
         });
+        
+        // Notify content scripts to hide popup
+        await this.notifyContentScripts('__agent_hide_popup');
         
         // Clear messages and start new session
         this.connectionManager.clearMessages();
@@ -2101,6 +2122,9 @@ class BackgroundScriptAgent {
             taskStartTime: null
           });
           
+          // Notify content scripts to hide popup
+          await this.notifyContentScripts('__agent_hide_popup');
+          
           return;
         }
 
@@ -2132,6 +2156,9 @@ class BackgroundScriptAgent {
         taskStartTime: null,
         sessionId: null
       });
+      
+      // Notify content scripts to hide popup on error
+      await this.notifyContentScripts('__agent_hide_popup');
       
       // Show the ACTUAL error to the user, not a generic message
       let userFriendlyError = this.formatErrorForUser(error);
