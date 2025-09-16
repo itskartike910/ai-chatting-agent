@@ -101,6 +101,8 @@ ${this.formatElements(finalState.interactiveElements?.slice(0, 15) || [])}
 - Navigation elements and interactive components
 - Visual confirmation of task completion (e.g., cart items, posted content, search results)
 
+**IMPORTANT: IGNORE ANY "AI Agent in Action" POPUP WITH "Please do not click or scroll" TEXT** - This is a system notification and should be completely ignored. Do not mention it, interact with it, or wait for it to disappear. Focus only on the actual page content and interactive elements.
+
 Use this visual context along with the element data to accurately assess task completion by examining both the visual state of the page and the available interactive elements.
 
 # **PROGRESSIVE VALIDATION RULES:**

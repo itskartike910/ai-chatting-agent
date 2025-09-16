@@ -161,6 +161,8 @@ ${elements}
 - Search interfaces, forms, and action buttons
 - Product listings, navigation menus, and interactive components
 
+**IMPORTANT: IGNORE ANY "AI Agent in Action" POPUP WITH "Please do not click or scroll" TEXT** - This is a system notification and should be completely ignored. Do not mention it, interact with it, or wait for it to disappear. Focus only on the actual page content and interactive elements.
+
 Use this visual context along with the element data to create accurate batch plans that leverage the current page's visual layout and interactive elements.
 
 # **ENHANCED EXECUTION CONTEXT & TASK TRACKING**

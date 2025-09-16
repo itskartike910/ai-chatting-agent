@@ -17,21 +17,20 @@
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(0, 0, 0, 0.6);
       color: white;
-      padding: 20px 30px;
-      border-radius: 12px;
-      border: 2px solid #00ff88;
-      box-shadow: 0 8px 32px rgba(0, 255, 136, 0.3);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #00ff88;
+      box-shadow: 0 4px 16px rgba(0, 255, 136, 0.2);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 500;
       text-align: center;
-      backdrop-filter: blur(10px);
       animation: agentPopupFadeIn 0.3s ease-out;
       pointer-events: none;
       user-select: none;
-      max-width: 90vw;
+      max-width: 200px;
       box-sizing: border-box;
     `;
 
@@ -41,18 +40,19 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 6px;
     `;
 
     // Create loader
     const loader = document.createElement('div');
     loader.style.cssText = `
-      width: 24px;
-      height: 24px;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top: 3px solid #00ff88;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid #00ff88;
       border-radius: 50%;
       animation: agentSpinner 1s linear infinite;
+      flex-shrink: 0;
     `;
 
     // Create text
@@ -61,16 +61,18 @@
     text.style.cssText = `
       color: #00ff88;
       font-weight: 600;
-      letter-spacing: 0.5px;
+      font-size: 13px;
+      white-space: nowrap;
     `;
 
     // Create subtitle
     const subtitle = document.createElement('div');
-    subtitle.textContent = 'Please do not scroll or click';
+    subtitle.textContent = 'Please do not click or scroll';
     subtitle.style.cssText = `
       color: rgba(255, 255, 255, 0.8);
-      font-size: 14px;
+      font-size: 11px;
       font-weight: 400;
+      white-space: nowrap;
     `;
 
     // Assemble popup

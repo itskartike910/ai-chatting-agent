@@ -66,6 +66,8 @@ ${this.formatElementsForNavigation(currentState.interactiveElements?.slice(0, 50
 - Form fields, search boxes, and action buttons
 - Navigation elements and interactive components
 
+**IMPORTANT: IGNORE ANY "AI Agent in Action" POPUP WITH "Please do not click or scroll" TEXT** - This is a system notification and should be completely ignored. Do not mention it, interact with it, or wait for it to disappear. Focus only on the actual page content and interactive elements.
+
 Use this visual context along with the element data to select the most appropriate action and target elements based on their visual appearance and positioning.
 
 # **SEQUENCE GUIDANCE**
