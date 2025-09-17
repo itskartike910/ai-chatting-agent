@@ -192,6 +192,12 @@ ${progressAnalysis}
 
 # **CRITICAL PLANNING RULES:**
 
+## **LOGIN/SIGNIN PAGE HANDLING:**
+- **If login/signin page detected**: Set pause=true, pause_reason='signin' and wait for user to sign in
+- **DO NOT restart the task** - continue from current progress when user resumes
+- **DO NOT navigate away** from login page - let user complete authentication
+- **Preserve all previous progress** and context for seamless continuation
+
 ## **CURRENT PAGE CONSTRAINT:**
 - **ONLY use elements visible on the CURRENT page**
 - **NEVER plan actions for elements that might appear after navigation**
@@ -250,7 +256,9 @@ ${progressAnalysis}
   "shouldValidate": false/true, // true ONLY when you believe the ENTIRE task is complete after this batch
   "replan_trigger": "element_not_found | new_url_loaded | typing_failed",
   "completion_criteria": "How to know entire task is done",
-  "reasoning": "Why this batch will work with current page state"
+  "reasoning": "Why this batch will work with current page state",
+  "pause": false/true, // true if execution should pause (e.g., for login)
+  "pause_reason": "signin|approval" // reason for pausing (only if pause=true)
 }
 
 **ENSURE ALL FIELDS ARE POPULATED - NO INCOMPLETE RESPONSES ALLOWED**
@@ -598,6 +606,8 @@ ${progressAnalysis}
         replan_trigger: obj.replan_trigger || "",
         completion_criteria: obj.completion_criteria || "",
         reasoning: obj.reasoning || "",
+        pause: obj.pause || false,
+        pause_reason: obj.pause_reason || "",
         // fall back to single-step if no batch_actions
         next_action: (obj.batch_actions?.length || 0) ? null : obj.next_action
       };

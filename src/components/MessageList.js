@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const MessageList = ({ messages, onTemplateClick, isTyping }) => {
+const MessageList = ({ messages, onTemplateClick, onResumeExecution, isTyping }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const [animatedMessages, setAnimatedMessages] = useState(new Set());
@@ -151,6 +151,20 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
             animation: 'slideInFromLeft 0.3s ease-out'
           };
+        case 'pause':
+          return {
+            ...baseStyle,
+            backgroundColor: '#fff3cd',
+            color: '#856404',
+            alignSelf: 'center',
+            border: '1px solid #ffeaa7',
+            textAlign: 'center',
+            maxWidth: '85%', 
+            fontSize: '12px',
+            margin: '4px 8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            animation: 'slideInFromLeft 0.3s ease-out'
+          };
         default:
           return baseStyle;
       }
@@ -204,6 +218,19 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
             fontSize: '11px',
             margin: '2px 8px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          };
+        case 'pause':
+          return {
+            ...baseStyle,
+            backgroundColor: '#fff3cd',
+            color: '#856404',
+            alignSelf: 'center',
+            border: '1px solid #ffeaa7',
+            textAlign: 'center',
+            maxWidth: '85%', 
+            fontSize: '12px',
+            margin: '4px 8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
           };
         default:
           return baseStyle;
@@ -624,6 +651,17 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
             }
           }
           
+          @keyframes fadeInScale {
+            0% {
+              opacity: 0;
+              transform: scale(0.8);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          
           .message-item {
             animation-fill-mode: both;
           }
@@ -695,28 +733,84 @@ const MessageList = ({ messages, onTemplateClick, isTyping }) => {
 
         return (
           <div key={message.id || `msg-${index}`} className={`message-item message-${message.type}`} style={style}>
-            {/* Render content with proper markdown support */}
-            <div style={{ textAlign: 'left', width: '100%' }}>
-              {message.isMarkdown ? (
-                <ReactMarkdown 
-                  components={markdownComponents}
-                  remarkPlugins={[remarkGfm]}
-                  style={{ textAlign: 'left' }}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              ) : message.type === 'error' ? (
-                <ReactMarkdown 
-                  components={markdownComponents}
-                  remarkPlugins={[remarkGfm]}
-                  style={{ textAlign: 'left' }}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              ) : (
-                message.content
-              )}
-            </div>
+            {/* Special rendering for pause messages */}
+            {message.type === 'pause' ? (
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div style={{ marginBottom: '12px' }}>
+                  {message.pauseReason === 'signin' ? '🔐' : '❓'} {message.content}
+                </div>
+                {!message.resumed ? (
+                  <button
+                    onClick={() => onResumeExecution?.()}
+                    style={{
+                      backgroundColor: '#4ecdc4',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      margin: '0 auto'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = '#45b7d1';
+                      e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = '#4ecdc4';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    ✓ Resume
+                  </button>
+                ) : (
+                  <div style={{
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '0 auto',
+                    animation: 'fadeInScale 0.3s ease-out'
+                  }}>
+                    ✅ Resumed
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Render content with proper markdown support */
+              <div style={{ textAlign: 'left', width: '100%' }}>
+                {message.isMarkdown ? (
+                  <ReactMarkdown 
+                    components={markdownComponents}
+                    remarkPlugins={[remarkGfm]}
+                    style={{ textAlign: 'left' }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : message.type === 'error' ? (
+                  <ReactMarkdown 
+                    components={markdownComponents}
+                    remarkPlugins={[remarkGfm]}
+                    style={{ textAlign: 'left' }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  message.content
+                )}
+              </div>
+            )}
             {message.actions && message.actions.length > 0 && (
               <div style={{ 
                 marginTop: '6px', 

@@ -164,4 +164,21 @@ export class TaskManager {
     }
     return false;
   }
+
+  resumeTask(taskId) {
+    const task = this.runningTasks.get(taskId);
+    if (task && task.executor) {
+      console.log(`▶️ TaskManager resuming: ${taskId}`);
+      
+      // Check if task has paused state
+      if (task.executor.pausedPlan && task.executor.pausedTask && task.executor.pausedState) {
+        console.log('✅ Task has paused state, ready for resumption');
+        return true;
+      } else {
+        console.warn('Task does not have paused state for resumption');
+        return false;
+      }
+    }
+    return false;
+  }
 }

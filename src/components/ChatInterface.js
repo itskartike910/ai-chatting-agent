@@ -424,6 +424,33 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               }
               break;
 
+            case 'task_paused':
+              setIsExecuting(false);
+              setIsTyping(false); // Hide typing indicator
+              setTaskStatus({ status: 'paused', message: 'Task paused - waiting for user action' });
+              
+              // Add pause message with continue button
+              addMessage({
+                type: 'pause',
+                content: message.message || 'Task execution paused',
+                pauseReason: message.pause_reason || 'unknown',
+                timestamp: Date.now()
+              });
+              break;
+
+            case 'task_resumed':
+              setIsExecuting(true);
+              setIsTyping(true);
+              setTaskStatus({ status: 'executing', message: 'Task resumed - continuing execution...' });
+              
+              // Add a system message to show task was resumed
+              addMessage({
+                type: 'system',
+                content: '✅ Task resumed - continuing execution...',
+                timestamp: Date.now()
+              });
+              break;
+
             case 'error':
               setIsTyping(false); // Hide typing indicator
               addMessage({
@@ -579,6 +606,24 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         console.error('Error stopping task:', error);
         setIsExecuting(false);
         setTaskStatus({ status: 'error', message: 'Failed to stop task' });
+      }
+    }
+  };
+
+  const handleResumeExecution = () => {
+    if (portRef.current) {
+      try {
+        console.log('Resuming task execution...');
+        portRef.current.postMessage({
+          type: 'resume_task'
+        });
+      } catch (error) {
+        console.error('Error resuming task:', error);
+        addMessage({
+          type: 'error',
+          content: '❌ Failed to resume task. Connection lost.',
+          timestamp: Date.now()
+        });
       }
     }
   };
@@ -782,6 +827,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         <MessageList 
           messages={messages} 
           onTemplateClick={handleTemplateClick}
+          onResumeExecution={handleResumeExecution}
           isTyping={isTyping}
         />
       </div>
