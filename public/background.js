@@ -400,8 +400,15 @@ class MultiAgentExecutor {
                 taskStatus: { status: 'paused', message: 'Task paused - waiting for user action' }
               });
               
-              // Notify content scripts to hide popup
+              // Notify content scripts to hide main popup and show appropriate pause popup
               await this.notifyContentScripts('__agent_hide_popup');
+              
+              // Show appropriate popup based on pause reason
+              if (plan.pause_reason === 'signin') {
+                await this.showSigninPopup();
+              } else if (plan.pause_reason === 'approval') {
+                await this.showApprovalPopup();
+              }
               
               // Store the current plan for resumption
               this.pausedPlan = plan;
@@ -486,8 +493,15 @@ class MultiAgentExecutor {
                 taskStatus: { status: 'paused', message: 'Task paused - waiting for user action' }
               });
               
-              // Notify content scripts to hide popup
+              // Notify content scripts to hide main popup and show appropriate pause popup
               await this.notifyContentScripts('__agent_hide_popup');
+              
+              // Show appropriate popup based on pause reason
+              if (plan.pause_reason === 'signin') {
+                await this.showSigninPopup();
+              } else if (plan.pause_reason === 'approval') {
+                await this.showApprovalPopup();
+              }
               
               // Store the current plan for resumption
               this.pausedPlan = plan;
@@ -567,8 +581,15 @@ class MultiAgentExecutor {
               taskStatus: { status: 'paused', message: 'Task paused - waiting for user action' }
             });
             
-            // Notify content scripts to hide popup
+            // Notify content scripts to hide main popup and show appropriate pause popup
             await this.notifyContentScripts('__agent_hide_popup');
+            
+            // Show appropriate popup based on pause reason
+            if (plan.pause_reason === 'signin') {
+              await this.showSigninPopup();
+            } else if (plan.pause_reason === 'approval') {
+              await this.showApprovalPopup();
+            }
             
             // Store the current plan for resumption
             this.pausedPlan = plan;
@@ -1307,6 +1328,54 @@ class MultiAgentExecutor {
     }
   }
 
+  // Helper function to show signin popup
+  async showSigninPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_show_signin_popup' });
+      }
+    } catch (error) {
+      console.log('Could not show signin popup:', error.message);
+    }
+  }
+
+  // Helper function to hide signin popup
+  async hideSigninPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_hide_signin_popup' });
+      }
+    } catch (error) {
+      console.log('Could not hide signin popup:', error.message);
+    }
+  }
+
+  // Helper function to show approval popup
+  async showApprovalPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_show_approval_popup' });
+      }
+    } catch (error) {
+      console.log('Could not show approval popup:', error.message);
+    }
+  }
+
+  // Helper function to hide approval popup
+  async hideApprovalPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_hide_approval_popup' });
+      }
+    } catch (error) {
+      console.log('Could not hide approval popup:', error.message);
+    }
+  }
+
   formatRecentActions(recentMessages = []) {
     if (!Array.isArray(recentMessages) || recentMessages.length === 0) {
       return 'No recent actions available';
@@ -1798,6 +1867,54 @@ class BackgroundScriptAgent {
     }
   }
 
+  // Helper function to show signin popup
+  async showSigninPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_show_signin_popup' });
+      }
+    } catch (error) {
+      console.log('Could not show signin popup:', error.message);
+    }
+  }
+
+  // Helper function to hide signin popup
+  async hideSigninPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_hide_signin_popup' });
+      }
+    } catch (error) {
+      console.log('Could not hide signin popup:', error.message);
+    }
+  }
+
+  // Helper function to show approval popup
+  async showApprovalPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_show_approval_popup' });
+      }
+    } catch (error) {
+      console.log('Could not show approval popup:', error.message);
+    }
+  }
+
+  // Helper function to hide approval popup
+  async hideApprovalPopup() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs.length > 0) {
+        await chrome.tabs.sendMessage(tabs[0].id, { type: '__agent_hide_approval_popup' });
+      }
+    } catch (error) {
+      console.log('Could not hide approval popup:', error.message);
+    }
+  }  
+
   async handlePortMessage(message, port, connectionId) {
     const { type } = message;
     console.log('Handling:', type, 'from:', connectionId);
@@ -1849,6 +1966,8 @@ class BackgroundScriptAgent {
           
           // Notify content scripts to hide popup
           await this.notifyContentScripts('__agent_hide_popup');
+          await this.hideSigninPopup();
+          await this.hideApprovalPopup();
           
           // Get progress information for cancellation message
           let progressInfo = '';
@@ -1889,7 +2008,9 @@ class BackgroundScriptAgent {
             isTyping: true
           });
           
-          // Notify content scripts to show popup again
+          // Hide any pause popups and show main popup again
+          await this.hideSigninPopup();
+          await this.hideApprovalPopup();
           await this.notifyContentScripts('__agent_show_popup');
           
           // Resume the task by calling the executor's resume method
@@ -1983,6 +2104,8 @@ class BackgroundScriptAgent {
         
         // Notify content scripts to hide popup
         await this.notifyContentScripts('__agent_hide_popup');
+        await this.hideSigninPopup();
+        await this.hideApprovalPopup();
         
         // Clear messages and start new session
         this.connectionManager.clearMessages();

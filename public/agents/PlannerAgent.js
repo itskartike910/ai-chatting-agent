@@ -203,10 +203,12 @@ ${progressAnalysis}
 # **CRITICAL PLANNING RULES:**
 
 ## **LOGIN/SIGNIN PAGE HANDLING:**
-- **If login/signin page detected**: Set pause=true, pause_reason='signin' and wait for user to sign in
+- **If login/signin page detected AND USER TASK includes CREDENTIALS**: Continue with login/signin automation using provided credentials
+- **If login/signin page detected AND NO CREDENTIALS provided**: Set pause=true, pause_reason='signin' and wait for user to sign in
 - **DO NOT restart the task** - continue from current progress when user resumes
 - **DO NOT navigate away** from login page - let user complete authentication
 - **Preserve all previous progress** and context for seamless continuation
+- **Credentials detection**: Look for username/email, password, or login instructions in the user task
 
 ## **CURRENT PAGE CONSTRAINT:**
 - **ONLY use elements visible on the CURRENT page**
