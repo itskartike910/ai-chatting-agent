@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const MessageList = ({ messages, onTemplateClick, onResumeExecution, isTyping }) => {
+const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTask, onDeclineTask, isTyping }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const [animatedMessages, setAnimatedMessages] = useState(new Set());
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const prevMessageCountRef = useRef(0);
+  const [approvalStates, setApprovalStates] = useState(new Map());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -17,6 +18,16 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, isTyping })
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
+  };
+
+  const handleApprove = (messageId) => {
+    setApprovalStates(prev => new Map(prev.set(messageId, 'approved')));
+    onApproveTask?.();
+  };
+
+  const handleDecline = (messageId) => {
+    setApprovalStates(prev => new Map(prev.set(messageId, 'declined')));
+    onDeclineTask?.();
   };
 
   useEffect(() => {
@@ -165,6 +176,20 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, isTyping })
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
             animation: 'slideInFromLeft 0.3s ease-out'
           };
+        case 'approval':
+          return {
+            ...baseStyle,
+            backgroundColor: '#e3f2fd',
+            color: '#1565c0',
+            alignSelf: 'center',
+            border: '1px solid #bbdefb',
+            textAlign: 'center',
+            maxWidth: '85%', 
+            fontSize: '12px',
+            margin: '4px 8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            animation: 'slideInFromLeft 0.3s ease-out'
+          };
         default:
           return baseStyle;
       }
@@ -226,6 +251,19 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, isTyping })
             color: '#856404',
             alignSelf: 'center',
             border: '1px solid #ffeaa7',
+            textAlign: 'center',
+            maxWidth: '85%', 
+            fontSize: '12px',
+            margin: '4px 8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          };
+        case 'approval':
+          return {
+            ...baseStyle,
+            backgroundColor: '#e3f2fd',
+            color: '#1565c0',
+            alignSelf: 'center',
+            border: '1px solid #bbdefb',
             textAlign: 'center',
             maxWidth: '85%', 
             fontSize: '12px',
@@ -733,58 +771,177 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, isTyping })
 
         return (
           <div key={message.id || `msg-${index}`} className={`message-item message-${message.type}`} style={style}>
-            {/* Special rendering for pause messages */}
-            {message.type === 'pause' ? (
+            {/* Special rendering for pause and approval messages */}
+            {message.type === 'pause' || message.type === 'approval' ? (
               <div style={{ textAlign: 'center', width: '100%' }}>
                 <div style={{ marginBottom: '12px' }}>
-                  {message.pauseReason === 'signin' ? '🔐' : '❓'} {message.content}
+                  {message.pauseReason === 'signin' ? '🔐' : message.pauseReason === 'approval' ? '⏳' : '❓'} {message.content}
                 </div>
-                {!message.resumed ? (
-                  <button
-                    onClick={() => onResumeExecution?.()}
-                    style={{
-                      backgroundColor: '#4ecdc4',
+                {message.pauseDescription && (
+                  <div style={{ 
+                    marginBottom: '12px', 
+                    fontSize: '11px', 
+                    color: message.type === 'approval' ? '#1565c0' : '#856404',
+                    fontStyle: 'italic'
+                  }}>
+                    {message.pauseDescription}
+                  </div>
+                )}
+                
+                {message.type === 'approval' ? (
+                  // Approval message rendering
+                  (() => {
+                    const messageId = message.id || `msg-${index}`;
+                    const approvalState = approvalStates.get(messageId);
+                    
+                    if (approvalState === 'approved') {
+                      return (
+                        <div style={{
+                          backgroundColor: '#4CAF50',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          margin: '0 auto',
+                          animation: 'fadeInScale 0.3s ease-out'
+                        }}>
+                          ✅ Approved
+                        </div>
+                      );
+                    } else if (approvalState === 'declined') {
+                      return (
+                        <div style={{
+                          backgroundColor: '#f44336',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          margin: '0 auto',
+                          animation: 'fadeInScale 0.3s ease-out'
+                        }}>
+                          ❌ Declined
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleApprove(messageId)}
+                            style={{
+                              backgroundColor: '#4CAF50',
+                              color: 'white',
+                              border: 'none',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.backgroundColor = '#45a049';
+                              e.target.style.transform = 'scale(1.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.backgroundColor = '#4CAF50';
+                              e.target.style.transform = 'scale(1)';
+                            }}
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            onClick={() => handleDecline(messageId)}
+                            style={{
+                              backgroundColor: '#f44336',
+                              color: 'white',
+                              border: 'none',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.backgroundColor = '#da190b';
+                              e.target.style.transform = 'scale(1.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.backgroundColor = '#f44336';
+                              e.target.style.transform = 'scale(1)';
+                            }}
+                          >
+                            ✗ Decline
+                          </button>
+                        </div>
+                      );
+                    }
+                  })()
+                ) : (
+                  // Pause message rendering (existing logic)
+                  !message.resumed ? (
+                    <button
+                      onClick={() => onResumeExecution?.()}
+                      style={{
+                        backgroundColor: '#4ecdc4',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        margin: '0 auto'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#45b7d1';
+                        e.target.style.transform = 'scale(1.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#4ecdc4';
+                        e.target.style.transform = 'scale(1)';
+                      }}
+                    >
+                      ✓ Resume
+                    </button>
+                  ) : (
+                    <div style={{
+                      backgroundColor: '#4CAF50',
                       color: 'white',
                       border: 'none',
                       padding: '8px 16px',
                       borderRadius: '6px',
                       fontSize: '12px',
                       fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      margin: '0 auto'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#45b7d1';
-                      e.target.style.transform = 'scale(1.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#4ecdc4';
-                      e.target.style.transform = 'scale(1)';
-                    }}
-                  >
-                    ✓ Resume
-                  </button>
-                ) : (
-                  <div style={{
-                    backgroundColor: '#4CAF50',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    margin: '0 auto',
-                    animation: 'fadeInScale 0.3s ease-out'
-                  }}>
-                    ✅ Resumed
-                  </div>
+                      margin: '0 auto',
+                      animation: 'fadeInScale 0.3s ease-out'
+                    }}>
+                      ✅ Resumed
+                    </div>
+                  )
                 )}
               </div>
             ) : (

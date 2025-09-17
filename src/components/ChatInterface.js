@@ -431,9 +431,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               
               // Add pause message with continue button
               addMessage({
-                type: 'pause',
+                type: message.pause_reason === 'approval' ? 'approval' : 'pause',
                 content: message.message || 'Task execution paused',
                 pauseReason: message.pause_reason || 'unknown',
+                pauseDescription: message.pause_description || '',
                 timestamp: Date.now()
               });
               break;
@@ -622,6 +623,42 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
         addMessage({
           type: 'error',
           content: '❌ Failed to resume task. Connection lost.',
+          timestamp: Date.now()
+        });
+      }
+    }
+  };
+
+  const handleApproveTask = () => {
+    if (portRef.current) {
+      try {
+        console.log('Approving task execution...');
+        portRef.current.postMessage({
+          type: 'resume_task'
+        });
+      } catch (error) {
+        console.error('Error approving task:', error);
+        addMessage({
+          type: 'error',
+          content: '❌ Failed to approve task. Connection lost.',
+          timestamp: Date.now()
+        });
+      }
+    }
+  };
+
+  const handleDeclineTask = () => {
+    if (portRef.current) {
+      try {
+        console.log('Declining task execution...');
+        portRef.current.postMessage({
+          type: 'cancel_task'
+        });
+      } catch (error) {
+        console.error('Error declining task:', error);
+        addMessage({
+          type: 'error',
+          content: '❌ Failed to decline task. Connection lost.',
           timestamp: Date.now()
         });
       }
@@ -828,6 +865,8 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           messages={messages} 
           onTemplateClick={handleTemplateClick}
           onResumeExecution={handleResumeExecution}
+          onApproveTask={handleApproveTask}
+          onDeclineTask={handleDeclineTask}
           isTyping={isTyping}
         />
       </div>

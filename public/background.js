@@ -389,8 +389,11 @@ class MultiAgentExecutor {
                 type: 'task_paused',
                 message: plan.pause_reason === 'signin' 
                   ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
+                  : plan.pause_reason === 'approval'
+                  ? 'Approval Required'
                   : 'Task execution paused. Click Resume when ready.',
-                pause_reason: plan.pause_reason
+                pause_reason: plan.pause_reason,
+                pause_description: plan.pause_description || ''
               });
               
               // Update execution state to paused
@@ -482,8 +485,11 @@ class MultiAgentExecutor {
                 type: 'task_paused',
                 message: plan.pause_reason === 'signin' 
                   ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
+                  : plan.pause_reason === 'approval'
+                  ? 'Approval Required'
                   : 'Task execution paused. Click Resume when ready.',
-                pause_reason: plan.pause_reason
+                pause_reason: plan.pause_reason,
+                pause_description: plan.pause_description || ''
               });
               
               // Update execution state to paused
@@ -570,8 +576,11 @@ class MultiAgentExecutor {
               type: 'task_paused',
               message: plan.pause_reason === 'signin' 
                 ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
+                : plan.pause_reason === 'approval'
+                ? 'Approval Required'
                 : 'Task execution paused. Click Resume when ready.',
-              pause_reason: plan.pause_reason
+              pause_reason: plan.pause_reason,
+              pause_description: plan.pause_description || ''
             });
             
             // Update execution state to paused

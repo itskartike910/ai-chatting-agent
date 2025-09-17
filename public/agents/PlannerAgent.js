@@ -210,6 +210,11 @@ ${progressAnalysis}
 - **Preserve all previous progress** and context for seamless continuation
 - **Credentials detection**: Look for username/email, password, or login instructions in the user task
 
+## **APPROVAL HANDLING:**
+- **For sensitive actions** (adding items to cart, entering passwords, payment details): Set pause=true, pause_reason='approval'
+- **Include pause_description**: Short description of what needs approval (e.g., "Adding iPhone 15 to cart for $999")
+- **Let user decide**: Approve to continue, decline to cancel task
+
 ## **CURRENT PAGE CONSTRAINT:**
 - **ONLY use elements visible on the CURRENT page**
 - **NEVER plan actions for elements that might appear after navigation**
@@ -270,7 +275,8 @@ ${progressAnalysis}
   "completion_criteria": "How to know entire task is done",
   "reasoning": "Why this batch will work with current page state",
   "pause": false/true, // true if execution should pause (e.g., for login)
-  "pause_reason": "signin|approval" // reason for pausing (only if pause=true)
+  "pause_reason": "signin|approval", // reason for pausing (only if pause=true)
+  "pause_description": "Short description of what needs approval (e.g., 'Adding iPhone 15 to cart for $999')" // only if pause_reason='approval'
 }
 
 **ENSURE ALL FIELDS ARE POPULATED - NO INCOMPLETE RESPONSES ALLOWED**
@@ -620,6 +626,7 @@ ${progressAnalysis}
         reasoning: obj.reasoning || "",
         pause: obj.pause || false,
         pause_reason: obj.pause_reason || "",
+        pause_description: obj.pause_description || "",
         // fall back to single-step if no batch_actions
         next_action: (obj.batch_actions?.length || 0) ? null : obj.next_action
       };
