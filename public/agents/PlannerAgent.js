@@ -63,18 +63,28 @@ Based on the previous execution, continue with the next logical step. If the las
             }
           }],
           shouldValidate: false,
-          completion_criteria: "Page is fully loaded with interactive elements."
+          completion_criteria: "Page is fully loaded with interactive elements.",
+          pause: false,
+          pause_reason: "",
         };
       }
       
       return {
-        observation: "No actionable elements found. Task cannot continue.",
-        done: true,
-        strategy: "No further actions possible.",
-        batch_actions: [],
-        shouldValidate: true, // Always validate when no actions possible
-        completion_criteria: "No interactive elements left on page."
-      };
+        observation: "No actionable elements found. Waiting for page to load.",
+          done: false,
+          strategy: "Wait for page to fully load and elements to become available.",
+          batch_actions: [{
+            action_type: "wait",
+            parameters: {
+              duration: 1000,
+              intent: "Wait for page to load completely"
+            }
+          }],
+          shouldValidate: false,
+          completion_criteria: "Page is fully loaded with interactive elements.",
+          pause: false,
+          pause_reason: "",
+        };
     }
 
     // Enhanced context analysis

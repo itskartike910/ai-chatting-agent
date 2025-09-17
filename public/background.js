@@ -832,12 +832,17 @@ class MultiAgentExecutor {
           currentState = await this.getCurrentState();
           console.log(`📊 After wait - Found ${currentState.interactiveElements?.length || 0} elements`);
           
-          // If still 0 elements after wait, try one more time with longer delay
-          if ((currentState.interactiveElements?.length || 0) === 0) {
-            console.log(`🔄 Still loading - waiting additional 2 seconds...`);
+          // Try up to 5 more attempts if no elements found
+          let attempts = 0;
+          while ((currentState.interactiveElements?.length || 0) === 0 && attempts < 5) {
+            attempts++;
+            console.log(`🔄 Still loading (attempt ${attempts}/5) - waiting additional 2 seconds...`);
             await this.delay(2000);
             currentState = await this.getCurrentState();
-            console.log(`📊 Final attempt - Found ${currentState.interactiveElements?.length || 0} elements`);
+            console.log(`📊 Attempt ${attempts} - Found ${currentState.interactiveElements?.length || 0} elements`);
+            if ((currentState.interactiveElements?.length || 0) > 0) {
+              break;
+            }
           }
         }
         
