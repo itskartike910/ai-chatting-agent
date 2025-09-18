@@ -2036,18 +2036,28 @@ class BackgroundScriptAgent {
                 // Restart the execution loop with the paused plan and state
                 setTimeout(async () => {
                   try {
+                    // Store paused state before clearing
+                    const pausedPlan = task.executor.pausedPlan;
+                    const pausedTask = task.executor.pausedTask;
+                    const pausedState = task.executor.pausedState;
+                    
+                    // Clear paused state to prevent re-pausing on same condition
+                    task.executor.pausedPlan = null;
+                    task.executor.pausedTask = null;
+                    task.executor.pausedState = null;
+                    
                     // Restore the execution state for resumption
-                    if (task.executor.pausedPlan) {
-                      task.executor.currentBatchPlan = task.executor.pausedPlan;
+                    if (pausedPlan) {
+                      task.executor.currentBatchPlan = pausedPlan;
                     }
-                    if (task.executor.pausedState) {
-                      task.executor.lastPageState = task.executor.pausedState;
+                    if (pausedState) {
+                      task.executor.lastPageState = pausedState;
                     }
                     
                     const result = await task.executor.execute(
-                      task.executor.pausedTask,
+                      pausedTask || task.executor.currentUserTask,
                       this.connectionManager,
-                      task.executor.pausedPlan,
+                      pausedPlan,
                       true // isResume = true
                     );
                     
