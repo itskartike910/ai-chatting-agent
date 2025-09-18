@@ -221,10 +221,22 @@ ${progressAnalysis}
 - **If task requires different page, use navigate action FIRST, then replan**
 - **Each batch must be executable with current page elements ONLY**
 
-## **TASK COMPLETION DETECTION:**
+## **TASK CONTINUATION & COMPLETION:**
+- **NEVER restart the task** - always continue from current progress
+- **Analyze previous progress** and build upon it logically
+- **If target element not found**: Check if task can be completed with available elements or inform user of current status
+- **Smart completion detection**: Set done=true when:
+  * Task is fully completed (e.g., item added to cart, post published)
+  * Target element not available but reasonable alternative completed (e.g., "Add to cart not visible on this page, but successfully navigated to product page and scrolled to find it")
+  * User goal partially achieved with clear status update 
 - **Set shouldValidate: true ONLY when you believe the FINAL step of the entire task is complete**
 - **Set shouldValidate: false for intermediate steps that need continuation**
-- **Be conservative - only validate when absolutely certain task is done**
+
+## **INTELLIGENT SCROLLING:**
+- **Use large scroll amounts**: 800-1200px (4/5 of typical page height) instead of small increments
+- **Avoid multiple scrolls**: One large scroll is better than 4-5 small ones
+- **Scroll strategically**: Only when target element is not visible
+- **Example**: "amount": 1000 for significant page movement
 
 ## **ACTIONABLE STEP DIVISION:**
 - Break complex tasks into current-page-actionable chunks
@@ -234,6 +246,15 @@ ${progressAnalysis}
   3. For navigating to the product page, Click the first item in the search results (make sure your are clicking on the item element not the other elements like 1st index element)
   4. Then click the add to cart button (scroll down if the add to cart button is not visible)
 - Each step uses only currently visible elements
+
+## **PROGRESS ANALYSIS & CONTINUATION:**
+- **Review execution history** to understand what has been accomplished
+- **Build upon previous actions** - don't repeat completed steps
+- **If previous step was navigation**: Look for elements that appeared after navigation
+- **If previous step was search**: Look for search results or next action elements
+- **If previous step was clicking**: Wait for page changes or look for new elements
+- **Smart task ending**: If target element not found but reasonable progress made, end with informative message
+- **If navigated to wrong path can go_back to the previous page and then continue with the task**
 
 ## **ELEMENT SELECTION RULES:**
 - **MANDATORY: Only use element indices from the list above**
@@ -264,7 +285,7 @@ ${progressAnalysis}
         "purpose": "submit|add-to-cart|product-link",
         "category": "action|form|navigation", 
         "direction": "down/up", // for scroll
-        "amount": 500, // for scroll
+        "amount": 1000, // for scroll (use 800-1200px for large page movement (not constant))
         "duration": 2000, // for wait
         "intent": "What this action accomplishes"
       }
