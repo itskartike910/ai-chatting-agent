@@ -478,11 +478,11 @@ ${progressAnalysis}
  
       // Limit selector length
       const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 100 ? selector.substring(0, 100) + '...' : selector;
+      const limitedSelector = selector.length > 50 ? selector.substring(0, 50) + '...' : selector;
 
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 100 ? xpath.substring(0, 100) + '...' : xpath;
+      const limitedXPath = xpath.length > 70 ? xpath.substring(0, 70) + '...' : xpath;
  
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
