@@ -31,7 +31,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
   
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   // eslint-disable-next-line no-unused-vars
-  const { messages, addMessage, clearMessages, loading, saveCurrentChat } = useChat(historyId);
+  const { messages, addMessage, clearMessages, updateMessageState, loading, saveCurrentChat } = useChat(historyId);
   const [isExecuting, setIsExecuting] = useState(false);
   const [taskStatus, setTaskStatus] = useState(null);
   const portRef = useRef(null);
@@ -868,6 +868,7 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
           onApproveTask={handleApproveTask}
           onDeclineTask={handleDeclineTask}
           isTyping={isTyping}
+          updateMessageState={updateMessageState}
         />
       </div>
 

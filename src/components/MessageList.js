@@ -2,13 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTask, onDeclineTask, isTyping }) => {
+const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTask, onDeclineTask, isTyping, updateMessageState }) => {
   const messagesEndRef = useRef(null);
   const containerRef = useRef(null);
   const [animatedMessages, setAnimatedMessages] = useState(new Set());
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const prevMessageCountRef = useRef(0);
-  const [approvalStates, setApprovalStates] = useState(new Map());
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,13 +20,21 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
   };
 
   const handleApprove = (messageId) => {
-    setApprovalStates(prev => new Map(prev.set(messageId, 'approved')));
+    // Update message state in storage
+    updateMessageState?.(messageId, { approved: true, declined: false });
     onApproveTask?.();
   };
 
   const handleDecline = (messageId) => {
-    setApprovalStates(prev => new Map(prev.set(messageId, 'declined')));
+    // Update message state in storage
+    updateMessageState?.(messageId, { approved: false, declined: true });
     onDeclineTask?.();
+  };
+
+  const handleResume = (messageId) => {
+    // Update message state in storage
+    updateMessageState?.(messageId, { resumed: true });
+    onResumeExecution?.();
   };
 
   useEffect(() => {
@@ -813,9 +820,8 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                   // Approval message rendering
                   (() => {
                     const messageId = message.id || `msg-${index}`;
-                    const approvalState = approvalStates.get(messageId);
                     
-                    if (approvalState === 'approved') {
+                    if (message.approved) {
                       return (
                         <div style={{
                           backgroundColor: '#4CAF50',
@@ -834,7 +840,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                           ✅ Approved
                         </div>
                       );
-                    } else if (approvalState === 'declined') {
+                    } else if (message.declined) {
                       return (
                         <div style={{
                           backgroundColor: '#f44336',
@@ -918,7 +924,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                   // Pause message rendering (existing logic)
                   !message.resumed ? (
                     <button
-                      onClick={() => onResumeExecution?.()}
+                      onClick={() => handleResume(message.id || `msg-${index}`)}
                       style={{
                         backgroundColor: '#4ecdc4',
                         color: 'white',
