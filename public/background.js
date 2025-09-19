@@ -1743,7 +1743,7 @@ class BackgroundScriptAgent {
             this.screenshotResolve = null;
             this.screenshotReject = null;
           }
-        }, 10000); // 10 second timeout
+        }, 15000); // 10 second timeout
       });
       
       // Trigger the screenshot capture
@@ -1980,11 +1980,30 @@ class BackgroundScriptAgent {
           
           // Get progress information for cancellation message
           let progressInfo = '';
-          if (this.currentStep > 0) {
-            progressInfo = `Completed ${this.currentStep} steps`;
-            if (this.executionHistory && this.executionHistory.length > 0) {
-              const successfulSteps = this.executionHistory.filter(h => h.success).length;
-              progressInfo += ` (${successfulSteps} successful)`;
+          if (this.multiAgentExecutor) {
+            const currentStep = this.multiAgentExecutor.currentStep || 0;
+            const executionHistory = this.multiAgentExecutor.executionHistory || [];
+            
+            if (currentStep > 0) {
+              const successfulSteps = executionHistory.filter(h => h.success).length;
+              const failedSteps = executionHistory.filter(h => !h.success).length;
+              
+              progressInfo = `Completed ${currentStep} steps`;
+              if (successfulSteps > 0) {
+                progressInfo += ` (${successfulSteps} successful`;
+                if (failedSteps > 0) {
+                  progressInfo += `, ${failedSteps} failed`;
+                }
+                progressInfo += ')';
+              }
+              
+              // Add more context about what was accomplished
+              if (successfulSteps > 0) {
+                const lastSuccessfulAction = executionHistory.findLast(h => h.success);
+                if (lastSuccessfulAction) {
+                  progressInfo += ` - Last successful action: ${lastSuccessfulAction.action || 'unknown'}`;
+                }
+              }
             }
           }
           

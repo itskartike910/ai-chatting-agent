@@ -394,8 +394,10 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
               
               // Show cancellation message with progress
               let cancelContent = '🛑 **Task Cancelled**\n\n';
-              if (message.progress) {
+              if (message.progress && message.progress !== 'No progress made') {
                 cancelContent += `**Progress Made:** ${message.progress}\n\n`;
+              } else {
+                cancelContent += '**Status:** Task was cancelled before significant progress was made.\n\n';
               }
               cancelContent += 'The task has been cancelled as requested. You can start a new task anytime.';
               

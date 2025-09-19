@@ -21,7 +21,7 @@
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.5);
       color: white;
       padding: 12px 16px;
       border-radius: 8px;
@@ -136,7 +136,7 @@
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.5);
       color: white;
       padding: 12px 16px;
       border-radius: 8px;
@@ -212,7 +212,7 @@
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.5);
       color: white;
       padding: 12px 16px;
       border-radius: 8px;

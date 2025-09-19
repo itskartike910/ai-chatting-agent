@@ -59,6 +59,17 @@ export const useChat = (chatId = null) => {
   const loadCurrentSessionMessages = useCallback(async () => {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
+        // Check if there's an active connection that will handle message restoration
+        const storage = await chrome.storage.local.get(['isExecuting', 'activeTaskId', 'currentSessionMessages', 'disconnectedMessages']);
+        
+        // If there's an active task OR disconnected messages exist, don't load messages here
+        // ConnectionManager will handle restoration via restore_message events
+        if ((storage.isExecuting && storage.activeTaskId) || storage.disconnectedMessages?.length > 0) {
+          console.log('Active task or disconnected messages detected - skipping message loading, will receive via restore_message events');
+          setLoading(false);
+          return;
+        }
+        
         const result = await chrome.storage.local.get(['currentSessionMessages', 'lastMessageTimestamp']);
         if (result.currentSessionMessages && Array.isArray(result.currentSessionMessages)) {
           // Remove duplicates by message ID and ensure all required fields are present

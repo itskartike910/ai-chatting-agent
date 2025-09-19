@@ -170,6 +170,7 @@ ${elements}
 - Element boundaries and clickable areas
 - Search interfaces, forms, and action buttons
 - Product listings, navigation menus, and interactive components
+- Any other visible content on the page
 
 **IMPORTANT: IGNORE ANY "AI Agent in Action" POPUP WITH "Please do not click or scroll" TEXT** - This is a system notification and should be completely ignored. Do not mention it, interact with it, or wait for it to disappear. Focus only on the actual page content and interactive elements.
 
