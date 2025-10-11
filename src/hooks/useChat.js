@@ -112,7 +112,7 @@ export const useChat = (chatId = null) => {
                 content = message.result.response || message.result.message;
               }
               
-              return {
+              const processedMessage = {
                 ...message,
                 id: message.id,
                 type: message.type,
@@ -127,6 +127,13 @@ export const useChat = (chatId = null) => {
                 pauseReason: message.pauseReason,
                 pauseDescription: message.pauseDescription
               };
+              
+              // Convert task_paused messages to appropriate type based on pause_reason
+              if (processedMessage.type === 'task_paused') {
+                processedMessage.type = processedMessage.pauseReason === 'approval' ? 'approval' : 'pause';
+              }
+              
+              return processedMessage;
             })
             .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
           

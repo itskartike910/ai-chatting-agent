@@ -204,6 +204,11 @@ const ChatInterface = ({ user, subscription, onLogout }) => {
                   pauseDescription: message.message.pauseDescription
                 };
                 
+                // Convert task_paused messages to appropriate type based on pause_reason
+                if (restoredMessage.type === 'task_paused') {
+                  restoredMessage.type = restoredMessage.pauseReason === 'approval' ? 'approval' : 'pause';
+                }
+                
                 // Special handling for task_complete messages that might have nested result structure
                 if (message.message.type === 'task_complete' && message.message.result) {
                   const responseContent = message.message.result.response || message.message.result.message;
