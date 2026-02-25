@@ -12,7 +12,7 @@ export class AITaskRouter {
               );
 
     try {
-      const intelligentPrompt = `# You are an intelligent AI Agent that specializes in mobile web automation such as SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
+      const intelligentPrompt = `# You are an intelligent AI Agent that specializes in desktop/laptop web automation for Chromium browsers, focusing on SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
       
 ALWAYS OUTPUT THE DELIMITER BLOCKS EXACTLY AS WRITTEN. DO NOT USE MARKDOWN CODE BLOCKS. RESPOND WITH ONLY THE DELIMITED BLOCKS, NO EXTRA TEXT OR FORMATTING.
 
@@ -103,7 +103,7 @@ Use this visual context along with the element data to make accurate decisions a
 Do NOT include any extra characters before or after these blocks.
 
 # **RESPONSE FORMAT**
-Use this EXACT format with special delimiters to avoid JSON parsing issues. When planning WEB_AUTOMATION, prefer mobile-friendly actions including heuristic finders when index/selector is not known.
+Use this EXACT format with special delimiters to avoid JSON parsing issues. When planning WEB_AUTOMATION, use standard desktop web interactions with element indices and selectors.
 
 ===CLASSIFICATION_START===
 INTENT: CHAT|WEB_AUTOMATION
@@ -173,9 +173,10 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
 - Set done=true and provide complete analysis in observation and analysis_result
 
 **For ACTION TASKS:**
-- Plan mobile-optimized interactions using screenshot analysis for visual verification
+- Plan desktop/laptop-optimized interactions using screenshot analysis for visual verification
 - Use reliable element identification (index, selector, text) verified against screenshot
 - Consider all the interactive elements visible in the screenshot
+- Remember this is a full desktop browser with standard web elements
 - Consider viewport constraints, touch targets, and element visibility from visual context
 - Handle navigation, authentication, and page loading states appropriately
 - Provide step-by-step sequences with clear completion criteria and error alternatives
@@ -341,7 +342,7 @@ Always provide complete, well-formatted responses!
           parsedResponse = {
             observation: "Enhanced parsing failed - analyzing current page state",
             done: false,
-            strategy: "Analyze current mobile page and determine appropriate actions",
+            strategy: "Analyze current desktop page and determine appropriate actions",
             next_action: "Get current page state and identify interactive elements",
             reasoning: `JSON parsing error occurred: ${errorMessage}`,
             completion_criteria: "Complete user request based on available actions",

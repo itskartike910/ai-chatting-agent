@@ -8,6 +8,7 @@ import { TaskManager } from './managers/TaskManager.js';
 import { ContextManager } from './managers/ContextManager.js';
 import { ConnectionManager } from './managers/ConnectionManager.js';
 import { MultiLLMService } from './services/MultiLLMService.js';
+import { domService } from './services/DOMService.js';
 
 console.log('AI Universal Agent Background Script Loading...');
 
@@ -1003,20 +1004,16 @@ class MultiAgentExecutor {
     return results;
   }
 
-  // Clear element highlighting by calling getPageState with debugMode: false
+  // Clear element highlighting using DOM service
   async clearElementHighlighting() {
     try {
       console.log('🧹 Clearing element highlighting from page');
       
-      return new Promise((resolve) => {
-        chrome.wootz.getPageState({
-          debugMode: false,
-          includeHidden: false
-        }, (result) => {
-          console.log('✅ Element highlighting cleared');
-          resolve(result);
-        });
-      });
+      const tab = await this.browserContext.getCurrentActiveTab();
+      if (tab && tab.id) {
+        await domService.removeHighlights(tab.id);
+        console.log('✅ Element highlighting cleared');
+      }
     } catch (error) {
       console.warn('⚠️ Failed to clear element highlighting:', error);
     }
@@ -1024,49 +1021,40 @@ class MultiAgentExecutor {
 
   async getCurrentState() {
     try {
-      console.log('📊 Getting page state via Wootz API');
+      console.log('📊 Getting page state via DOM Service');
 
-      // const config = await chrome.storage.sync.get('agentConfig');
-      // const debugMode = config?.agentConfig?.debugMode || false;
-      // console.log('🔍 Debug mode:', debugMode);
-      
-      return new Promise((resolve) => {
-        chrome.wootz.getPageState({
-          debugMode: true,
-          includeHidden: true
-        }, (result) => {
-          if (result.success) {
-            console.log('🔍 Raw Wootz result:', result);
-            
-            let pageState = null;
-            
-            if (result.pageState && result.pageState.state && result.pageState.state.page_data) {
-              try {
-                console.log('🔍 Parsing nested page_data from result.pageState.state.page_data');
-                pageState = JSON.parse(result.pageState.state.page_data);
-                console.log('🔍 Successfully parsed pageState:', pageState);
-              } catch (parseError) {
-                console.error('🔍 Failed to parse page_data JSON:', parseError);
-                console.error('🔍 Raw page_data:', result.pageState.state.page_data);
-                const defaultState = this.getDefaultState();
-                this.lastPageState = defaultState;
-                resolve(defaultState);
-                return;
-              }
-            } else if (result.pageState && result.pageState.url) {
-              pageState = result.pageState;
-              console.log('🔍 Using direct pageState format');
-            } else {
-              console.log('📊 No valid pageState format found in result');
-              console.log('📊 Available keys in result:', Object.keys(result));
-              if (result.pageState) {
-                console.log('📊 Available keys in result.pageState:', Object.keys(result.pageState));
-              }
-              const defaultState = this.getDefaultState();
-              this.lastPageState = defaultState;
-              resolve(defaultState);
-              return;
-            }
+      const tab = await this.browserContext.getCurrentActiveTab();
+      if (!tab || !tab.id) {
+        console.log('📊 No active tab available');
+        const defaultState = this.getDefaultState();
+        this.lastPageState = defaultState;
+        return defaultState;
+      }
+
+      const result = await domService.getPageState(tab.id, {
+        debugMode: true,
+        includeHidden: true,
+        showHighlightElements: true
+      });
+
+      if (result.success) {
+        console.log('🔍 Raw DOM Service result:', result);
+        
+        let pageState = null;
+        
+        if (result.pageState && result.pageState.url) {
+          pageState = result.pageState;
+          console.log('🔍 Using direct pageState format');
+        } else {
+          console.log('📊 No valid pageState format found in result');
+          console.log('📊 Available keys in result:', Object.keys(result));
+          if (result.pageState) {
+            console.log('📊 Available keys in result.pageState:', Object.keys(result.pageState));
+          }
+          const defaultState = this.getDefaultState();
+          this.lastPageState = defaultState;
+          return defaultState;
+        }
             
             // Check if we're on a chrome-native page and early exit
             const isChromeNative = this.isChromeNativePage(pageState.url);
@@ -1146,20 +1134,18 @@ class MultiAgentExecutor {
             // console.log(`🏷️ Categories:`, processedState.elementCategories);
             // console.log(`⚡ Capabilities:`, processedState.pageContext.capabilities);
             
-            // Store last page state for validation
-            this.lastPageState = processedState;
-            resolve(processedState);
-          } else {
-            console.log('📊 Wootz State: Failed, using fallback');
-            console.log('🔍 Failed result:', result);
-            const defaultState = this.getDefaultState();
-            this.lastPageState = defaultState;
-            resolve(defaultState);
-          }
-        });
-      });
+        // Store last page state for validation
+        this.lastPageState = processedState;
+        return processedState;
+      } else {
+        console.log('📊 DOM Service State: Failed, using fallback');
+        console.log('🔍 Failed result:', result);
+        const defaultState = this.getDefaultState();
+        this.lastPageState = defaultState;
+        return defaultState;
+      }
     } catch (error) {
-      console.log('Could not get Wootz page state:', error);
+      console.log('Could not get DOM Service page state:', error);
       const defaultState = this.getDefaultState();
       this.lastPageState = defaultState;
       return defaultState;
@@ -1747,32 +1733,16 @@ class BackgroundScriptAgent {
     });
   }
 
-  // Setup screenshot listener once
+  // Setup screenshot listener once (now using standard Chrome API)
   setupScreenshotListener() {
-    chrome.wootz.onScreenshotComplete.addListener((result) => {
-      console.log('📸 Screenshot Result:', result);
-      
-      if (this.screenshotResolve) {
-        if (result && result.success && result.dataUrl) {
-          console.log(`✅ Screenshot captured: ~${Math.round(result.dataUrl.length * 0.75 / 1024)}KB`);
-          this.screenshotResolve(result.dataUrl);
-        } else {
-          console.log('❌ Screenshot capture failed:', result?.error || 'No dataUrl returned');
-          this.screenshotResolve(null);
-        }
-        
-        // Reset screenshot handling state
-        this.screenshotPromise = null;
-        this.screenshotResolve = null;
-        this.screenshotReject = null;
-      }
-    });
+    // No longer needed with standard Chrome API - screenshots are captured directly
+    console.log('📸 Screenshot support enabled using chrome.tabs.captureVisibleTab');
   }
 
-  // Capture screenshot using the persistent listener
+  // Capture screenshot using standard Chrome API
   async captureScreenshot() {
     try {
-      console.log('📸 Capturing screenshot using chrome.wootz.captureScreenshot()...');
+      console.log('📸 Capturing screenshot using chrome.tabs.captureVisibleTab()...');
       
       // If there's already a screenshot in progress, wait for it
       if (this.screenshotPromise) {
@@ -1780,30 +1750,39 @@ class BackgroundScriptAgent {
         return await this.screenshotPromise;
       }
       
-      // Create new promise for this screenshot
-      this.screenshotPromise = new Promise((resolve, reject) => {
-        this.screenshotResolve = resolve;
-        this.screenshotReject = reject;
-        
-        // Set up timeout
-        setTimeout(() => {
-          if (this.screenshotResolve) {
-            console.log('❌ Screenshot capture timeout');
-            this.screenshotResolve(null);
-            this.screenshotPromise = null;
-            this.screenshotResolve = null;
-            this.screenshotReject = null;
-          }
-        }, 15000); // 10 second timeout
-      });
+      // Get current active tab using standard Chrome API
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = tabs[0];
+      if (!tab || !tab.id) {
+        console.log('❌ No active tab for screenshot');
+        return null;
+      }
       
-      // Trigger the screenshot capture
-      chrome.wootz.captureScreenshot();
+      // Create new promise for this screenshot
+      this.screenshotPromise = (async () => {
+        try {
+          const result = await domService.captureScreenshot(tab.id);
+          
+          if (result && result.success && result.dataUrl) {
+            console.log(`✅ Screenshot captured: ~${Math.round(result.dataUrl.length * 0.75 / 1024)}KB`);
+            return result.dataUrl;
+          } else {
+            console.log('❌ Screenshot capture failed:', result?.error || 'No dataUrl returned');
+            return null;
+          }
+        } catch (error) {
+          console.error('❌ Screenshot capture error:', error);
+          return null;
+        } finally {
+          this.screenshotPromise = null;
+        }
+      })();
       
       return await this.screenshotPromise;
       
     } catch (error) {
       console.error('❌ Screenshot capture error:', error);
+      this.screenshotPromise = null;
       return null;
     }
   }
@@ -2889,5 +2868,13 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('⚡ Universal extension installed/updated');
+});
+
+// Open sidebar when extension icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  console.log('🔵 Extension icon clicked, opening sidebar');
+  chrome.sidePanel.open({ windowId: tab.windowId }).catch(err => {
+    console.error('❌ Failed to open sidebar:', err);
+  });
 });
 

@@ -1,10 +1,24 @@
 # 🤖 AI Social Shopping Agent
 
-An intelligent Chrome/Wootz browser extension that automates web tasks using advanced AI agents. Perfect for social media automation, e-commerce shopping, content discovery, and general web navigation tasks.
+An intelligent **universal Chromium extension** that automates web tasks using advanced AI agents. Works on **Chrome, Edge, Brave, and all Chromium-based browsers** including Wootzapp Browser for Android. Perfect for social media automation, e-commerce shopping, content discovery, and general web navigation tasks.
 
 ![AI Social Shopping Agent](https://img.shields.io/badge/AI%20Agent-Browser%20Extension-blue)
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Chromium Compatible](https://img.shields.io/badge/Chromium-Universal-green)
+![Version](https://img.shields.io/badge/version-1.0.4-green)
 ![React](https://img.shields.io/badge/React-18.2.0-61DAFB)
+
+## 🌐 Universal Chromium Compatibility
+
+This extension uses **standard Chromium APIs** (`chrome.scripting`, `chrome.tabs`) and the powerful **buildDomTree** DOM analysis engine, making it compatible with all Chromium-based browsers:
+
+✅ **Google Chrome** - Full support  
+✅ **Microsoft Edge** - Full support  
+✅ **Brave Browser** - Full support  
+✅ **Opera** - Full support  
+✅ **Vivaldi** - Full support  
+✅ **Wootzapp Browser** (Android) - Full support with mobile optimization  
+
+No proprietary APIs required - works everywhere Chromium does!
 
 ## 🌟 Key Features
 
@@ -20,23 +34,38 @@ An intelligent Chrome/Wootz browser extension that automates web tasks using adv
 - **Content Discovery**: YouTube video search and playback, research tasks
 - **Universal Navigation**: Intelligent URL routing and page interaction
 
-### 💬 **Interactive Chat Interface**
-- **Real-time Communication**: Chat with AI agents during task execution
+### 💬 **Interactive Chat Interface (Sidebar)**
+- **Sidebar Experience**: Full-height sidebar panel for seamless multitasking
+- **Real-time Communication**: Chat with AI agents while browsing
 - **Task Status Tracking**: Live updates with observation and strategy display
 - **Chat History**: Persistent conversation storage with search functionality
 - **Markdown Support**: Rich text formatting for code, links, and emphasis
+- **Always Accessible**: Keep the agent visible while navigating websites
 
-### 📱 **Mobile-Optimized Design**
-- **Responsive UI**: Optimized for Android browser extensions
-- **Touch-Friendly**: Large buttons and intuitive mobile interactions
+### 📱 **Responsive Design**
+- **Desktop & Mobile**: Works on both desktop and mobile Chromium browsers
+- **Touch-Friendly**: Optimized for both mouse and touch interactions
 - **Element Highlighting**: Visual feedback during automation (with auto-cleanup)
 - **Progress Tracking**: Real-time task completion indicators
+
+### 🔧 **Modern Architecture**
+- **Sidebar Interface**: Persistent side panel for multitasking (Chrome Side Panel API)
+- **Standard Chrome APIs**: Uses `chrome.scripting` and `chrome.tabs` for universal compatibility
+- **BuildDomTree Engine**: Advanced DOM analysis for precise element targeting
+- **No Proprietary Dependencies**: Works on any Chromium-based browser
 
 ## 🔧 Installation & Setup
 
 ### Prerequisites
-- **Wootz Browser** or **Chrome Browser** (with developer mode enabled)
+
+#### For Desktop (Chrome, Edge, Brave, etc.):
+- **Any Chromium-based browser** (Chrome, Edge, Brave, Opera, Vivaldi, etc.)
 - **Node.js** (v16 or higher)
+- **npm** or **yarn** package manager
+
+#### For Mobile (Wootzapp Browser):
+- **Wootzapp Browser** installed on Android device
+- **Node.js** (v16 or higher) - for building the extension
 - **npm** or **yarn** package manager
 
 ### 1. Clone & Install Dependencies
@@ -60,19 +89,25 @@ npm run dev:webpack
 
 ### 3. Load Extension in Browser
 
-#### For Wootz Browser:
-1. Open Wootz Browser
-2. Navigate to `wootz://extensions/`
+#### For Chrome, Edge, Brave (Desktop):
+1. Open your Chromium browser
+2. Navigate to the extensions page:
+   - **Chrome**: `chrome://extensions/`
+   - **Edge**: `edge://extensions/`
+   - **Brave**: `brave://extensions/`
+   - **Opera**: `opera://extensions/`
+   - **Vivaldi**: `vivaldi://extensions/`
 3. Enable **Developer mode** (top-right toggle)
 4. Click **Load unpacked**
 5. Select the `build/` directory from your project
+6. **Click the extension icon** in the toolbar to open the sidebar
 
-#### For Chrome Browser:
-1. Open Chrome Browser
-2. Navigate to `chrome://extensions/`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked**
-5. Select the `build/` directory from your project
+#### For Wootzapp Browser (Android):
+1. Open Wootzapp Browser on your Android device
+2. Navigate to `wootz://extensions/` or tap menu → Extensions
+3. Enable **Developer mode** using the toggle switch
+4. Tap **Load unpacked**
+5. Navigate to the `build/` folder (transfer to device via USB, cloud, or file sharing)
 
 ### 4. Configure AI API Keys
 
@@ -161,21 +196,27 @@ Examples:
 ### Project Structure
 ```
 ai-social-agent/
-├── public/                 # Extension files
-│   ├── agents/            # AI agent implementations
+├── public/                     # Extension files
+│   ├── agents/                # AI agent implementations
 │   │   ├── AITaskRouter.js    # Request classification
 │   │   ├── PlannerAgent.js    # Task planning
-│   │   ├── NavigatorAgent.js  # Action execution
 │   │   └── ValidatorAgent.js  # Completion validation
-│   ├── background.js      # Service worker
-│   ├── manifest.json      # Extension manifest
-│   └── index.html         # Popup HTML
-├── src/                   # React frontend
-│   ├── components/        # UI components
-│   ├── hooks/            # Custom React hooks
-│   ├── services/         # API services
-│   └── styles/           # CSS and animations
-└── build/                # Built extension (generated)
+│   ├── actions/               # Action handlers
+│   │   └── ActionRegistry.js  # Universal action system
+│   ├── services/              # Core services
+│   │   ├── DOMService.js      # Universal DOM interaction (buildDomTree)
+│   │   └── MultiLLMService.js # Multi-LLM provider support
+│   ├── managers/              # State & connection managers
+│   ├── background.js          # Service worker (universal Chromium)
+│   ├── content.js             # Content script
+│   ├── buildDomTree.js        # DOM analysis engine
+│   ├── manifest.json          # Extension manifest (Chromium standard)
+│   └── index.html             # Popup HTML
+├── src/                       # React frontend
+│   ├── components/            # UI components
+│   ├── hooks/                # Custom React hooks
+│   └── styles/               # CSS and animations
+└── build/                    # Built extension (generated)
 ```
 
 ### Available Scripts
@@ -193,6 +234,31 @@ npm run build:extension # Complete extension build
 # Testing
 npm test              # Run test suite
 ```
+
+### Technical Architecture
+
+This extension uses **standard Chromium APIs** for universal compatibility:
+
+#### DOM Interaction
+- **`buildDomTree.js`**: Advanced DOM analysis engine that creates a semantic representation of web pages
+- **`chrome.scripting.executeScript()`**: Injects and executes scripts in page context
+- **DOMService**: Abstraction layer providing universal DOM operations
+
+#### Actions System
+- Uses `chrome.scripting` to perform clicks, typing, scrolling
+- No browser-specific APIs required
+- Works identically across all Chromium browsers
+
+#### Screenshot Capture
+- **`chrome.tabs.captureVisibleTab()`**: Standard screenshot API
+- Supports both PNG and JPEG formats
+- No additional permissions needed beyond standard tabs
+
+#### Key Benefits
+✅ **Universal**: Works on any Chromium browser (desktop & mobile)  
+✅ **Standard**: Uses only official Chrome Extension APIs  
+✅ **Portable**: No vendor lock-in or proprietary dependencies  
+✅ **Future-proof**: Based on stable, long-term APIs
 
 ## 🚨 Troubleshooting
 

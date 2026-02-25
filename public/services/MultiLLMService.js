@@ -119,40 +119,13 @@ export class MultiLLMService {
         console.log('📸 Capturing screenshot...');
         
         // This method should be overridden by the background script
-        // If not overridden, fallback to direct implementation
-        if (typeof chrome !== 'undefined' && chrome.wootz && chrome.wootz.captureScreenshot) {
-          return new Promise((resolve) => {
-            // Set up a timeout to prevent hanging
-            const timeout = setTimeout(() => {
-              console.log('❌ Screenshot capture timeout');
-              resolve(null);
-            }, 10000); // 10 second timeout
-            
-            // Set up the listener for screenshot completion
-            const handleScreenshotComplete = (result) => {
-              console.log('📸 Screenshot Result:', result);
-              
-              // Clean up
-              clearTimeout(timeout);
-              chrome.wootz.onScreenshotComplete.removeListener(handleScreenshotComplete);
-              
-              if (result && result.success && result.dataUrl) {
-                console.log(`✅ Screenshot captured: ~${Math.round(result.dataUrl.length * 0.75 / 1024)}KB`);
-                resolve(result.dataUrl);
-              } else {
-                console.log('❌ Screenshot capture failed:', result?.error || 'No dataUrl returned');
-                resolve(null);
-              }
-            };
-            
-            // Add the listener
-            chrome.wootz.onScreenshotComplete.addListener(handleScreenshotComplete);
-            
-            // Trigger the screenshot capture
-            chrome.wootz.captureScreenshot();
-          });
+        // The background script provides the captureScreenshot method which uses
+        // the standard chrome.tabs.captureVisibleTab API
+        if (this.captureScreenshot) {
+          // The method is already bound to the background script context
+          return await this.captureScreenshot();
         } else {
-          console.log('❌ Screenshot API not available');
+          console.log('❌ Screenshot method not provided by background script');
           return null;
         }
         

@@ -6,6 +6,7 @@
 @import './styles/SubscriptionPageAnimations.css';
 @import './styles/SubscriptionChoiceAnimations.css';
 @import './styles/ChatHistoryPageAnimations.css';
+@import './sidebar.css';
 
 body {
   margin: 0;

@@ -1,8 +1,10 @@
 /* global chrome */
+import { domService } from '../services/DOMService.js';
 
 export class ActionRegistry {
   constructor(browserContext) {
     this.browserContext = browserContext;
+    this.domService = domService;
     this.actions = new Map();
     this.initializeActions();
   }
@@ -25,19 +27,30 @@ export class ActionRegistry {
           console.log(`🌐 Universal Navigation: ${url}`);
           
           const currentTab = await this.browserContext.getCurrentActiveTab();
-          if (currentTab) {
+          let newTab;
+          
+          if (currentTab && currentTab.id) {
             try {
-              await chrome.tabs.remove(currentTab.id);
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // Update the current tab instead of closing it
+              console.log(`🔄 Updating existing tab ${currentTab.id} to ${url}`);
+              await chrome.tabs.update(currentTab.id, { url: url, active: true });
+              newTab = await chrome.tabs.get(currentTab.id);
+              this.browserContext.activeTabId = newTab.id;
             } catch (e) {
-              console.log('Could not close current tab:', e);
+              console.log('Could not update tab, creating new one:', e);
+              // Fallback: create new tab
+              newTab = await chrome.tabs.create({ url: url, active: true });
+              this.browserContext.activeTabId = newTab.id;
             }
+          } else {
+            // No current tab, create new one
+            console.log(`🆕 Creating new tab for ${url}`);
+            newTab = await chrome.tabs.create({ url: url, active: true });
+            this.browserContext.activeTabId = newTab.id;
           }
           
-          const newTab = await chrome.tabs.create({ url: url, active: true });
-          this.browserContext.activeTabId = newTab.id;
           await this.browserContext.waitForReady(newTab.id);
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
           return {
             success: true,
@@ -70,36 +83,34 @@ export class ActionRegistry {
         try {
           console.log(`🖱️ Universal Click: ${input.intent || 'Click action'}`);
           
-          return new Promise((resolve) => {
-            const actionParams = {};
-            
-            if (input.index !== undefined) {
-              actionParams.index = input.index;
-              console.log(`🎯 Using element index: ${input.index}`);
-            } else if (input.selector) {
-              actionParams.selector = input.selector;
-              console.log(`🎯 Using selector: ${input.selector}`);
-            } else {
-              resolve({
-                success: false,
-                error: 'No index or selector provided',
-                extractedContent: 'Click failed: No target specified',
-                includeInMemory: true
-              });
-              return;
-            }
+          const actionParams = {};
+          
+          if (input.index !== undefined) {
+            actionParams.index = input.index;
+            console.log(`🎯 Using element index: ${input.index}`);
+          } else if (input.selector) {
+            actionParams.selector = input.selector;
+            console.log(`🎯 Using selector: ${input.selector}`);
+          } else {
+            return {
+              success: false,
+              error: 'No index or selector provided',
+              extractedContent: 'Click failed: No target specified',
+              includeInMemory: true
+            };
+          }
 
-            chrome.wootz.performAction('click', actionParams, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ?
-                  `Successfully clicked: ${input.intent}` :
-                  `Click failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
+          const tab = await this.browserContext.getCurrentActiveTab();
+          const result = await this.domService.performClick(tab.id, actionParams);
+          
+          return {
+            success: result.success,
+            extractedContent: result.success ?
+              `Successfully clicked: ${input.intent}` :
+              `Click failed: ${result.error}`,
+            includeInMemory: true,
+            error: result.error
+          };
         } catch (error) {
           console.error('Click action error:', error);
           return {
@@ -124,32 +135,32 @@ export class ActionRegistry {
       handler: async (input) => {
         try {
           console.log(`⌨️ Universal Type: "${input.text}" - ${input.intent}`);
-          return new Promise((resolve) => {
-            const actionParams = { text: input.text };
-            if (input.index !== undefined) {
-              actionParams.index = input.index;
-            } else if (input.selector) {
-              actionParams.selector = input.selector;
-            } else {
-              resolve({
-                success: false,
-                error: 'No index or selector provided for text input',
-                extractedContent: `Type failed: No target specified for "${input.text}"`,
-                includeInMemory: true
-              });
-              return;
-            }
-            chrome.wootz.performAction('fill', actionParams, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ?
-                  `Successfully typed: "${input.text}"` :
-                  `Type failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
+          
+          const actionParams = { text: input.text };
+          if (input.index !== undefined) {
+            actionParams.index = input.index;
+          } else if (input.selector) {
+            actionParams.selector = input.selector;
+          } else {
+            return {
+              success: false,
+              error: 'No index or selector provided for text input',
+              extractedContent: `Type failed: No target specified for "${input.text}"`,
+              includeInMemory: true
+            };
+          }
+          
+          const tab = await this.browserContext.getCurrentActiveTab();
+          const result = await this.domService.performFill(tab.id, actionParams);
+          
+          return {
+            success: result.success,
+            extractedContent: result.success ?
+              `Successfully typed: "${input.text}"` :
+              `Type failed: ${result.error}`,
+            includeInMemory: true,
+            error: result.error
+          };
         } catch (error) {
           console.error('Type action error:', error);
           return {
@@ -177,21 +188,29 @@ export class ActionRegistry {
           
           console.log(`📜 Universal Scroll: ${direction} by ${amount}px - ${input.intent}`);
           
-          return new Promise((resolve) => {
-            chrome.wootz.performAction('scroll', {
-              direction: direction,
-              amount: amount
-            }, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ? 
-                  `Scrolled ${direction} by ${amount}px` : 
-                  `Scroll failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
+          const tab = await this.browserContext.getCurrentActiveTab();
+          if (!tab || !tab.id) {
+            return {
+              success: false,
+              error: 'No active tab available for scroll',
+              extractedContent: 'Scroll failed: No active tab',
+              includeInMemory: true
+            };
+          }
+          
+          const result = await this.domService.performScroll(tab.id, {
+            direction: direction,
+            amount: amount
           });
+          
+          return {
+            success: result.success,
+            extractedContent: result.success ? 
+              `Scrolled ${direction} by ${amount}px` : 
+              `Scroll failed: ${result.error}`,
+            includeInMemory: true,
+            error: result.error
+          };
         } catch (error) {
           console.error('Scroll action error:', error);
           return {

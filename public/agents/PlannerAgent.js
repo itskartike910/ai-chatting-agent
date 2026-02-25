@@ -100,7 +100,11 @@ Based on the previous execution, continue with the next logical step. If the las
     //   .join('\n');
     
     // const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
-    const elements = this.formatCompleteElements(currentState.interactiveElements?.slice(0, 100) || []);
+    
+    // Smart element selection: prioritize relevant elements for the task
+    const allElements = currentState.interactiveElements || [];
+    const selectedElements = this.selectRelevantElements(allElements, userTask, 100);
+    const elements = this.formatCompleteElements(selectedElements);
     
     // console.log('[PlannerAgent] userTask:', userTask, 
     //             'currentState:', currentState, 
@@ -118,7 +122,7 @@ Based on the previous execution, continue with the next logical step. If the las
 // NEVER use these indices: ${failedIndicesForLLM || 'None'}
 // ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT working. Find different elements!' : ''}
 
-    const plannerPrompt = `# You are an intelligent mobile web automation planner with BATCH EXECUTION capabilities specialized in SOCIAL MEDIA SITES and E-COMMERCE PLATFORMS or SHOPPING SITES.
+    const plannerPrompt = `# You are an intelligent web automation planner with BATCH EXECUTION capabilities specialized in SOCIAL MEDIA SITES and E-COMMERCE PLATFORMS or SHOPPING SITES for desktop/laptop Chromium browsers.
 
 # **KNOWLEDGE CUTOFF & RESPONSE REQUIREMENTS**
 * **Knowledge Cutoff**: July 2025 - You have current data and knowledge up to July 2025
@@ -158,8 +162,21 @@ Choose elements that are most appropriate for the current task. Prefer elements 
 # **ELEMENT ANALYSIS**
 - Total Elements: ${currentState.interactiveElements?.length || 0}
 
-# **AVAILABLE MOBILE ELEMENTS (Current Page Only, 100 elements)**
+# **AVAILABLE INTERACTIVE ELEMENTS (Current Page Only, 100 elements)**
 ${elements}
+
+/*
+IMPORTANT NOTES ABOUT ELEMENTS:
+- These are desktop/laptop web elements from a full Chromium browser (NOT mobile).
+- Bounds interpretation: Elements can have bounds with x/y coordinates off-screen but still be interactable.
+    - Example: {"x": -2000, "y": 150, "width": 120, "height": 40} is VALID - the element is horizontally scrolled off-screen but still exists.
+    - Example: {"x": 100, "y": 200, "width": 0, "height": 0} means truly non-interactable (zero size).
+    - DO NOT assume elements with negative or large x/y coordinates are non-interactable - they just need scrolling.
+- All elements in this list are interactable - they were already filtered by the system.
+- Use element indices directly for clicking, typing, etc.
+- Focus on elements with clear text, purpose, and category matching your task.
+- If you need a specific element not visible, use scroll actions to bring it into view.
+*/
 
 # **VISUAL CONTEXT (Screenshot Analysis)**
 📸 A screenshot of the current page with highlighted interactive elements has been captured and is available as visual context. The screenshot shows:
@@ -479,6 +496,86 @@ ${progressAnalysis}
   }
 
   // Complete element details formatting with optimized token usage
+  /**
+   * Select the most relevant elements for the current task
+   * Prioritizes elements based on task keywords and element properties
+   */
+  selectRelevantElements(allElements, userTask, maxCount = 100) {
+    if (!allElements || allElements.length === 0) return [];
+    if (allElements.length <= maxCount) return allElements;
+    
+    const taskLower = (userTask || '').toLowerCase();
+    
+    // Score each element based on relevance
+    const scoredElements = allElements.map((el, index) => {
+      let score = 0;
+      
+      // Base score for element position (earlier elements get slight boost)
+      score += Math.max(0, 10 - (index / allElements.length) * 10);
+      
+      // High priority for action elements
+      if (el.category === 'action') score += 50;
+      if (el.category === 'form') score += 30;
+      if (el.category === 'navigation') score += 20;
+      
+      // Boost for specific purposes
+      if (el.purpose === 'add-to-cart') score += 100;
+      if (el.purpose === 'product-link') score += 80;
+      if (el.purpose === 'purchase' || el.purpose === 'buy') score += 90;
+      if (el.purpose === 'search') score += 40;
+      if (el.purpose === 'submit') score += 30;
+      
+      // Boost for visible elements with good bounds
+      if (el.isVisible && el.bounds?.width > 0 && el.bounds?.height > 0) {
+        score += 20;
+      }
+      
+      // Task-specific keyword matching
+      const text = `${el.text || ''} ${el.textContent || ''} ${el.attributes?.['aria-label'] || ''}`.toLowerCase();
+      
+      // Shopping keywords
+      if (taskLower.includes('cart') || taskLower.includes('add') || taskLower.includes('buy')) {
+        if (text.includes('cart')) score += 60;
+        if (text.includes('add to')) score += 70;
+        if (text.includes('buy')) score += 50;
+      }
+      
+      if (taskLower.includes('product') || taskLower.includes('headphones') || taskLower.includes('item')) {
+        if (text.includes('product')) score += 40;
+        if (text.includes('headphones') || text.includes('headphone')) score += 80;
+      }
+      
+      if (taskLower.includes('search') || taskLower.includes('find')) {
+        if (text.includes('search')) score += 50;
+      }
+      
+      if (taskLower.includes('post') || taskLower.includes('tweet')) {
+        if (text.includes('post') || text.includes('tweet')) score += 70;
+      }
+      
+      // Boost for links with href attributes (often product links)
+      if (el.tagName?.toLowerCase() === 'a' && el.attributes?.href) {
+        score += 30;
+        if (el.attributes.href.includes('product') || el.attributes.href.includes('/dp/')) {
+          score += 50; // Amazon product links
+        }
+      }
+      
+      // Penalize very generic divs with no text
+      if (el.tagName?.toLowerCase() === 'div' && !text.trim() && el.category === 'unknown') {
+        score -= 30;
+      }
+      
+      return { element: el, score, originalIndex: index };
+    });
+    
+    // Sort by score (highest first) and take top maxCount
+    scoredElements.sort((a, b) => b.score - a.score);
+    
+    // Return top scoring elements, maintaining their original indices
+    return scoredElements.slice(0, maxCount).map(item => item.element);
+  }
+
   formatCompleteElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found on this page.";
     
