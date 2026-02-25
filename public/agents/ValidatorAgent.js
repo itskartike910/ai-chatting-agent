@@ -5,15 +5,15 @@ export class ValidatorAgent {
   }
 
   async validate(originalTask, executionHistory, finalState) {
-    const context = this.memoryManager.compressForPrompt(2000); 
-    
-    console.log('[ValidatorAgent] originalTask:', originalTask, 
-                'executionHistory:', executionHistory, 
-                'finalState:', finalState, 
-                'context:', context,
-                'executionHistory:', executionHistory,
-                'finalState:', finalState);
-    
+    const context = this.memoryManager.compressForPrompt(2000);
+
+    console.log('[ValidatorAgent] originalTask:', originalTask,
+      'executionHistory:', executionHistory,
+      'finalState:', finalState,
+      'context:', context,
+      'executionHistory:', executionHistory,
+      'finalState:', finalState);
+
     const validatorPrompt = `## ENHANCED VALIDATION CONTEXT: ${context.currentStep}-${context.proceduralSummaries.length}
 
 You are an intelligent task completion validator with PROGRESSIVE VALIDATION capabilities. Your job is to assess task completion using component-based analysis rather than binary success/failure.
@@ -73,12 +73,12 @@ Task History: ${context.taskHistory?.map(h => h.component).join(' → ') || 'No 
 
 # **RECENT EXECUTION HISTORY (last 5 steps)**
 ${executionHistory.slice(-5).map((h, i) => {
-  const stepNum = executionHistory.length - 4 + i;
-  const status = h.success ? '✅ SUCCESS' : '❌ FAILED';
-  const action = h.action || 'action';
-  const navigation = h.navigation || 'unknown action';
-  return `Step ${stepNum}: ${action} - ${navigation} - ${status}`;
-}).join('\n')}
+      const stepNum = executionHistory.length - 4 + i;
+      const status = h.success ? '✅ SUCCESS' : '❌ FAILED';
+      const action = h.action || 'action';
+      const navigation = h.navigation || 'unknown action';
+      return `Step ${stepNum}: ${action} - ${navigation} - ${status}`;
+    }).join('\n')}
 
 
 # **CURRENT PAGE STATE**
@@ -261,13 +261,20 @@ Break down the original task into logical components and assess each:
       const response = await this.llmService.call([
         { role: 'user', content: validatorPrompt }
       ], { maxTokens: 7000 }, 'validator');
-      
+
       console.log('[ValidatorAgent] LLM response:', response);
-      
+
+      const responseText = typeof response === 'string' ? response : response.text;
+      const usage = typeof response === 'object' && response.usage ? response.usage : null;
+
       let validation;
       try {
-        validation = JSON.parse(this.cleanJSONResponse(response));
-        
+        validation = JSON.parse(this.cleanJSONResponse(responseText));
+
+        if (usage) {
+          validation.usage = usage;
+        }
+
         // Validate required fields
         if (typeof validation.is_valid !== 'boolean') {
           throw new Error('Missing or invalid required field: is_valid (must be boolean)');
@@ -287,11 +294,11 @@ Break down the original task into logical components and assess each:
         if (!validation.reason) {
           throw new Error('Missing required field: reason');
         }
-        
+
       } catch (parseError) {
         console.error('ValidatorAgent JSON parsing error:', parseError.message);
         console.error('Raw response that failed to parse:', response);
-        
+
         // Enhanced error with more context
         let errorMessage;
         if (parseError.message.includes('Unexpected end of JSON input')) {
@@ -303,10 +310,10 @@ Break down the original task into logical components and assess each:
         } else {
           errorMessage = `ValidatorAgent response parsing failed: Unable to process AI response due to formatting issues. Original error: ${parseError.message}. Raw response length: ${response?.length || 0} characters.`;
         }
-        
+
         // Return a comprehensive error validation result instead of throwing
         return {
-          is_valid: false, 
+          is_valid: false,
           confidence: 0.2,
           progress_percentage: 20,
           completed_components: ["unknown"],
@@ -317,18 +324,18 @@ Break down the original task into logical components and assess each:
           answer: ""
         };
       }
-      
+
       this.memoryManager.addMessage({
         role: 'validator',
         action: 'validate',
         content: validation.reason || 'Validation completed'
       });
-      
+
       return validation;
     } catch (error) {
       console.error('Validator failed:', error);
       return {
-        is_valid: false, 
+        is_valid: false,
         confidence: 0.3,
         progress_percentage: 30,
         completed_components: ["unknown"],
@@ -352,7 +359,7 @@ Break down the original task into logical components and assess each:
 
   formatElements(elements) {
     if (!elements || elements.length === 0) return "No elements found.";
-    
+
     return elements.map(el => {
       // Limit text content to prevent token explosion
       const textContent = (el.textContent || '').trim();
@@ -374,7 +381,7 @@ Break down the original task into logical components and assess each:
         width: Math.round(bounds.width || 0),
         height: Math.round(bounds.height || 0)
       };
-      
+
       return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
   Category: ${el.category || 'unknown'}
   Purpose: ${el.purpose || 'general'}
@@ -388,10 +395,10 @@ Break down the original task into logical components and assess each:
 
   cleanJSONResponse(response) {
     let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
-    
+
     // Fix: Clean control characters from JSON strings
     cleaned = cleaned.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-    
+
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
   }

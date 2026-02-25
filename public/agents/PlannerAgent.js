@@ -7,7 +7,7 @@ export class PlannerAgent {
   async plan(userTask, currentState, executionHistory, enhancedContext) {
     const context = this.memoryManager.compressForPrompt(2000);
     // this.failedElements = failedElements; 
-    
+
     // Include previous plan context for continuity with enhanced details
     let previousPlanContext = '';
     if (enhancedContext.previousPlan) {
@@ -15,7 +15,7 @@ export class PlannerAgent {
       const completedActions = prev.completed_actions || [];
       const successfulActions = completedActions.filter(a => a.success);
       const failedActions = completedActions.filter(a => !a.success);
-      
+
       previousPlanContext = `
 # **PREVIOUS PLAN EXECUTION**
 **Observation:** ${prev.observation || 'N/A'}
@@ -24,21 +24,21 @@ export class PlannerAgent {
 **Reasoning:** ${prev.reasoning || 'N/A'}
 
 # **COMPLETED ACTIONS**
-${completedActions.length > 0 ? 
-  completedActions.map(a => `- ${a.action}: ${a.success ? 'SUCCESS' : 'FAILED'} (${a.intent || 'No intent specified'})`).join('\n') : 
-  'No actions completed'}
+${completedActions.length > 0 ?
+          completedActions.map(a => `- ${a.action}: ${a.success ? 'SUCCESS' : 'FAILED'} (${a.intent || 'No intent specified'})`).join('\n') :
+          'No actions completed'}
 
 # **ACTION SUMMARY**
 - **Successful Actions:** ${successfulActions.length}/${completedActions.length}
 - **Failed Actions:** ${failedActions.length}/${completedActions.length}
-- **Last Action Result:** ${completedActions.length > 0 ? 
-    `${completedActions[completedActions.length - 1].action}: ${completedActions[completedActions.length - 1].success ? 'SUCCESS' : 'FAILED'}` : 
-    'No actions executed'}
+- **Last Action Result:** ${completedActions.length > 0 ?
+          `${completedActions[completedActions.length - 1].action}: ${completedActions[completedActions.length - 1].success ? 'SUCCESS' : 'FAILED'}` :
+          'No actions executed'}
 
 # **CURRENT STATUS**
 Based on the previous execution, continue with the next logical step. If the last action was successful, proceed with the next phase of the task. If it failed, try an alternative approach.`;
     }
-    
+
     // Check for actionable elements before planning
     const actionableElements = (currentState.interactiveElements || []).filter(el =>
       el.isVisible && el.isInteractive && (el.category === 'action' || el.category === 'form' || el.category === 'navigation')
@@ -46,10 +46,10 @@ Based on the previous execution, continue with the next logical step. If the las
 
     if (actionableElements.length === 0) {
       // Check if this might be a loading issue rather than actual completion
-      const isLikelyLoading = currentState.pageInfo?.title === '' || 
-                             currentState.pageInfo?.url?.includes('loading') ||
-                             currentState.interactiveElements?.length === 0;
-      
+      const isLikelyLoading = currentState.pageInfo?.title === '' ||
+        currentState.pageInfo?.url?.includes('loading') ||
+        currentState.interactiveElements?.length === 0;
+
       if (isLikelyLoading) {
         return {
           observation: "Page appears to be loading. Waiting for elements to appear.",
@@ -68,44 +68,44 @@ Based on the previous execution, continue with the next logical step. If the las
           pause_reason: "",
         };
       }
-      
+
       return {
         observation: "No actionable elements found. Waiting for page to load.",
-          done: false,
-          strategy: "Wait for page to fully load and elements to become available.",
-          batch_actions: [{
-            action_type: "wait",
-            parameters: {
-              duration: 1000,
-              intent: "Wait for page to load completely"
-            }
-          }],
-          shouldValidate: false,
-          completion_criteria: "Page is fully loaded with interactive elements.",
-          pause: false,
-          pause_reason: "",
-        };
+        done: false,
+        strategy: "Wait for page to fully load and elements to become available.",
+        batch_actions: [{
+          action_type: "wait",
+          parameters: {
+            duration: 1000,
+            intent: "Wait for page to load completely"
+          }
+        }],
+        shouldValidate: false,
+        completion_criteria: "Page is fully loaded with interactive elements.",
+        pause: false,
+        pause_reason: "",
+      };
     }
 
     // Enhanced context analysis
     const recentActions = this.formatRecentActions(context.recentMessages);
     const proceduralHistory = this.formatProceduralSummaries(context.proceduralSummaries);
     const progressAnalysis = this.analyzeProgress(context, executionHistory);
-    
+
     // Extract failed actions for replan guidance
     // const failedActionsSummary = executionHistory
     //   .slice(-5)
     //   .filter(h => !h.success)
     //   .map(h => `Step ${h.step}: ${h.action} - ${h.navigation || ''} (${h.results?.[0]?.result?.error || 'unknown error'})`)
     //   .join('\n');
-    
+
     // const failedIndicesForLLM = Array.from(this.failedElements || new Set()).join(', ');
-    
+
     // Smart element selection: prioritize relevant elements for the task
     const allElements = currentState.interactiveElements || [];
     const selectedElements = this.selectRelevantElements(allElements, userTask, 100);
     const elements = this.formatCompleteElements(selectedElements);
-    
+
     // console.log('[PlannerAgent] userTask:', userTask, 
     //             'currentState:', currentState, 
     //             'executionHistory:', executionHistory, 
@@ -118,9 +118,9 @@ Based on the previous execution, continue with the next logical step. If the las
     //             'enhancedContext', enhancedContext,
     //             'Formatted elements', elements);
 
-// # **FAILED ELEMENT INDICES - STRICTLY FORBIDDEN**
-// NEVER use these indices: ${failedIndicesForLLM || 'None'}
-// ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT working. Find different elements!' : ''}
+    // # **FAILED ELEMENT INDICES - STRICTLY FORBIDDEN**
+    // NEVER use these indices: ${failedIndicesForLLM || 'None'}
+    // ${failedIndicesForLLM ? '⚠️ These elements have been tried and are NOT working. Find different elements!' : ''}
 
     const plannerPrompt = `# You are an intelligent web automation planner with BATCH EXECUTION capabilities specialized in SOCIAL MEDIA SITES and E-COMMERCE PLATFORMS or SHOPPING SITES for desktop/laptop Chromium browsers.
 
@@ -360,18 +360,27 @@ ${progressAnalysis}
       const response = await this.llmService.call([
         { role: 'user', content: plannerPrompt }
       ], { maxTokens: 5000 }, 'planner');
-      
+
       console.log('[PlannerAgent] LLM response:', response);
-      
-      const plan = this.parsePlan(this.cleanJSONResponse(response));
-      
+
+      // Handle updated object return format {text, usage} from MultiLLMService
+      const responseText = typeof response === 'string' ? response : response.text;
+      const usage = typeof response === 'object' && response.usage ? response.usage : null;
+
+      const plan = this.parsePlan(this.cleanJSONResponse(responseText));
+
+      // Inject usage metadata to be bubbled up
+      if (usage) {
+        plan.usage = usage;
+      }
+
       // Enhanced memory logging with context awareness
       this.memoryManager.addMessage({
         role: 'planner',
         action: 'plan',
         content: `Step ${context.currentStep}: ${plan.next_action || 'Batch plan created'}`
       });
-      
+
       return plan;
     } catch (error) {
       console.error('Planner failed:', error);
@@ -384,20 +393,20 @@ ${progressAnalysis}
     if (!recentMessages || recentMessages.length === 0) {
       return 'No recent actions available';
     }
-    
+
     return recentMessages.map(msg => {
       const stepInfo = msg.step ? `Step ${msg.step}` : 'Recent';
       const roleInfo = msg.role || 'unknown';
       const actionInfo = msg.action || 'action';
       const contentInfo = (msg.content || '').substring(0, 100);
-      
+
       // Extract intent from content if available
       let intent = '';
       if (contentInfo.includes('intent:')) {
         const intentMatch = contentInfo.match(/intent:\s*([^,]+)/);
         intent = intentMatch ? intentMatch[1].trim() : '';
       }
-      
+
       const intentDisplay = intent ? ` (Intent: ${intent})` : '';
       return `${stepInfo} (${roleInfo}): ${actionInfo} - ${contentInfo}${intentDisplay}`;
     }).join('\n');
@@ -408,7 +417,7 @@ ${progressAnalysis}
     if (!proceduralSummaries || proceduralSummaries.length === 0) {
       return 'No procedural history available';
     }
-    
+
     return proceduralSummaries.map(summary => {
       const stepRange = summary.steps || 'Unknown steps';
       const actionChain = summary.actions || 'No actions';
@@ -420,14 +429,14 @@ ${progressAnalysis}
   // New method to analyze progress and detect patterns
   analyzeProgress(context, executionHistory) {
     const analysis = [];
-    
+
     // Detect if we're stuck in a loop
     const recentActions = executionHistory.slice(-5).map(h => h.navigation);
     const uniqueActions = new Set(recentActions);
     if (recentActions.length >= 3 && uniqueActions.size === 1) {
       analysis.push('⚠️ LOOP DETECTED: Same action repeated multiple times');
     }
-    
+
     // Detect sequential patterns
     const lastAction = context.recentMessages[context.recentMessages.length - 1];
     if (lastAction) {
@@ -437,13 +446,13 @@ ${progressAnalysis}
         analysis.push('🖱️ SEQUENCE: Just clicked - should wait for page changes or find results');
       }
     }
-    
+
     // Progress tracking
     const totalActions = context.currentStep;
     if (totalActions > 10) {
       analysis.push(`⏱️ PROGRESS: ${totalActions} actions taken - task may be complex`);
     }
-    
+
     return analysis.join('\n') || 'No specific patterns detected';
   }
 
@@ -451,10 +460,10 @@ ${progressAnalysis}
   getFallbackPlan(userTask, currentState, context) {
     const domain = this.extractDomain(currentState.pageInfo?.url);
     const lastAction = context?.recentMessages?.[context.recentMessages.length - 1];
-    
+
     let nextAction = "Examine available interactive elements and take appropriate action";
     let reasoning = "Need to understand the current page before proceeding";
-    
+
     // Context-aware fallback logic
     if (lastAction) {
       if (lastAction.content?.includes('type') || lastAction.content?.includes('input')) {
@@ -465,7 +474,7 @@ ${progressAnalysis}
         reasoning = "Previous action was clicking search, so next step is finding results";
       }
     }
-    
+
     return {
       observation: `Currently on ${domain}. Step ${context?.currentStep || 0}. ${lastAction ? `Last action: ${lastAction.action}` : 'No previous actions'}. Need to continue task: ${userTask}`,
       done: false,
@@ -487,7 +496,7 @@ ${progressAnalysis}
 
   formatElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
-    
+
     return elements.map(el => {
       const text = (el.text || el.ariaLabel || '').substring(0, 50);
       const type = el.tagName?.toLowerCase() || 'element';
@@ -503,56 +512,56 @@ ${progressAnalysis}
   selectRelevantElements(allElements, userTask, maxCount = 100) {
     if (!allElements || allElements.length === 0) return [];
     if (allElements.length <= maxCount) return allElements;
-    
+
     const taskLower = (userTask || '').toLowerCase();
-    
+
     // Score each element based on relevance
     const scoredElements = allElements.map((el, index) => {
       let score = 0;
-      
+
       // Base score for element position (earlier elements get slight boost)
       score += Math.max(0, 10 - (index / allElements.length) * 10);
-      
+
       // High priority for action elements
       if (el.category === 'action') score += 50;
       if (el.category === 'form') score += 30;
       if (el.category === 'navigation') score += 20;
-      
+
       // Boost for specific purposes
       if (el.purpose === 'add-to-cart') score += 100;
       if (el.purpose === 'product-link') score += 80;
       if (el.purpose === 'purchase' || el.purpose === 'buy') score += 90;
       if (el.purpose === 'search') score += 40;
       if (el.purpose === 'submit') score += 30;
-      
+
       // Boost for visible elements with good bounds
       if (el.isVisible && el.bounds?.width > 0 && el.bounds?.height > 0) {
         score += 20;
       }
-      
+
       // Task-specific keyword matching
       const text = `${el.text || ''} ${el.textContent || ''} ${el.attributes?.['aria-label'] || ''}`.toLowerCase();
-      
+
       // Shopping keywords
       if (taskLower.includes('cart') || taskLower.includes('add') || taskLower.includes('buy')) {
         if (text.includes('cart')) score += 60;
         if (text.includes('add to')) score += 70;
         if (text.includes('buy')) score += 50;
       }
-      
+
       if (taskLower.includes('product') || taskLower.includes('headphones') || taskLower.includes('item')) {
         if (text.includes('product')) score += 40;
         if (text.includes('headphones') || text.includes('headphone')) score += 80;
       }
-      
+
       if (taskLower.includes('search') || taskLower.includes('find')) {
         if (text.includes('search')) score += 50;
       }
-      
+
       if (taskLower.includes('post') || taskLower.includes('tweet')) {
         if (text.includes('post') || text.includes('tweet')) score += 70;
       }
-      
+
       // Boost for links with href attributes (often product links)
       if (el.tagName?.toLowerCase() === 'a' && el.attributes?.href) {
         score += 30;
@@ -560,29 +569,29 @@ ${progressAnalysis}
           score += 50; // Amazon product links
         }
       }
-      
+
       // Penalize very generic divs with no text
       if (el.tagName?.toLowerCase() === 'div' && !text.trim() && el.category === 'unknown') {
         score -= 30;
       }
-      
+
       return { element: el, score, originalIndex: index };
     });
-    
+
     // Sort by score (highest first) and take top maxCount
     scoredElements.sort((a, b) => b.score - a.score);
-    
+
     // Return top scoring elements, maintaining their original indices
     return scoredElements.slice(0, maxCount).map(item => item.element);
   }
 
   formatCompleteElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found on this page.";
-    
+
     return elements.map((el, index) => {
       const textContent = (el.textContent || '').trim();
       const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
- 
+
       // Limit selector length
       const selector = (el.selector || 'none').trim();
       const limitedSelector = selector.length > 50 ? selector.substring(0, 50) + '...' : selector;
@@ -590,7 +599,7 @@ ${progressAnalysis}
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
       const limitedXPath = xpath.length > 70 ? xpath.substring(0, 70) + '...' : xpath;
- 
+
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
       const simplifiedBounds = {
@@ -599,7 +608,7 @@ ${progressAnalysis}
         width: Math.round(bounds.width || 0),
         height: Math.round(bounds.height || 0)
       };
-      
+
       return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
   Category: ${el.category || 'unknown'}
   Purpose: ${el.purpose || 'general'}
@@ -613,10 +622,10 @@ ${progressAnalysis}
 
   cleanJSONResponse(response) {
     let cleaned = response.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').replace(/`/g, '');
-    
+
     // Fix: Clean control characters from JSON strings
     cleaned = cleaned.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-    
+
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     return jsonMatch ? jsonMatch[0] : cleaned;
   }
@@ -624,14 +633,14 @@ ${progressAnalysis}
   // Enhanced element formatting showing categories and purposes
   formatEnhancedElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found.";
-    
+
     const MAX_OUT = 100;
-    
+
     const searchElements = this.identifySearchElements ? this.identifySearchElements(elements) : [];
     const actionElements = this.identifyUniversalActionElements ? this.identifyUniversalActionElements(elements) : [];
-    
+
     let formatted = '';
-    
+
     // Prioritize universal action elements for all site types
     if (actionElements.length > 0) {
       formatted += `\n## PRIORITY ACTION ELEMENTS (MAIN INTERACTIVE ITEMS):\n`;
@@ -640,7 +649,7 @@ ${progressAnalysis}
         formatted += `[${el.index}] ${el.tagName}⭐[ACTION]: "${text}"${text.length > 60 ? '...' : ''}\n`;
       });
     }
-    
+
     // Prioritize search elements at the top
     if (searchElements.length > 0) {
       formatted += `\n## SEARCH INTERFACE ELEMENTS (CLICK FIRST, THEN TYPE):\n`;
@@ -648,28 +657,28 @@ ${progressAnalysis}
         formatted += `[${el.index}] ${el.tagName} "${el.text}" {id: ${el.attributes?.id}, name: ${el.attributes?.name}, data-testid: ${el.attributes?.['data-testid']}}\n`;
       });
     }
-    
+
     // Group remaining elements by category for better organization
     const categorized = elements.reduce((acc, el) => {
       // Skip search and action elements as they're already shown above
       if (searchElements.includes(el) || actionElements.includes(el)) return acc;
-      
+
       const category = el.category || 'unknown';
       if (!acc[category]) acc[category] = [];
       acc[category].push(el);
       return acc;
     }, {});
-    
+
     Object.entries(categorized).forEach(([category, categoryElements]) => {
       formatted += `\n## ${category.toUpperCase()} ELEMENTS:\n`;
-      
+
       categoryElements.slice(0, 10).forEach(el => {
         const purpose = el.purpose ? ` (${el.purpose})` : '';
         const text = (el.text || '').substring(0, 40);
-        
+
         const tagName = el.tagName?.toLowerCase() || 'unknown';
         const elementType = this.getElementTypeInfo(el);
-        
+
         formatted += `[${el.index}] ${tagName}${elementType}${purpose}: "${text}"${text.length > 40 ? '...' : ''}\n`;
       });
     });
@@ -677,29 +686,29 @@ ${progressAnalysis}
     if (elements.length > MAX_OUT) {
       formatted += `\n...and ${elements.length - MAX_OUT} more elements.\n`;
     }
-    
+
     return formatted;
   }
 
-  
+
   // NEW: Helper method to provide better element type info
   getElementTypeInfo(el) {
     const tagName = (el.tagName || '').toLowerCase();
     const type = el.attributes?.type?.toLowerCase();
     const role = el.attributes?.role?.toLowerCase();
-    
+
     if (tagName === 'input') {
       if (type === 'text' || type === 'search') return ' 📝[TYPEABLE]';
       if (type === 'submit' || type === 'button') return ' 🔘[CLICKABLE]';
       return ' 📝[INPUT]';
     }
-    
+
     if (tagName === 'button') return ' 🔘[CLICKABLE]';
     if (tagName === 'textarea') return ' 📝[TYPEABLE]';
     if (tagName === 'a') return ' 🔗[LINK]';
     if (role === 'button') return ' 🔘[CLICKABLE]';
     if (role === 'textbox') return ' 📝[TYPEABLE]';
-    
+
     return '';
   }
 
@@ -707,20 +716,20 @@ ${progressAnalysis}
     try {
       // Handle complex JSON parsing issues with selectors containing quotes
       let fixedText = rawText;
-      
+
       // Specific fix for the aria-label selector issue we're seeing
       // Pattern: "selector": "[aria-label=\"Storio Kuku Baby Ride-On Toy – Push Car..."]"
       fixedText = fixedText.replace(
-        /"selector":\s*"\[aria-label=\\"([^"]*?)\\"\]"/g, 
+        /"selector":\s*"\[aria-label=\\"([^"]*?)\\"\]"/g,
         '"selector":"[aria-label=\\"$1\\"]"'
       );
-      
+
       // More general fix for any attribute selector with unescaped quotes
       fixedText = fixedText.replace(
         /"selector":\s*"\[([^=]+)=\\"([^"]*?)\\"\]"/g,
         '"selector":"[$1=\\"$2\\"]"'
       );
-      
+
       // If the above doesn't work, try removing problematic selectors entirely and use index only
       if (fixedText.includes('[aria-label=') && fixedText.includes('"]"')) {
         console.log('🔧 Removing problematic selector, keeping only index');
@@ -729,9 +738,9 @@ ${progressAnalysis}
           '"selector":null'
         );
       }
-      
+
       const obj = JSON.parse(fixedText);
-      
+
       // Validate required fields
       if (!obj.observation) {
         throw new Error('Missing required field: observation');
@@ -742,13 +751,13 @@ ${progressAnalysis}
       if (!obj.strategy) {
         throw new Error('Missing required field: strategy');
       }
-      
+
       return {
         observation: obj.observation,
         done: obj.done,
         strategy: obj.strategy,
         batch_actions: obj.batch_actions || [],
-        shouldValidate: obj.shouldValidate || false, 
+        shouldValidate: obj.shouldValidate || false,
         replan_trigger: obj.replan_trigger || "",
         completion_criteria: obj.completion_criteria || "",
         reasoning: obj.reasoning || "",
@@ -761,7 +770,7 @@ ${progressAnalysis}
     } catch (error) {
       console.error('PlannerAgent JSON parsing error:', error.message);
       console.error('Raw text that failed to parse:', rawText);
-      
+
       // Enhanced error with more context
       if (error.message.includes('Unexpected end of JSON input')) {
         throw new Error(`Response parsing failed: The AI response was incomplete or cut off. This often happens with complex tasks. Try simplifying your request. Original error: ${error.message}`);
@@ -777,24 +786,24 @@ ${progressAnalysis}
 
   identifySearchElements(elements) {
     const searchKeywords = [
-      'search', 'find', 'look', '🔍', 'magnifying', 
+      'search', 'find', 'look', '🔍', 'magnifying',
       'query', 'explore', 'discover', 'browse'
     ];
-    
+
     return elements.filter(el => {
       const text = (el.text || '').toLowerCase();
-      const ariaLabel = (el.attributes?.['aria-label'] || '').toLowerCase(); 
+      const ariaLabel = (el.attributes?.['aria-label'] || '').toLowerCase();
       const placeholder = (el.attributes?.placeholder || '').toLowerCase();
       const className = (el.attributes?.class || '').toLowerCase();
-      
+
       // Check if element contains search-related terms
-      const hasSearchTerms = searchKeywords.some(keyword => 
-        text.includes(keyword) || 
-        ariaLabel.includes(keyword) || 
+      const hasSearchTerms = searchKeywords.some(keyword =>
+        text.includes(keyword) ||
+        ariaLabel.includes(keyword) ||
         placeholder.includes(keyword) ||
         className.includes(keyword)
       );
-      
+
       // Additional checks for search interface elements
       const isSearchElement = (
         hasSearchTerms ||
@@ -802,7 +811,7 @@ ${progressAnalysis}
         (el.tagName === 'BUTTON' && text.length < 20) ||
         (el.tagName === 'DIV' && el.isInteractive && hasSearchTerms)
       );
-      
+
       return isSearchElement;
     });
   }
@@ -814,72 +823,72 @@ ${progressAnalysis}
       // Shopping keywords
       'add to cart', 'buy now', 'purchase', 'checkout', 'cart', 'shop', 'order',
       'add to bag', 'add to basket', 'view product', 'product', 'price', 'deal',
-      
+
       // Social media keywords
       'post', 'tweet', 'share', 'like', 'follow', 'comment', 'reply', 'send',
       'upload', 'publish', 'compose', 'message', 'chat', 'connect',
-      
+
       // General action keywords
       'submit', 'save', 'continue', 'next', 'proceed', 'confirm', 'accept',
       'sign in', 'log in', 'login', 'register', 'sign up', 'join'
     ];
-    
+
     const excludeKeywords = [
       'filter', 'sort', 'page', 'previous', 'menu', 'nav', 'header',
       'footer', 'sidebar', 'ad', 'advertisement', 'sponsored', 'banner',
       'cookie', 'privacy', 'policy', 'terms', 'about', 'help', 'support'
     ];
-    
+
     return elements.filter(el => {
       // // Skip failed elements
       // if (this.failedElements && this.failedElements.has(el.index)) {
       //   return false;
       // }
-      
+
       const text = (el.text || '').toLowerCase();
       const ariaLabel = (el.attributes?.['aria-label'] || '').toLowerCase();
       const className = (el.attributes?.class || '').toLowerCase();
       const href = (el.attributes?.href || '').toLowerCase();
       const id = (el.attributes?.id || '').toLowerCase();
-      
+
       // Check if it contains action-related terms
-      const hasActionTerms = actionKeywords.some(keyword => 
-        text.includes(keyword) || 
-        ariaLabel.includes(keyword) || 
+      const hasActionTerms = actionKeywords.some(keyword =>
+        text.includes(keyword) ||
+        ariaLabel.includes(keyword) ||
         className.includes(keyword) ||
         href.includes(keyword) ||
         id.includes(keyword)
       );
-      
+
       // Exclude obvious non-action elements
-      const hasExcludeTerms = excludeKeywords.some(keyword => 
-        text.includes(keyword) || 
-        ariaLabel.includes(keyword) || 
+      const hasExcludeTerms = excludeKeywords.some(keyword =>
+        text.includes(keyword) ||
+        ariaLabel.includes(keyword) ||
         className.includes(keyword)
       );
-      
+
       // Universal action elements are interactive elements with meaningful text and action terms
       const isUniversalAction = (
-        (el.tagName === 'A' || el.tagName === 'BUTTON' || 
-         (el.tagName === 'DIV' && el.isInteractive) ||
-         (el.tagName === 'SPAN' && el.isInteractive) ||
-         el.tagName === 'INPUT') &&
+        (el.tagName === 'A' || el.tagName === 'BUTTON' ||
+          (el.tagName === 'DIV' && el.isInteractive) ||
+          (el.tagName === 'SPAN' && el.isInteractive) ||
+          el.tagName === 'INPUT') &&
         el.isVisible && el.isInteractive &&
         text.length > 2 && // Has some meaningful text
         text.length < 150 && // Not too long (likely not a paragraph)
         !hasExcludeTerms && // Not a filter/navigation element
-        (hasActionTerms || 
-         // Shopping-specific patterns
-         href.includes('/dp/') || href.includes('/product/') ||
-         className.includes('product') || className.includes('item') ||
-         className.includes('cart') || className.includes('buy') ||
-         // Social media patterns
-         className.includes('post') || className.includes('tweet') ||
-         className.includes('share') || className.includes('like') ||
-         // General action patterns
-         el.category === 'action' || el.purpose?.includes('action'))
+        (hasActionTerms ||
+          // Shopping-specific patterns
+          href.includes('/dp/') || href.includes('/product/') ||
+          className.includes('product') || className.includes('item') ||
+          className.includes('cart') || className.includes('buy') ||
+          // Social media patterns
+          className.includes('post') || className.includes('tweet') ||
+          className.includes('share') || className.includes('like') ||
+          // General action patterns
+          el.category === 'action' || el.purpose?.includes('action'))
       );
-      
+
       return isUniversalAction;
     });
   }

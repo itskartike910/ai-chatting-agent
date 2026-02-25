@@ -1,12 +1,7 @@
 @import './styles/GlobalAnimations.css';
-@import './styles/AuthPageAnimations.css';
 @import './styles/ChatInterfaceAnimations.css';
-@import './styles/ProfilePageAnimations.css';
 @import './styles/SettingsPageAnimations.css';
-@import './styles/SubscriptionPageAnimations.css';
-@import './styles/SubscriptionChoiceAnimations.css';
 @import './styles/ChatHistoryPageAnimations.css';
-@import './sidebar.css';
 
 body {
   margin: 0;

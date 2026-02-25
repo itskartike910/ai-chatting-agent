@@ -1,11 +1,9 @@
 /* global chrome */
 import { useState, useEffect } from 'react';
-import apiService from '../services/api';
 
 export const useAuth = () => {
   const [authState, setAuthState] = useState({
-    isLoggedIn: false,
-    user: null,
+    isLoggedIn: false, // In this context, logged in means has configured API Keys
     loading: true,
     error: null
   });
@@ -16,83 +14,56 @@ export const useAuth = () => {
 
   const checkAuthStatus = async () => {
     try {
-      // Check if we have a valid session
-      const authResult = await apiService.checkAuthentication();
-      
-      if (authResult.isAuthenticated) {
-        setAuthState({
-          isLoggedIn: true,
-          user: authResult.user,
-          loading: false,
-          error: null
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        // Checking agentConfig for API keys
+        chrome.storage.sync.get(['agentConfig'], (result) => {
+          const config = result.agentConfig || {};
+          const hasKeys = !!(config.anthropicApiKey || config.openaiApiKey || config.geminiApiKey);
+
+          setAuthState({
+            isLoggedIn: hasKeys,
+            loading: false,
+            error: null
+          });
         });
       } else {
-        await apiService.clearAuthSession();
+        // Fallback for non-extension environments
         setAuthState({
           isLoggedIn: false,
-          user: null,
           loading: false,
-          error: null
+          error: 'Chrome storage not available'
         });
       }
     } catch (error) {
-      console.error('Error checking auth status:', error);
+      console.error('Error checking API Key status:', error);
       setAuthState({
         isLoggedIn: false,
-        user: null,
         loading: false,
         error: error.message
       });
     }
   };
 
-  const startDeepHUDLogin = async () => {
-    setAuthState(prev => ({ ...prev, error: null, loading: true }));
-    
-    try {
-      // Use the new API service method that follows the DeepHUD pattern
-      const user = await apiService.startDeepHUDLogin();
-      
-      if (user) {
-        setAuthState({
-          isLoggedIn: true,
-          user: user,
-          loading: false,
-          error: null
-        });
-      } else {
-        setAuthState(prev => ({
-          ...prev,
-          loading: false,
-          error: 'Authentication failed or timed out.'
-        }));
-      }
-    } catch (error) {
-      console.error('DeepHUD login error:', error);
-      setAuthState(prev => ({
-        ...prev,
-        loading: false,
-        error: error.message
-      }));
-    }
-  };
-
-  const login = async (credentials) => {
-    // Use DeepHUD authentication
-    return await startDeepHUDLogin();
-  };
-
-  const signup = async (userData) => {
-    // Use DeepHUD authentication
-    return await startDeepHUDLogin();
-  };
-
+  // We keep a 'logout' equivalent to clear keys if requested
   const logout = async () => {
     try {
-      await apiService.logout();
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        // Find existing config, wipe just the keys to preserve other preferences
+        const result = await new Promise(resolve => chrome.storage.sync.get(['agentConfig'], resolve));
+        const config = result.agentConfig || {};
+
+        const newConfig = {
+          ...config,
+          anthropicApiKey: '',
+          openaiApiKey: '',
+          geminiApiKey: ''
+        };
+
+        await new Promise(resolve => chrome.storage.sync.set({ agentConfig: newConfig }, resolve));
+      }
+
       setAuthState({
         isLoggedIn: false,
-        user: null,
         loading: false,
         error: null
       });
@@ -105,10 +76,9 @@ export const useAuth = () => {
 
   return {
     ...authState,
-    login,
-    signup,
     logout,
     checkAuthStatus,
-    startDeepHUDLogin
+    // Provide user object as null to prevent null reference errors in components that expect it
+    user: null
   };
 };

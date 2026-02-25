@@ -15,36 +15,36 @@ console.log('AI Universal Agent Background Script Loading...');
 function urlValidator() {
   // Add null checks to prevent the TypeError
   const originalMethods = {
-    checkBasicLoginStatus: function(url) {
+    checkBasicLoginStatus: function (url) {
       if (!url || typeof url !== 'string') return false;
       return !url.includes('/login') && !url.includes('/signin');
     },
-    
-    determinePageType: function(url) {
+
+    determinePageType: function (url) {
       if (!url || typeof url !== 'string') return 'general';
-      
+
       // Chrome-native pages
       if (url.startsWith('chrome-native://') || url.startsWith('chrome://')) return 'chrome-native';
-      
+
       // Social media page types
       if (url.includes('/compose') || url.includes('/intent/tweet')) return 'compose';
       if (url.includes('/home') || url.includes('/timeline')) return 'home';
       if (url.includes('/login') || url.includes('/signin')) return 'login';
       if (url.includes('/profile') || url.includes('/user/')) return 'profile';
-      
+
       // E-commerce page types
       if (url.includes('/search') || url.includes('/s?')) return 'search';
       if (url.includes('/cart') || url.includes('/basket')) return 'cart';
       if (url.includes('/product/') || url.includes('/dp/')) return 'product';
       if (url.includes('/checkout')) return 'checkout';
-      
+
       return 'general';
     },
-    
-    detectPlatform: function(url) {
+
+    detectPlatform: function (url) {
       if (!url || typeof url !== 'string') return 'unknown';
       const lowerUrl = url.toLowerCase();
-      
+
       // E-commerce platforms
       if (lowerUrl.includes('amazon.')) return 'amazon';
       if (lowerUrl.includes('ebay.')) return 'ebay';
@@ -58,7 +58,7 @@ function urlValidator() {
       if (lowerUrl.includes('bigbasket.')) return 'bigbasket';
       if (lowerUrl.includes('ajio.')) return 'ajio';
       if (lowerUrl.includes('myntra.')) return 'myntra';
-      
+
       // Social media platforms
       if (lowerUrl.includes('x.com') || lowerUrl.includes('twitter.com')) return 'twitter';
       if (lowerUrl.includes('linkedin.com')) return 'linkedin';
@@ -72,15 +72,15 @@ function urlValidator() {
       if (lowerUrl.includes('medium.com')) return 'medium';
       if (lowerUrl.includes('dev.to')) return 'devto';
       if (lowerUrl.includes('hashnode.com')) return 'hashnode';
-      
+
       // Chrome-native pages
       if (lowerUrl.startsWith('chrome-native://') || lowerUrl.startsWith('chrome://')) return 'chrome-native';
       if (lowerUrl.startsWith('chrome-extension://')) return 'chrome-extension';
-      
+
       return 'unknown';
     }
   };
-  
+
   return originalMethods;
 }
 
@@ -90,24 +90,25 @@ class MultiAgentExecutor {
     this.memoryManager = new MemoryManager();
     this.browserContext = new ContextManager();
     this.actionRegistry = new ActionRegistry(this.browserContext);
-    
+
     this.planner = new PlannerAgent(this.llmService, this.memoryManager);
     this.validator = new ValidatorAgent(this.llmService, this.memoryManager);
-    
+
     // Fixed helper methods
     const helpers = urlValidator();
     this.checkBasicLoginStatus = helpers.checkBasicLoginStatus;
     this.determinePageType = helpers.determinePageType;
     this.detectPlatform = helpers.detectPlatform;
-    
-    this.maxSteps = 50; 
+
+    this.maxSteps = 50;
     this.executionHistory = [];
     this.currentStep = 0;
     this.cancelled = false;
-    
+
     this.actionQueue = [];
     this.currentBatchPlan = null;
-    
+    this.totalTokens = 0;
+
     // this.failedElements = new Set();
     this.recentActionKeys = new Set();
     this.recentActionKeysMax = 120;
@@ -122,7 +123,7 @@ class MultiAgentExecutor {
       this.currentBatchPlan = null;
       // this.failedElements = new Set();
       this.lastPageState = null;
-      this.lastValidationResult = null; 
+      this.lastValidationResult = null;
 
       console.log(`🚀 Universal Multi-agent execution: ${userTask}`);
       console.log(`🧹 State cleaned - Starting fresh`);
@@ -130,20 +131,20 @@ class MultiAgentExecutor {
       console.log(`▶️ Resuming Multi-agent execution: ${userTask}`);
       console.log(`🔄 Resuming from paused state`);
     }
-    
+
     // Store current task for completion detection
     this.currentUserTask = userTask;
-    
+
     // Initialize enhanced task tracking in memory manager
     this.memoryManager.setCurrentTask(userTask);
-    
+
     // Broadcast initial task setup
     connectionManager.broadcast({
       type: 'status_update',
       message: `🎯 Task Started: "${userTask}"`,
       details: `Task components identified: ${this.memoryManager.currentTaskState?.components?.join(', ') || 'analyzing...'}`
     });
-    
+
     let taskCompleted = false;
     let finalResult = null;
 
@@ -162,7 +163,7 @@ class MultiAgentExecutor {
 
       while (!taskCompleted && this.currentStep < this.maxSteps && !this.cancelled) {
         this.currentStep++;
-        
+
         console.log(`🔄 Step ${this.currentStep}/${this.maxSteps}`);
         connectionManager.broadcast({
           type: 'status_update',
@@ -218,25 +219,25 @@ class MultiAgentExecutor {
 
           // Set current batch plan
           this.currentBatchPlan = initialPlan;
-          
+
           // Broadcast status update if observation exists
           if (initialPlan.observation) {
             // Show observation and strategy to user
-          connectionManager.broadcast({
-            type: 'observation_strategy',
-            step: this.currentStep,
-            observation: initialPlan.observation,
-            strategy: initialPlan.strategy
-          });
+            connectionManager.broadcast({
+              type: 'observation_strategy',
+              step: this.currentStep,
+              observation: initialPlan.observation,
+              strategy: initialPlan.strategy
+            });
           }
         }
 
         // 1. Execute batch actions if available
         if (this.actionQueue.length > 0) {
           console.log(`📋 Executing batch: ${this.actionQueue.length} actions`);
-          
+
           const batchResults = await this.executeBatchSequentially(connectionManager);
-          
+
           // Show completed batch as single step in UI
           connectionManager.broadcast({
             type: 'step_complete',
@@ -244,7 +245,7 @@ class MultiAgentExecutor {
             actions: batchResults.executedActions,
             message: `📋 Batch completed: ${batchResults.executedActions.length} actions executed`
           });
-          
+
           // const shouldRunValidation = (
           //   this.currentBatchPlan?.shouldValidate || // Planner-requested only
           //   (this.currentStep >= 10 && this.currentStep % 10 === 0) || // Reduced frequency
@@ -252,12 +253,12 @@ class MultiAgentExecutor {
           //   this.executionHistory.slice(-3).every(h => h.success)) // After multiple successes
           // ) && batchResults.anySuccess;
           const shouldRunValidation = this.currentBatchPlan?.shouldValidate && batchResults.anySuccess;
-          
+
           if (shouldRunValidation) {
             console.log('🔍 Running progressive validation as requested by planner...');
             const currentState = await this.getCurrentState();
             const validation = await this.validator.validate(userTask, this.executionHistory, currentState);
-            
+
             // Store validation result for use in next planning cycle
             this.lastValidationResult = validation;
 
@@ -277,15 +278,15 @@ class MultiAgentExecutor {
             }
 
             // Progressive completion criteria (more lenient but accurate)
-            if (validation.is_valid && 
-                validation.confidence >= 0.85 && 
-                validation.progress_percentage >= 90 &&
-                validation.answer && 
-                validation.answer.trim() !== '' && 
-                !validation.answer.includes('incomplete') &&
-                validation.missing_components && 
-                validation.missing_components.length === 0) {
-              
+            if (validation.is_valid &&
+              validation.confidence >= 0.85 &&
+              validation.progress_percentage >= 90 &&
+              validation.answer &&
+              validation.answer.trim() !== '' &&
+              !validation.answer.includes('incomplete') &&
+              validation.missing_components &&
+              validation.missing_components.length === 0) {
+
               taskCompleted = true;
               finalResult = {
                 success: true,
@@ -296,7 +297,7 @@ class MultiAgentExecutor {
                 progress_percentage: validation.progress_percentage,
                 completed_components: validation.completed_components
               };
-              
+
               // Broadcast task completion observation
               connectionManager.broadcast({
                 type: 'status_update',
@@ -307,15 +308,15 @@ class MultiAgentExecutor {
             } else {
               // Provide detailed progress feedback
               const progressMsg = `🔄 Task Progress: ${validation.progress_percentage || 0}% complete`;
-              const componentMsg = validation.completed_components?.length > 0 
+              const componentMsg = validation.completed_components?.length > 0
                 ? ` | Completed: ${validation.completed_components.join(', ')}`
                 : '';
-              const nextMsg = validation.next_required_action 
+              const nextMsg = validation.next_required_action
                 ? ` | Next: ${validation.next_required_action}`
                 : '';
-              
+
               console.log(`${progressMsg}${componentMsg}${nextMsg}`);
-              
+
               connectionManager.broadcast({
                 type: 'status_update',
                 message: `${progressMsg}${componentMsg}`,
@@ -334,7 +335,7 @@ class MultiAgentExecutor {
               success: true,
               response: `✅ ${this.currentBatchPlan.completion_criteria || this.currentBatchPlan.reasoning}`,
               steps: this.currentStep,
-              isMarkdown: true 
+              isMarkdown: true
             };
           }
 
@@ -342,7 +343,7 @@ class MultiAgentExecutor {
           if (!taskCompleted) {
             const currentState = await this.getCurrentState();
             const enhancedContext = this.buildEnhancedContextWithHistory();
-            
+
             // Add previous plan results to context for continuity with enhanced details
             if (this.currentBatchPlan) {
               const completedActions = batchResults.executedActions.map(a => ({
@@ -352,10 +353,10 @@ class MultiAgentExecutor {
                 result: a.result,
                 error: a.error || null
               }));
-              
+
               const successfulActions = completedActions.filter(a => a.success);
               const failedActions = completedActions.filter(a => !a.success);
-              
+
               enhancedContext.previousPlan = {
                 observation: this.currentBatchPlan.observation,
                 strategy: this.currentBatchPlan.strategy,
@@ -371,7 +372,7 @@ class MultiAgentExecutor {
                 }
               };
             }
-            
+
             // Add validation results to context for planner
             if (this.lastValidationResult) {
               enhancedContext.lastValidation = {
@@ -382,10 +383,19 @@ class MultiAgentExecutor {
                 confidence: this.lastValidationResult.confidence || 0
               };
             }
-            
-            const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
+
+            const plan = await this.planner.plan(userTask, currentState, this.executionHistory,
               enhancedContext);
-            
+
+            // Add usage tracking from planner
+            if (plan && plan.usage) {
+              this.totalTokens += (plan.usage.total || 0);
+              connectionManager.broadcast({
+                type: 'token_update',
+                tokens: this.totalTokens
+              });
+            }
+
             // Check if execution should be paused
             if (plan && plan.pause === true) {
               console.log(`⏸️ Task paused: ${plan.pause_reason}`);
@@ -398,54 +408,54 @@ class MultiAgentExecutor {
                   strategy: plan.strategy
                 });
               }
-              
+
               await this.delay(400);
 
               // Broadcast pause message
               console.log('📤 Broadcasting task_paused message:', {
                 type: 'task_paused',
-                message: plan.pause_reason === 'signin' 
+                message: plan.pause_reason === 'signin'
                   ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
                   : plan.pause_reason === 'approval'
-                  ? 'Approval Required'
-                  : 'Task execution paused. Click Resume when ready.',
+                    ? 'Approval Required'
+                    : 'Task execution paused. Click Resume when ready.',
                 pause_reason: plan.pause_reason,
                 pause_description: plan.pause_description || ''
               });
-              
+
               connectionManager.broadcast({
                 type: 'task_paused',
-                message: plan.pause_reason === 'signin' 
+                message: plan.pause_reason === 'signin'
                   ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
                   : plan.pause_reason === 'approval'
-                  ? 'Approval Required'
-                  : 'Task execution paused. Click Resume when ready.',
+                    ? 'Approval Required'
+                    : 'Task execution paused. Click Resume when ready.',
                 pause_reason: plan.pause_reason,
                 pause_description: plan.pause_description || ''
               });
-              
+
               // Update execution state to paused
               await chrome.storage.local.set({
                 isExecuting: false,
                 isTyping: false,
                 taskStatus: { status: 'paused', message: 'Task paused - waiting for user action' }
               });
-              
+
               // Notify content scripts to hide main popup and show appropriate pause popup
               await this.notifyContentScripts('__agent_hide_popup');
-              
+
               // Show appropriate popup based on pause reason
               if (plan.pause_reason === 'signin') {
                 await this.showSigninPopup();
               } else if (plan.pause_reason === 'approval') {
                 await this.showApprovalPopup();
               }
-              
+
               // Store the current plan for resumption
               this.pausedPlan = plan;
               this.pausedTask = userTask;
               this.pausedState = currentState;
-              
+
               // Return early - execution will resume when user clicks continue
               return {
                 success: false,
@@ -456,7 +466,7 @@ class MultiAgentExecutor {
                 confidence: 0.8
               };
             }
-            
+
             // Broadcast planner's observation and strategy
             if (plan && plan.observation) {
               // Show observation and strategy to user
@@ -467,7 +477,7 @@ class MultiAgentExecutor {
                 strategy: plan.strategy
               });
             }
-            
+
             // If planner says done and there are no batch actions to execute, complete the task immediately
             if (plan.done && (!plan.batch_actions || plan.batch_actions.length === 0)) {
               console.log('🎯 Task marked as complete by planner (no batch actions)');
@@ -478,7 +488,7 @@ class MultiAgentExecutor {
                 steps: this.currentStep,
                 isMarkdown: true // Enable markdown formatting
               };
-              
+
               // Broadcast completion message
               connectionManager.broadcast({
                 type: 'status_update',
@@ -487,9 +497,9 @@ class MultiAgentExecutor {
               });
               break;
             }
-            
+
             this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions || []);
-            this.currentBatchPlan = plan; 
+            this.currentBatchPlan = plan;
           }
 
           // Handle critical failures (no recovery needed for now)
@@ -499,16 +509,25 @@ class MultiAgentExecutor {
               message: '⚠️ Multiple action failures detected.',
               details: 'Trying alternative approach'
             });
-            
+
             const currentState = await this.getCurrentState();
-            const plan = await this.planner.plan(userTask, currentState, this.executionHistory, 
-            this.buildEnhancedContextWithHistory());
-            
+            const plan = await this.planner.plan(userTask, currentState, this.executionHistory,
+              this.buildEnhancedContextWithHistory());
+
+            // Add usage tracking from planner
+            if (plan && plan.usage) {
+              this.totalTokens += (plan.usage.total || 0);
+              connectionManager.broadcast({
+                type: 'token_update',
+                tokens: this.totalTokens
+              });
+            }
+
             // Check if execution should be paused
             if (plan && plan.pause === true) {
               console.log(`⏸️ Task paused during recovery: ${plan.pause_reason}`);
-              
-              
+
+
               if (plan.observation) {
                 connectionManager.broadcast({
                   type: 'observation_strategy',
@@ -517,43 +536,43 @@ class MultiAgentExecutor {
                   strategy: plan.strategy
                 });
               }
-              
+
               await this.delay(400);
 
               // Broadcast pause message
               connectionManager.broadcast({
                 type: 'task_paused',
-                message: plan.pause_reason === 'signin' 
+                message: plan.pause_reason === 'signin'
                   ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
                   : plan.pause_reason === 'approval'
-                  ? 'Approval Required'
-                  : 'Task execution paused. Click Resume when ready.',
+                    ? 'Approval Required'
+                    : 'Task execution paused. Click Resume when ready.',
                 pause_reason: plan.pause_reason,
                 pause_description: plan.pause_description || ''
               });
-              
+
               // Update execution state to paused
               await chrome.storage.local.set({
                 isExecuting: false,
                 isTyping: false,
                 taskStatus: { status: 'paused', message: 'Task paused - waiting for user action' }
               });
-              
+
               // Notify content scripts to hide main popup and show appropriate pause popup
               await this.notifyContentScripts('__agent_hide_popup');
-              
+
               // Show appropriate popup based on pause reason
               if (plan.pause_reason === 'signin') {
                 await this.showSigninPopup();
               } else if (plan.pause_reason === 'approval') {
                 await this.showApprovalPopup();
               }
-              
+
               // Store the current plan for resumption
               this.pausedPlan = plan;
               this.pausedTask = userTask;
               this.pausedState = currentState;
-              
+
               // Return early - execution will resume when user clicks continue
               return {
                 success: false,
@@ -565,7 +584,7 @@ class MultiAgentExecutor {
               };
             }
 
-            if(plan && plan.done && (!plan.batch_actions || plan.batch_actions.length === 0)) {
+            if (plan && plan.done && (!plan.batch_actions || plan.batch_actions.length === 0)) {
               console.log('🎯 Task marked as complete by planner (no batch actions)');
               taskCompleted = true;
               finalResult = {
@@ -575,7 +594,7 @@ class MultiAgentExecutor {
                 isMarkdown: true
               };
             }
-            
+
             this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions || []);
             this.currentBatchPlan = plan;
           }
@@ -585,10 +604,10 @@ class MultiAgentExecutor {
 
         // 2. Get page state only when planning
         const currentState = await this.getCurrentState();
-        
+
         // 3. Enhanced context building
         const enhancedContext = this.buildEnhancedContextWithHistory();
-        
+
         // 4. Generate new plan with full context
         let plan;
         if (initialPlan && this.currentStep === 1) {
@@ -604,14 +623,23 @@ class MultiAgentExecutor {
               confidence: this.lastValidationResult.confidence || 0
             };
           }
-          
+
           plan = await this.planner.plan(userTask, currentState, this.executionHistory, enhancedContext);
-          
+
+          // Add usage tracking from planner
+          if (plan && plan.usage) {
+            this.totalTokens += (plan.usage.total || 0);
+            connectionManager.broadcast({
+              type: 'token_update',
+              tokens: this.totalTokens
+            });
+          }
+
           // Check if execution should be paused
           if (plan && plan.pause === true) {
             console.log(`⏸️ Task paused during replanning: ${plan.pause_reason}`);
-            
-            
+
+
             if (plan.observation) {
               connectionManager.broadcast({
                 type: 'observation_strategy',
@@ -620,43 +648,43 @@ class MultiAgentExecutor {
                 strategy: plan.strategy
               });
             }
-            
+
             await this.delay(400);
 
             // Broadcast pause message
             connectionManager.broadcast({
               type: 'task_paused',
-              message: plan.pause_reason === 'signin' 
+              message: plan.pause_reason === 'signin'
                 ? 'Please sign in to continue with your task. Click Resume when you\'re ready.'
                 : plan.pause_reason === 'approval'
-                ? 'Approval Required'
-                : 'Task execution paused. Click Resume when ready.',
+                  ? 'Approval Required'
+                  : 'Task execution paused. Click Resume when ready.',
               pause_reason: plan.pause_reason,
               pause_description: plan.pause_description || ''
             });
-            
+
             // Update execution state to paused
             await chrome.storage.local.set({
               isExecuting: false,
               isTyping: false,
               taskStatus: { status: 'paused', message: 'Task paused - waiting for user action' }
             });
-            
+
             // Notify content scripts to hide main popup and show appropriate pause popup
             await this.notifyContentScripts('__agent_hide_popup');
-            
+
             // Show appropriate popup based on pause reason
             if (plan.pause_reason === 'signin') {
               await this.showSigninPopup();
             } else if (plan.pause_reason === 'approval') {
               await this.showApprovalPopup();
             }
-            
+
             // Store the current plan for resumption
             this.pausedPlan = plan;
             this.pausedTask = userTask;
             this.pausedState = currentState;
-            
+
             // Return early - execution will resume when user clicks continue
             return {
               success: false,
@@ -689,7 +717,7 @@ class MultiAgentExecutor {
             steps: this.currentStep,
             isMarkdown: true
           };
-          
+
           // Broadcast completion message
           connectionManager.broadcast({
             type: 'status_update',
@@ -703,7 +731,7 @@ class MultiAgentExecutor {
         if (plan.batch_actions && Array.isArray(plan.batch_actions)) {
           this.actionQueue = this.validateAndPreprocessBatchActions(plan.batch_actions);
           this.currentBatchPlan = plan;
-          
+
           // Show observation and strategy to user
           connectionManager.broadcast({
             type: 'observation_strategy',
@@ -724,7 +752,16 @@ class MultiAgentExecutor {
         console.log('🔍 Max steps reached - running enhanced final validation');
         const finalState = await this.getCurrentState();
         const validation = await this.validator.validate(userTask, this.executionHistory, finalState);
-        
+
+        // Add usage tracking from validator
+        if (validation && validation.usage) {
+          this.totalTokens += (validation.usage.total || 0);
+          connectionManager.broadcast({
+            type: 'token_update',
+            tokens: this.totalTokens
+          });
+        }
+
         console.log('📊 Final validation result:', {
           is_valid: validation.is_valid,
           confidence: validation.confidence,
@@ -732,13 +769,13 @@ class MultiAgentExecutor {
           completed: validation.completed_components,
           missing: validation.missing_components
         });
-        
+
         // More lenient final validation - accept partial completion if substantial progress
-        if (validation.is_valid && 
-            validation.confidence >= 0.8 && 
-            validation.progress_percentage >= 80 &&
-            validation.answer && 
-            validation.answer.trim() !== '') {
+        if (validation.is_valid &&
+          validation.confidence >= 0.8 &&
+          validation.progress_percentage >= 80 &&
+          validation.answer &&
+          validation.answer.trim() !== '') {
           finalResult = {
             success: true,
             response: `✅ ${validation.answer}`,
@@ -785,13 +822,13 @@ class MultiAgentExecutor {
       }
 
       // Clear element highlighting on task completion
-      this.clearElementHighlighting().catch(err => 
+      this.clearElementHighlighting().catch(err =>
         console.warn('Failed to clear highlighting on completion:', err)
       );
 
       // Broadcast final result
-      finalResult.isMarkdown = true; 
-      
+      finalResult.isMarkdown = true;
+
       connectionManager.broadcast({
         type: 'task_complete',
         result: finalResult
@@ -801,15 +838,15 @@ class MultiAgentExecutor {
 
     } catch (error) {
       console.error('❌ Universal multi-agent execution error:', error);
-      
+
       // Clear element highlighting on error
-      this.clearElementHighlighting().catch(err => 
+      this.clearElementHighlighting().catch(err =>
         console.warn('Failed to clear highlighting on error:', err)
       );
-      
+
       // Use enhanced error formatting for better user experience
       const userFriendlyError = this.formatErrorForUser(error);
-      
+
       const errorResult = {
         success: false,
         response: userFriendlyError,
@@ -839,9 +876,9 @@ class MultiAgentExecutor {
       criticalFailure: false
     };
     // let ineffectiveCount = 0;
-    
+
     console.log(`🚀 Executing ${this.actionQueue.length} actions in batch`);
-    
+
     for (let i = 0; i < this.actionQueue.length; i++) {
       // Immediate Cancellation During Batch Execution
       if (this.cancelled) {
@@ -849,19 +886,19 @@ class MultiAgentExecutor {
         results.criticalFailure = true;
         break;
       }
-      
+
       const action = this.actionQueue[i];
-      
+
       console.log(`🎯 Executing action ${i + 1}/${this.actionQueue.length}: ${action.name}`);
-      
+
       try {
         const beforeState = this.lastPageState || await this.getCurrentState();
         const urlBefore = beforeState?.pageInfo?.url || 'unknown';
         const targetKey = action.parameters?.selector ?? (Number.isFinite(action.parameters?.index) ? `idx:${action.parameters.index}` : 'none');
         const actKey = `${urlBefore}::${action.name}::${targetKey}`;
-        
+
         const actionResult = await this.executeAction(action, connectionManager);
-        
+
         if (!actionResult) {
           results.executedActions.push({
             action: action.name,
@@ -871,18 +908,18 @@ class MultiAgentExecutor {
           });
           continue;
         }
-        
+
         results.executedActions.push({
           action: action.name,
           success: actionResult.success,
           intent: action.parameters?.intent || action.name,
           result: actionResult
         });
-        
+
         if (actionResult.success) {
           results.anySuccess = true;
         }
-        
+
         // Add to memory and history with enhanced context
         this.memoryManager.addMessage({
           role: 'step_executor',
@@ -891,7 +928,7 @@ class MultiAgentExecutor {
           step: this.currentStep,
           timestamp: new Date().toISOString()
         });
-        
+
         this.executionHistory.push({
           step: this.currentStep,
           plan: `Batch action: ${action.name}`,
@@ -902,18 +939,18 @@ class MultiAgentExecutor {
           intent: action.parameters?.intent || 'No intent specified',
           parameters: action.parameters
         });
-        
+
         // Check for page state change after each action
         let currentState = await this.getCurrentState();
-        
+
         // If page has 0 elements after navigation/click, wait for it to load
-        if ((action.name === 'navigate' || action.name === 'click') && 
-            (currentState.interactiveElements?.length || 0) === 0) {
+        if ((action.name === 'navigate' || action.name === 'click') &&
+          (currentState.interactiveElements?.length || 0) === 0) {
           console.log(`🔄 Page loading after ${action.name} - waiting for page to fully load...`);
           await this.delay(3000);
           currentState = await this.getCurrentState();
           console.log(`📊 After wait - Found ${currentState.interactiveElements?.length || 0} elements`);
-          
+
           // Try up to 5 more attempts if no elements found
           let attempts = 0;
           while ((currentState.interactiveElements?.length || 0) === 0 && attempts < 5) {
@@ -927,23 +964,23 @@ class MultiAgentExecutor {
             }
           }
         }
-        
+
         const urlChanged = currentState.pageInfo?.url !== this.lastPageState?.pageInfo?.url;
-        const elementCountChanged = Math.abs((currentState.interactiveElements?.length || 0) - 
-                                           (this.lastPageState?.interactiveElements?.length || 0)) > 5;
+        const elementCountChanged = Math.abs((currentState.interactiveElements?.length || 0) -
+          (this.lastPageState?.interactiveElements?.length || 0)) > 5;
         const titleChanged = currentState.pageInfo?.title !== this.lastPageState?.pageInfo?.title;
-        
+
         // NEW: Detect modal/dropdown openings by checking for new element types
-        const hasNewModals = (currentState.interactiveElements || []).some(el => 
-          el.attributes?.class?.includes('modal') || 
+        const hasNewModals = (currentState.interactiveElements || []).some(el =>
+          el.attributes?.class?.includes('modal') ||
           el.attributes?.class?.includes('dropdown') ||
           el.attributes?.class?.includes('menu') ||
           el.attributes?.role === 'dialog' ||
           el.attributes?.role === 'menu'
         );
 
-        const previousModals = (this.lastPageState?.interactiveElements || []).some(el => 
-          el.attributes?.class?.includes('modal') || 
+        const previousModals = (this.lastPageState?.interactiveElements || []).some(el =>
+          el.attributes?.class?.includes('modal') ||
           el.attributes?.class?.includes('dropdown') ||
           el.attributes?.class?.includes('menu') ||
           el.attributes?.role === 'dialog' ||
@@ -953,7 +990,7 @@ class MultiAgentExecutor {
         const modalStateChanged = hasNewModals !== previousModals;
 
         const pageChanged = urlChanged || elementCountChanged || titleChanged || modalStateChanged;
-        
+
         if (pageChanged) {
           console.log('🔄 Page state changed - triggering replanning');
           // Don't break immediately for go_back actions to allow remaining actions to complete
@@ -964,33 +1001,33 @@ class MultiAgentExecutor {
             break;
           }
         }
-        
+
         // If batch only contains navigation/wait, force replan after execution
         if (this.actionQueue.every(a => ['navigate', 'wait'].includes(a.name))) {
           console.log('🔄 Only navigation/wait actions in batch - forcing replan');
           this.actionQueue = [];
           break;
         }
-        
+
         // Mark executed action key (for loop prevention)
         this.recentActionKeys.add(actKey);
         if (this.recentActionKeys.size > this.recentActionKeysMax) {
           this.recentActionKeys = new Set(Array.from(this.recentActionKeys).slice(-this.recentActionKeysMax));
         }
-        
+
         // Small delay between actions
         await this.delay(500);
-        
+
       } catch (error) {
         console.error(`❌ Action execution error:`, error);
-        
+
         results.executedActions.push({
           action: action.name,
           success: false,
           intent: action.parameters?.intent || action.name,
           error: error.message
         });
-        
+
         // If multiple actions fail, mark as critical failure
         const failedActions = results.executedActions.filter(a => !a.success).length;
         if (failedActions >= 3) {
@@ -1000,7 +1037,7 @@ class MultiAgentExecutor {
         }
       }
     }
-    
+
     return results;
   }
 
@@ -1008,7 +1045,7 @@ class MultiAgentExecutor {
   async clearElementHighlighting() {
     try {
       console.log('🧹 Clearing element highlighting from page');
-      
+
       const tab = await this.browserContext.getCurrentActiveTab();
       if (tab && tab.id) {
         await domService.removeHighlights(tab.id);
@@ -1039,9 +1076,9 @@ class MultiAgentExecutor {
 
       if (result.success) {
         console.log('🔍 Raw DOM Service result:', result);
-        
+
         let pageState = null;
-        
+
         if (result.pageState && result.pageState.url) {
           pageState = result.pageState;
           console.log('🔍 Using direct pageState format');
@@ -1055,85 +1092,85 @@ class MultiAgentExecutor {
           this.lastPageState = defaultState;
           return defaultState;
         }
-            
-            // Check if we're on a chrome-native page and early exit
-            const isChromeNative = this.isChromeNativePage(pageState.url);
-            if (isChromeNative) {
-              console.log('⚠️ Chrome-native page detected - early exit to save API calls');
-              const chromeState = {
-                pageInfo: {
-                  url: pageState.url || 'unknown',
-                  title: 'Chrome Native Page',
-                  domain: 'chrome'
-                },
-                pageContext: {
-                  platform: 'chrome-native',
-                  pageType: 'chrome-native',
-                  hasLoginForm: false,
-                  hasUserMenu: false,
-                  isLoggedIn: false,
-                  capabilities: {},
-                  isChromeNative: true,
-                  needsNavigation: true
-                },
-                interactiveElements: [],
-                elementCategories: {},
-                viewportInfo: {
-                  width: pageState.viewport?.width || 0,
-                  height: pageState.viewport?.height || 0,
-                  isMobileWidth: pageState.viewport?.isMobileWidth || false,
-                  isTabletWidth: pageState.viewport?.isTabletWidth || false,
-                  isPortrait: pageState.viewport?.isPortrait || true,
-                  deviceType: pageState.viewport?.deviceType || 'mobile',
-                  aspectRatio: pageState.viewport?.aspectRatio || 0.75
-                },
-                loginStatus: { isLoggedIn: false },
-                extractedContent: 'chrome-native page – navigation required'
-              };
-              this.lastPageState = chromeState;
-              resolve(chromeState);
-              return;
-            }
-            
-            // Process elements and create enhanced state
-            const processedElements = this.processElementsDirectly(pageState.elements || []);
-            
-            const processedState = {
-              pageInfo: {
-                url: pageState.url || 'unknown',
-                title: pageState.title || 'unknown',
-                domain: this.extractDomain(pageState.url),
-                platform: this.detectPlatform(pageState.url)
-              },
-              pageContext: {
-                platform: this.detectPlatform(pageState.url),
-                pageType: this.determinePageType(pageState.url),
-                hasLoginForm: pageState.pageContext?.hasLoginForm || false,
-                hasUserMenu: pageState.pageContext?.hasUserMenu || false,
-                isLoggedIn: pageState.pageContext?.isLoggedIn || false,
-                capabilities: pageState.capabilities || {},
-                isChromeNative: false
-              },
-              viewportInfo: {
-                width: pageState.viewport?.width || 0,
-                height: pageState.viewport?.height || 0,
-                isMobileWidth: pageState.viewport?.isMobileWidth || false,
-                isTabletWidth: pageState.viewport?.isTabletWidth || false,
-                isPortrait: pageState.viewport?.isPortrait || true,
-                deviceType: pageState.viewport?.deviceType || 'mobile',
-                aspectRatio: pageState.viewport?.aspectRatio || 0.75
-              },
-              interactiveElements: processedElements,
-              elementCategories: pageState.elementCategories || {},
-              loginStatus: { isLoggedIn: pageState.pageContext?.isLoggedIn || false },
-              extractedContent: pageState.extractedContent || '',
-            };
 
-            console.log(`📊 Enhanced Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
-            // console.log(`📱 Viewport: ${processedState.viewportInfo.deviceType} ${processedState.viewportInfo.width}x${processedState.viewportInfo.height}`);
-            // console.log(`🏷️ Categories:`, processedState.elementCategories);
-            // console.log(`⚡ Capabilities:`, processedState.pageContext.capabilities);
-            
+        // Check if we're on a chrome-native page and early exit
+        const isChromeNative = this.isChromeNativePage(pageState.url);
+        if (isChromeNative) {
+          console.log('⚠️ Chrome-native page detected - early exit to save API calls');
+          const chromeState = {
+            pageInfo: {
+              url: pageState.url || 'unknown',
+              title: 'Chrome Native Page',
+              domain: 'chrome'
+            },
+            pageContext: {
+              platform: 'chrome-native',
+              pageType: 'chrome-native',
+              hasLoginForm: false,
+              hasUserMenu: false,
+              isLoggedIn: false,
+              capabilities: {},
+              isChromeNative: true,
+              needsNavigation: true
+            },
+            interactiveElements: [],
+            elementCategories: {},
+            viewportInfo: {
+              width: pageState.viewport?.width || 0,
+              height: pageState.viewport?.height || 0,
+              isMobileWidth: pageState.viewport?.isMobileWidth || false,
+              isTabletWidth: pageState.viewport?.isTabletWidth || false,
+              isPortrait: pageState.viewport?.isPortrait || true,
+              deviceType: pageState.viewport?.deviceType || 'mobile',
+              aspectRatio: pageState.viewport?.aspectRatio || 0.75
+            },
+            loginStatus: { isLoggedIn: false },
+            extractedContent: 'chrome-native page – navigation required'
+          };
+          this.lastPageState = chromeState;
+          resolve(chromeState);
+          return;
+        }
+
+        // Process elements and create enhanced state
+        const processedElements = this.processElementsDirectly(pageState.elements || []);
+
+        const processedState = {
+          pageInfo: {
+            url: pageState.url || 'unknown',
+            title: pageState.title || 'unknown',
+            domain: this.extractDomain(pageState.url),
+            platform: this.detectPlatform(pageState.url)
+          },
+          pageContext: {
+            platform: this.detectPlatform(pageState.url),
+            pageType: this.determinePageType(pageState.url),
+            hasLoginForm: pageState.pageContext?.hasLoginForm || false,
+            hasUserMenu: pageState.pageContext?.hasUserMenu || false,
+            isLoggedIn: pageState.pageContext?.isLoggedIn || false,
+            capabilities: pageState.capabilities || {},
+            isChromeNative: false
+          },
+          viewportInfo: {
+            width: pageState.viewport?.width || 0,
+            height: pageState.viewport?.height || 0,
+            isMobileWidth: pageState.viewport?.isMobileWidth || false,
+            isTabletWidth: pageState.viewport?.isTabletWidth || false,
+            isPortrait: pageState.viewport?.isPortrait || true,
+            deviceType: pageState.viewport?.deviceType || 'mobile',
+            aspectRatio: pageState.viewport?.aspectRatio || 0.75
+          },
+          interactiveElements: processedElements,
+          elementCategories: pageState.elementCategories || {},
+          loginStatus: { isLoggedIn: pageState.pageContext?.isLoggedIn || false },
+          extractedContent: pageState.extractedContent || '',
+        };
+
+        console.log(`📊 Enhanced Wootz State: Found ${processedState.interactiveElements.length} interactive elements`);
+        // console.log(`📱 Viewport: ${processedState.viewportInfo.deviceType} ${processedState.viewportInfo.width}x${processedState.viewportInfo.height}`);
+        // console.log(`🏷️ Categories:`, processedState.elementCategories);
+        // console.log(`⚡ Capabilities:`, processedState.pageContext.capabilities);
+
         // Store last page state for validation
         this.lastPageState = processedState;
         return processedState;
@@ -1159,9 +1196,9 @@ class MultiAgentExecutor {
       console.log('🔍 Type of elements:', typeof elements);
       return [];
     }
-    
+
     console.log(`🔍 Processing ${elements.length} elements directly from Wootz API`);
-    
+
     // Filter out HTML tag (0th index element) and process remaining elements
     const filteredElements = elements.filter((el, arrayIndex) => {
       // Skip the 0th index element if it's an HTML tag
@@ -1171,13 +1208,13 @@ class MultiAgentExecutor {
       }
       return true;
     });
-    
+
     console.log(`🔍 After filtering HTML tag: ${filteredElements.length} elements remaining`);
-    
+
     // Process filtered elements
     const processed = filteredElements.map((el, arrayIndex) => {
       // console.log(`🔍 Processing element ${arrayIndex}:`, el);
-      
+
       return {
         // Core identification (directly from API)
         index: el.index !== undefined ? el.index : arrayIndex,
@@ -1185,19 +1222,19 @@ class MultiAgentExecutor {
         tagName: el.tagName || 'UNKNOWN',
         xpath: el.xpath || '',
         selector: el.selector || '',
-        
+
         // Enhanced categorization (directly from API)
         category: el.category || 'unknown',
         purpose: el.purpose || 'general',
-        
+
         // Content (directly from API)
         textContent: el.textContent || '',
         text: el.text || '', // Keep both for compatibility
-        
+
         // Interaction properties (directly from API)
         isVisible: el.isVisible !== false,
         isInteractive: el.isInteractive !== false,
-        
+
         // Enhanced attributes (directly from API)
         attributes: {
           id: el.attributes?.id || '',
@@ -1207,7 +1244,7 @@ class MultiAgentExecutor {
           'data-testid': el.attributes?.['data-testid'] || '',
           ...el.attributes // Include any other attributes
         },
-        
+
         // Position and size (directly from API)
         bounds: {
           x: el.bounds?.x || 0,
@@ -1215,18 +1252,18 @@ class MultiAgentExecutor {
           width: el.bounds?.width || 0,
           height: el.bounds?.height || 0
         },
-        
+
         // Legacy compatibility fields for older code
         ariaLabel: el.attributes?.['aria-label'] || '',
         elementType: this.mapCategoryToElementType(el.category, el.tagName),
         isLoginElement: el.purpose === 'authentication' || el.category === 'form',
         isPostElement: el.purpose === 'post' || el.purpose === 'compose',
-        
+
         // Store original for debugging
         originalElement: el
       };
     });
-    
+
     console.log(`📊 Processed ${processed.length} elements successfully`);
     if (processed.length > 0) {
       console.log(`📊 Sample processed element:`, processed[0]);
@@ -1237,7 +1274,7 @@ class MultiAgentExecutor {
   // Map API categories to legacy element types for compatibility
   mapCategoryToElementType(category, tagName) {
     const tag = (tagName || '').toLowerCase();
-    
+
     switch (category) {
       case 'form':
         if (tag === 'input') return 'input';
@@ -1266,29 +1303,29 @@ class MultiAgentExecutor {
       return 'unknown';
     }
   }
-  
+
   // Check if page is chrome-native and needs navigation
   isChromeNativePage(url) {
     if (!url || typeof url !== 'string') return false;
-    return url.startsWith('chrome-native://') || 
-           url.startsWith('chrome://') || 
-           url.startsWith('chrome-extension://') ||
-           url === 'about:blank';
+    return url.startsWith('chrome-native://') ||
+      url.startsWith('chrome://') ||
+      url.startsWith('chrome-extension://') ||
+      url === 'about:blank';
   }
 
   getDefaultState() {
     return {
-      pageInfo: { 
-        url: 'unknown', 
+      pageInfo: {
+        url: 'unknown',
         title: 'Unknown Page',
         domain: 'unknown'
       },
-      pageContext: { 
-        platform: 'unknown', 
-        pageType: 'unknown' 
+      pageContext: {
+        platform: 'unknown',
+        pageType: 'unknown'
       },
-      loginStatus: { 
-        isLoggedIn: false 
+      loginStatus: {
+        isLoggedIn: false
       },
       interactiveElements: [],
       viewportInfo: {},
@@ -1303,7 +1340,7 @@ class MultiAgentExecutor {
   async executeAction(action, connectionManager) {
     try {
       console.log(`🎯 Executing: ${action.name}`, action.parameters);
-      
+
       // Add enhanced element validation before action execution
       if (action.parameters?.index !== undefined) {
         const currentState = this.lastPageState || await this.getCurrentState();
@@ -1325,17 +1362,17 @@ class MultiAgentExecutor {
           }
         }
       }
-      
+
       // Pass connectionManager to ActionRegistry for better communication
       const result = await this.actionRegistry.executeAction(action.name, action.parameters, connectionManager);
-      
+
       // // Track failed elements for future avoidance
       // if (!result.success && action.parameters?.index) {
       //   this.failedElements.add(action.parameters.index);
       //   console.log(`📝 Added index ${action.parameters.index} to failed elements set`);
       //   console.log(`⚠️ Action failed: ${action.name} on index ${action.parameters.index} - ${result.error}`);
       // }
-      
+
       return {
         action: action.name,
         input: action.parameters,
@@ -1357,7 +1394,7 @@ class MultiAgentExecutor {
     console.log('🛑 Cancelling universal multi-agent execution');
     this.cancelled = true;
     // Clear element highlighting when task is cancelled
-    this.clearElementHighlighting().catch(err => 
+    this.clearElementHighlighting().catch(err =>
       console.warn('Failed to clear highlighting on cancel:', err)
     );
   }
@@ -1427,10 +1464,10 @@ class MultiAgentExecutor {
       return 'No recent actions available';
     }
     return recentMessages.map(msg => {
-      const step   = msg.step !== undefined ? `Step ${msg.step}` : 'Recent';
-      const role   = msg.role || 'unknown';
+      const step = msg.step !== undefined ? `Step ${msg.step}` : 'Recent';
+      const role = msg.role || 'unknown';
       const action = msg.action || 'action';
-      const text   = (msg.content || '').toString().substring(0, 100);
+      const text = (msg.content || '').toString().substring(0, 100);
       return `${step} (${role}): ${action} – ${text}`;
     }).join('\n');
   }
@@ -1438,7 +1475,7 @@ class MultiAgentExecutor {
   // Enhanced context building with all calculated variables
   buildEnhancedContextWithHistory() {
     const ctx = this.memoryManager.compressForPrompt(1200);
-    
+
     return {
       ...ctx,
       procHistory: this.safeCall('formatProceduralSummaries', ctx.proceduralSummaries),
@@ -1465,8 +1502,8 @@ class MultiAgentExecutor {
   // Helper methods for enhanced context
   formatProceduralSummaries(summaries) {
     if (!summaries || summaries.length === 0) return "No procedural history available.";
-    
-    return summaries.map(summary => 
+
+    return summaries.map(summary =>
       `Steps ${summary.steps}: ${summary.actions}\nFindings: ${summary.findings}`
     ).join('\n\n');
   }
@@ -1474,35 +1511,35 @@ class MultiAgentExecutor {
   analyzeProgressPatterns(context, executionHistory) {
     const recentActions = executionHistory.slice(-5);
     const successRate = recentActions.filter(a => a.success).length / Math.max(recentActions.length, 1);
-    
+
     let analysis = `Recent success rate: ${(successRate * 100).toFixed(0)}%\n`;
-    
+
     if (successRate < 0.3) {
       analysis += "⚠️ Low success rate - consider different approach\n";
     } else if (successRate > 0.8) {
       analysis += "✅ High success rate - continue current strategy\n";
     }
-    
+
     // Detect patterns
     const actionTypes = recentActions.map(a => a.action);
     const uniqueTypes = new Set(actionTypes);
-    
+
     if (uniqueTypes.size === 1 && actionTypes.length >= 3) {
       analysis += " Repetitive pattern detected - diversify actions\n";
     }
-    
+
     return analysis;
   }
 
   getLoopPreventionGuidance() {
     const recentFailures = this.executionHistory.slice(-5).filter(h => !h.success);
-    
+
     if (recentFailures.length >= 3) {
       return " CRITICAL: Multiple recent failures - avoid repeating same actions/approaches";
     } else if (recentFailures.length >= 2) {
       return "⚠️ Recent failures detected - try alternative targeting methods";
     }
-    
+
     return "✅ No failure patterns - proceed normally";
   }
 
@@ -1516,7 +1553,7 @@ class MultiAgentExecutor {
   detectFailurePatterns() {
     const recentActions = this.executionHistory.slice(-5);
     const patterns = [];
-    
+
     // Check for repeated action failures
     const actionFailures = {};
     recentActions.forEach(h => {
@@ -1524,13 +1561,13 @@ class MultiAgentExecutor {
         actionFailures[h.action] = (actionFailures[h.action] || 0) + 1;
       }
     });
-    
+
     Object.entries(actionFailures).forEach(([action, count]) => {
       if (count >= 2) {
         patterns.push(`${action} failed ${count} times`);
       }
     });
-    
+
     return patterns.length > 0 ? patterns.join(', ') : 'No failure patterns detected';
   }
 
@@ -1539,23 +1576,23 @@ class MultiAgentExecutor {
     const recentFailures = this.executionHistory
       .slice(-5)
       .filter(h => !h.success && h.action === action.name);
-      
+
     // Skip if same action failed 3+ times recently
     if (recentFailures.length >= 3) {
       console.log(`🔄 LOOP PREVENTION: ${action.name} failed ${recentFailures.length} times recently`);
       return true;
     }
-    
+
     // Skip if exact same intent failed recently
     const sameIntentFailures = this.executionHistory
       .slice(-3)
       .filter(h => !h.success && h.intent === action.parameters?.intent);
-      
+
     if (sameIntentFailures.length >= 2) {
       console.log(`🔄 LOOP PREVENTION: Same intent "${action.parameters?.intent}" failed recently`);
       return true;
     }
-    
+
     return false;
   }
 
@@ -1608,7 +1645,7 @@ class MultiAgentExecutor {
     }
 
     const actionContent = (lastAction.content || '').toLowerCase();
-    
+
     if (actionContent.includes('type') || actionContent.includes('input') || actionContent.includes('fill')) {
       return `🎯 NEXT: After typing, you must click submit/search/enter button
 - Look for buttons with text like "Search", "Submit", "Go", "Enter"
@@ -1651,7 +1688,7 @@ class MultiAgentExecutor {
   analyzeActionHistory(context, executionHistory) {
     const analysis = [];
     const recentMessages = context.recentMessages || [];
-    
+
     if (recentMessages.length === 0) {
       return 'No action history available';
     }
@@ -1660,7 +1697,7 @@ class MultiAgentExecutor {
     const failedActions = recentMessages.filter(msg =>
       msg.content?.includes('failed') || msg.content?.includes('error')
     );
-    
+
     if (failedActions.length > 0) {
       analysis.push(`⚠️ ${failedActions.length} recent failures detected - avoid repeating same approach`);
     }
@@ -1669,7 +1706,7 @@ class MultiAgentExecutor {
     const successfulActions = recentMessages.filter(msg =>
       msg.content?.includes('success') || msg.content?.includes('completed')
     );
-    
+
     if (successfulActions.length > 0) {
       analysis.push(`✅ ${successfulActions.length} successful actions - build on this progress`);
     }
@@ -1689,7 +1726,7 @@ class MultiAgentExecutor {
     // Check execution history patterns
     const recentExecutionActions = executionHistory.slice(-5);
     const executionSuccessRate = recentExecutionActions.filter(h => h.success).length / Math.max(recentExecutionActions.length, 1);
-    
+
     if (executionSuccessRate > 0.8) {
       analysis.push('📈 EXECUTION: High success rate in recent actions');
     } else if (executionSuccessRate < 0.4) {
@@ -1709,12 +1746,12 @@ class BackgroundScriptAgent {
     this.multiAgentExecutor = null;
     this.taskRouter = null;
     this.currentConfig = null; // Track current config
-    
+
     // Screenshot handling
     this.screenshotPromise = null;
     this.screenshotResolve = null;
     this.screenshotReject = null;
-    
+
     this.setupMessageHandlers();
     this.setupConfigWatcher(); // Add config watcher
     this.setupScreenshotListener(); // Add screenshot listener
@@ -1743,13 +1780,13 @@ class BackgroundScriptAgent {
   async captureScreenshot() {
     try {
       console.log('📸 Capturing screenshot using chrome.tabs.captureVisibleTab()...');
-      
+
       // If there's already a screenshot in progress, wait for it
       if (this.screenshotPromise) {
         console.log('📸 Screenshot already in progress, waiting...');
         return await this.screenshotPromise;
       }
-      
+
       // Get current active tab using standard Chrome API
       const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
@@ -1757,12 +1794,12 @@ class BackgroundScriptAgent {
         console.log('❌ No active tab for screenshot');
         return null;
       }
-      
+
       // Create new promise for this screenshot
       this.screenshotPromise = (async () => {
         try {
           const result = await domService.captureScreenshot(tab.id);
-          
+
           if (result && result.success && result.dataUrl) {
             console.log(`✅ Screenshot captured: ~${Math.round(result.dataUrl.length * 0.75 / 1024)}KB`);
             return result.dataUrl;
@@ -1777,9 +1814,9 @@ class BackgroundScriptAgent {
           this.screenshotPromise = null;
         }
       })();
-      
+
       return await this.screenshotPromise;
-      
+
     } catch (error) {
       console.error('❌ Screenshot capture error:', error);
       this.screenshotPromise = null;
@@ -1793,19 +1830,19 @@ class BackgroundScriptAgent {
       if (!newConfig) {
         newConfig = await this.getConfig();
       }
-      
+
       // Only reinitialize if config actually changed
       if (JSON.stringify(this.currentConfig) !== JSON.stringify(newConfig)) {
         console.log('🔄 Reinitializing LLM services with new config');
         console.log('📝 New provider:', newConfig.aiProvider);
-        
+
         this.currentConfig = newConfig;
         this.llmService = new MultiLLMService(newConfig);
         // Pass the background script's screenshot method to the LLM service
         this.llmService.captureScreenshot = this.captureScreenshot.bind(this);
         this.multiAgentExecutor = new MultiAgentExecutor(this.llmService);
         this.taskRouter = new AITaskRouter(this.llmService);
-        
+
         // Broadcast config update to all connected clients
         const hasValidKey = await this.hasValidApiKey(newConfig);
         this.connectionManager.broadcast({
@@ -1813,7 +1850,7 @@ class BackgroundScriptAgent {
           provider: newConfig.aiProvider,
           hasValidKey: hasValidKey
         });
-        
+
         console.log('✅ Services reinitialized successfully');
       }
     } catch (error) {
@@ -1823,44 +1860,29 @@ class BackgroundScriptAgent {
 
   // Check if current provider has valid API key
   async hasValidApiKey(config) {
-    // Check if user prefers personal API
-    const userPreference = await this.getUserAPIPreference();
-    
-    // If user prefers personal API, check for personal API keys
-    if (userPreference) {
-      switch (config.aiProvider) {
-        case 'anthropic':
-          return !!config.anthropicApiKey;
-        case 'openai':
-          return !!config.openaiApiKey;
-        case 'gemini':
-          return !!config.geminiApiKey;
-        default:
-          return false;
-      }
+    switch (config.aiProvider) {
+      case 'anthropic':
+        return !!config.anthropicApiKey;
+      case 'openai':
+        return !!config.openaiApiKey;
+      case 'gemini':
+        return !!config.geminiApiKey;
+      default:
+        // By default, fallback to gemini key if provider is unknown or unset
+        return !!config.geminiApiKey;
     }
-    
-    // If user prefers DeepHUD API or no personal API keys, always return true
-    // (DeepHUD API doesn't require API keys, it uses session authentication)
-    return true;
   }
 
-  async getUserAPIPreference() {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(['userPreferPersonalAPI'], (result) => {
-        resolve(result.userPreferPersonalAPI || false);
-      });
-    });
-  }
+
 
   setupMessageHandlers() {
     chrome.runtime.onConnect.addListener((port) => {
       if (port.name === 'popup-connection') {
         const connectionId = Date.now().toString();
         console.log('Background script connected:', connectionId);
-        
+
         this.connectionManager.addConnection(connectionId, port);
-        
+
         port.onMessage.addListener(async (message) => {
           try {
             await this.handlePortMessage(message, port, connectionId);
@@ -1952,7 +1974,7 @@ class BackgroundScriptAgent {
     } catch (error) {
       console.log('Could not hide approval popup:', error.message);
     }
-  }  
+  }
 
   async handlePortMessage(message, port, connectionId) {
     const { type } = message;
@@ -1961,15 +1983,15 @@ class BackgroundScriptAgent {
     switch (type) {
       case 'new_task':
         const taskId = Date.now().toString();
-        this.activeTasks.set(taskId, { 
-          task: message.task, 
+        this.activeTasks.set(taskId, {
+          task: message.task,
           connectionId: connectionId,
           startTime: Date.now(),
           sessionId: this.connectionManager.getCurrentSession()
         });
-        
+
         this.connectionManager.setActiveTask(taskId);
-        
+
         // Store execution state in chrome.storage.local
         await chrome.storage.local.set({
           isExecuting: true,
@@ -1978,10 +2000,10 @@ class BackgroundScriptAgent {
           taskStartTime: Date.now(),
           sessionId: this.connectionManager.getCurrentSession()
         });
-        
+
         // Notify content scripts to show popup
         await this.notifyContentScripts('__agent_show_popup');
-        
+
         await this.executeTaskWithBackgroundManager(message.task, taskId);
         break;
 
@@ -1992,7 +2014,7 @@ class BackgroundScriptAgent {
           const cancelled = this.backgroundTaskManager.cancelTask(activeTaskId);
           this.activeTasks.delete(activeTaskId);
           this.connectionManager.setActiveTask(null);
-          
+
           // Clear execution state from storage
           await chrome.storage.local.set({
             isExecuting: false,
@@ -2002,22 +2024,22 @@ class BackgroundScriptAgent {
             sessionId: null,
             taskStatus: null
           });
-          
+
           // Notify content scripts to hide popup
           await this.notifyContentScripts('__agent_hide_popup');
           await this.hideSigninPopup();
           await this.hideApprovalPopup();
-          
+
           // Get progress information for cancellation message
           let progressInfo = '';
           if (this.multiAgentExecutor) {
             const currentStep = this.multiAgentExecutor.currentStep || 0;
             const executionHistory = this.multiAgentExecutor.executionHistory || [];
-            
+
             if (currentStep > 0) {
               const successfulSteps = executionHistory.filter(h => h.success).length;
               const failedSteps = executionHistory.filter(h => !h.success).length;
-              
+
               progressInfo = `Completed ${currentStep} steps`;
               if (successfulSteps > 0) {
                 progressInfo += ` (${successfulSteps} successful`;
@@ -2026,7 +2048,7 @@ class BackgroundScriptAgent {
                 }
                 progressInfo += ')';
               }
-              
+
               // Add more context about what was accomplished
               if (successfulSteps > 0) {
                 const lastSuccessfulAction = executionHistory.findLast(h => h.success);
@@ -2036,14 +2058,14 @@ class BackgroundScriptAgent {
               }
             }
           }
-          
+
           this.connectionManager.broadcast({
             type: 'task_cancelled',
             message: 'Task cancelled by user',
             cancelled: cancelled,
             progress: progressInfo || 'No progress made'
           });
-          
+
           console.log(`✅ Task ${activeTaskId} cancelled: ${cancelled}`);
         } else {
           console.log('⚠️ No active task to cancel');
@@ -2059,24 +2081,24 @@ class BackgroundScriptAgent {
             type: 'task_resumed',
             message: 'Task execution resumed'
           });
-          
+
           // Update execution state
           await chrome.storage.local.set({
             isExecuting: true,
             isTyping: true
           });
-          
+
           // Hide any pause popups and show main popup again
           await this.hideSigninPopup();
           await this.hideApprovalPopup();
           await this.notifyContentScripts('__agent_show_popup');
-          
+
           // Resume the task by calling the executor's resume method
           if (this.backgroundTaskManager && this.backgroundTaskManager.resumeTask) {
             const resumed = this.backgroundTaskManager.resumeTask(pausedTaskId);
             if (resumed) {
               console.log(`✅ Task ${pausedTaskId} resumed successfully`);
-              
+
               // Get the task and restart execution with the paused state
               const task = this.backgroundTaskManager.runningTasks.get(pausedTaskId);
               if (task && task.executor) {
@@ -2084,26 +2106,26 @@ class BackgroundScriptAgent {
                 const hasPausedState = task.executor.pausedPlan && task.executor.pausedTask && task.executor.pausedState;
                 if (hasPausedState) {
                   console.log('🔄 Restarting execution with paused state...');
-                  
+
                   // Restart the execution loop with the paused plan and state
                   setTimeout(async () => {
                     try {
                       // Store paused state before clearing
                       const pausedPlan = task.executor.pausedPlan;
                       const pausedState = task.executor.pausedState;
-                      
+
                       console.log('🔄 Resuming with paused plan:', {
                         hasBatchActions: pausedPlan?.batch_actions?.length > 0,
                         batchActions: pausedPlan?.batch_actions,
                         pauseReason: pausedPlan?.pause_reason,
                         pauseDescription: pausedPlan?.pause_description
                       });
-                      
+
                       // Clear paused state to prevent re-pausing on same condition
                       task.executor.pausedPlan = null;
                       task.executor.pausedTask = null;
                       task.executor.pausedState = null;
-                      
+
                       // Restore the execution state for resumption
                       if (pausedPlan) {
                         task.executor.currentBatchPlan = pausedPlan;
@@ -2111,33 +2133,33 @@ class BackgroundScriptAgent {
                       if (pausedState) {
                         task.executor.lastPageState = pausedState;
                       }
-                      
+
                       // Actually resume execution by calling execute method
                       console.log('🔄 Calling execute method to resume task...');
                       const result = await task.executor.execute(
-                        task.executor.currentUserTask, 
-                        this.connectionManager, 
-                        pausedPlan, 
+                        task.executor.currentUserTask,
+                        this.connectionManager,
+                        pausedPlan,
                         true // isResume = true
                       );
-                      
+
                       // Only clean up if task is actually completed (not paused again)
                       if (result && result.success !== false && result.reason !== 'paused') {
                         // Clean up after execution completes
                         this.activeTasks.delete(pausedTaskId);
                         this.connectionManager.setActiveTask(null);
-                        
+
                         // Clear execution state from storage
                         await chrome.storage.local.set({
                           isExecuting: false,
                           activeTaskId: null,
                           taskStartTime: null
                         });
-                        
+
                         // Notify content scripts to hide popup
                         await this.notifyContentScripts('__agent_hide_popup');
                       }
-                      
+
                     } catch (error) {
                       console.error('❌ Error during resumed execution:', error);
                       this.connectionManager.broadcast({
@@ -2153,25 +2175,25 @@ class BackgroundScriptAgent {
                   setTimeout(async () => {
                     try {
                       const result = await task.executor.execute(
-                        task.executor.currentUserTask, 
-                        this.connectionManager, 
-                        null, 
+                        task.executor.currentUserTask,
+                        this.connectionManager,
+                        null,
                         true // isResume = true
                       );
-                      
+
                       // Only clean up if task is actually completed (not paused again)
                       if (result && result.success !== false && result.reason !== 'paused') {
                         // Clean up after execution completes
                         this.activeTasks.delete(pausedTaskId);
                         this.connectionManager.setActiveTask(null);
-                        
+
                         // Clear execution state from storage
                         await chrome.storage.local.set({
                           isExecuting: false,
                           activeTaskId: null,
                           taskStartTime: null
                         });
-                        
+
                         // Notify content scripts to hide popup
                         await this.notifyContentScripts('__agent_hide_popup');
                       }
@@ -2199,14 +2221,14 @@ class BackgroundScriptAgent {
 
       case 'new_chat':
         console.log('🆕 Received new_chat request');
-        
+
         // Cancel any running tasks
         const currentActiveTask = this.connectionManager.getActiveTask();
         if (currentActiveTask) {
           this.backgroundTaskManager.cancelTask(currentActiveTask);
           this.activeTasks.delete(currentActiveTask);
         }
-        
+
         // Only clear current chat state, not chat histories
         await chrome.storage.local.set({
           isExecuting: false,
@@ -2217,39 +2239,39 @@ class BackgroundScriptAgent {
           isTyping: false,
           chatHistory: [] // Only clear current chat
         });
-        
+
         // Notify content scripts to hide popup
         await this.notifyContentScripts('__agent_hide_popup');
         await this.hideSigninPopup();
         await this.hideApprovalPopup();
-        
+
         // Clear messages and start new session
         this.connectionManager.clearMessages();
-        
+
         // Reset connection manager state
         this.connectionManager.setActiveTask(null);
-        
+
         // Notify frontend that chat has been cleared
         this.connectionManager.safePortMessage(port, {
           type: 'chat_cleared',
           sessionId: this.connectionManager.getCurrentSession()
         });
-        
+
         console.log(`✅ New chat started with session: ${this.connectionManager.getCurrentSession()}`);
         break;
 
       case 'get_status':
         const status = await this.getAgentStatus();
-        
+
         // Also send execution state from storage
         const executionState = await chrome.storage.local.get([
-          'isExecuting', 
-          'activeTaskId', 
+          'isExecuting',
+          'activeTaskId',
           'sessionId',
           'isTyping',
           'taskStatus'
         ]);
-        
+
         this.connectionManager.safePortMessage(port, {
           type: 'status_response',
           status: status,
@@ -2272,11 +2294,11 @@ class BackgroundScriptAgent {
   async executeTaskWithBackgroundManager(task, taskId) {
     try {
       console.log('🚀 Executing universal task with single AI call:', task, 'ID:', taskId);
-      
+
       // Always get fresh config and reinitialize if needed
       const config = await this.getConfig();
       await this.reinitializeServices(config);
-      
+
       // Ensure services are initialized
       if (!this.llmService) {
         throw new Error('LLM service not properly initialized. Please check your API key configuration.');
@@ -2288,11 +2310,27 @@ class BackgroundScriptAgent {
       } catch (error) {
         console.error('Failed to clear element highlighting:', error);
       }
-      
+
       console.log('🧠 Making single intelligent routing call with detailed page state...');
+
+      // Reset token counter for the new task before any LLM calls
+      this.multiAgentExecutor.totalTokens = 0;
+      this.connectionManager.broadcast({
+        type: 'token_update',
+        tokens: 0
+      });
+
       const intelligentResult = await this.taskRouter.analyzeAndRoute(task, currentState);
-      
+
       console.log('🎯 Intelligent result:', intelligentResult);
+
+      if (intelligentResult && intelligentResult.usage) {
+        this.multiAgentExecutor.totalTokens += (intelligentResult.usage.total || 0);
+        this.connectionManager.broadcast({
+          type: 'token_update',
+          tokens: this.multiAgentExecutor.totalTokens
+        });
+      }
 
       if (intelligentResult.intent === 'CHAT') {
         const result = {
@@ -2302,29 +2340,29 @@ class BackgroundScriptAgent {
           confidence: intelligentResult.confidence,
           isMarkdown: intelligentResult.response.isMarkdown || true
         };
-        
+
         this.connectionManager.broadcast({
           type: 'task_complete',
           result: result,
           taskId: taskId
         });
-        
+
         this.activeTasks.delete(taskId);
         this.connectionManager.setActiveTask(null);
-        
+
         // Clear execution state from storage
         await chrome.storage.local.set({
           isExecuting: false,
           activeTaskId: null,
           taskStartTime: null
         });
-        
+
         return;
       }
-      
+
       if (intelligentResult.intent === 'WEB_AUTOMATION') {
         console.log('🤖 Starting web automation with intelligent plan...');
-        
+
         const initialPlan = {
           observation: intelligentResult.response.observation,
           strategy: intelligentResult.response.strategy,
@@ -2341,7 +2379,7 @@ class BackgroundScriptAgent {
           navigation_needed: intelligentResult.response.navigation_needed,
           analysis_result: intelligentResult.response.analysis_result || null
         };
-        
+
         console.log('🎯 Initial plan created:', {
           observation: initialPlan.observation,
           strategy: initialPlan.strategy,
@@ -2362,7 +2400,7 @@ class BackgroundScriptAgent {
         // Check if this is an analytical task that's already complete
         if (initialPlan.done && (initialPlan.next_action === 'complete' || !initialPlan.next_action)) {
           console.log('🔍 Analytical task completed at router level');
-          
+
           const finalResult = {
             success: true,
             response: initialPlan.analysis_result || initialPlan.observation,
@@ -2371,50 +2409,50 @@ class BackgroundScriptAgent {
             confidence: intelligentResult.confidence,
             isMarkdown: true
           };
-          
+
           this.connectionManager.broadcast({
             type: 'task_complete',
             result: finalResult,
             taskId: taskId
           });
-          
+
           this.activeTasks.delete(taskId);
           this.connectionManager.setActiveTask(null);
-          
+
           // Clear execution state from storage
           await chrome.storage.local.set({
             isExecuting: false,
             activeTaskId: null,
             taskStartTime: null
           });
-          
+
           // Notify content scripts to hide popup
           await this.notifyContentScripts('__agent_hide_popup');
-          
+
           return;
         }
 
         await this.backgroundTaskManager.startTask(
-          taskId, 
+          taskId,
           { task, initialPlan },
-          this.multiAgentExecutor, 
+          this.multiAgentExecutor,
           this.connectionManager
         );
         return;
       }
 
       throw new Error(`Unknown intent: ${intelligentResult.intent}`);
-      
+
     } catch (error) {
       console.error('Intelligent task execution error:', error);
-      
+
       // Clear element highlighting on error
       if (this.multiAgentExecutor && typeof this.multiAgentExecutor.clearElementHighlighting === 'function') {
-        this.multiAgentExecutor.clearElementHighlighting().catch(err => 
+        this.multiAgentExecutor.clearElementHighlighting().catch(err =>
           console.warn('Failed to clear highlighting on error:', err)
         );
       }
-      
+
       // Clear execution state from storage on error
       await chrome.storage.local.set({
         isExecuting: false,
@@ -2422,20 +2460,20 @@ class BackgroundScriptAgent {
         taskStartTime: null,
         sessionId: null
       });
-      
+
       // Notify content scripts to hide popup on error
       await this.notifyContentScripts('__agent_hide_popup');
-      
+
       // Show the ACTUAL error to the user, not a generic message
       let userFriendlyError = this.formatErrorForUser(error);
-      
+
       this.connectionManager.broadcast({
         type: 'task_error',
         error: userFriendlyError,
         taskId: taskId,
         originalError: error.message
       });
-      
+
       this.activeTasks.delete(taskId);
       this.connectionManager.setActiveTask(null);
     }
@@ -2445,7 +2483,7 @@ class BackgroundScriptAgent {
   formatErrorForUser(error) {
     const errorMessage = error.message || 'Unknown error';
     const timestamp = new Date().toLocaleTimeString();
-    
+
     // Handle empty responses from Gemini
     if (errorMessage.includes('Empty response') || errorMessage.includes('missing content parts')) {
       return `🤖 **AI Model Error** (${timestamp})
@@ -2481,7 +2519,7 @@ The AI model's response exceeded its length limit.
 • Try a different model with higher limits
 • Use simpler instructions`;
     }
-    
+
     // Handle JSON parsing errors specifically
     if (errorMessage.includes('JSON') || errorMessage.includes('parse') || errorMessage.includes('SyntaxError')) {
       return `🔧 **Response Parsing Error** (${timestamp})
@@ -2499,7 +2537,7 @@ The AI model's response couldn't be processed due to formatting issues.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     // Handle response truncation/incompleteness
     if (errorMessage.includes('incomplete') || errorMessage.includes('truncated') || errorMessage.includes('cut off')) {
       return `✂️ **Incomplete Response Error** (${timestamp})
@@ -2517,7 +2555,7 @@ The AI model provided an incomplete response, likely due to length limits.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     // Handle API-specific errors with more detail
     if (errorMessage.includes('429')) {
       return `⚠️ **Rate Limit Exceeded** (${timestamp})
@@ -2532,7 +2570,7 @@ The AI service is currently receiving too many requests. This is temporary.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     if (errorMessage.includes('500') || errorMessage.includes('502') || errorMessage.includes('503')) {
       return `🚫 **AI Service Temporarily Unavailable** (${timestamp})
 
@@ -2546,7 +2584,7 @@ The AI provider is experiencing technical difficulties.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     if (errorMessage.includes('401') || errorMessage.includes('authentication') || errorMessage.includes('API key')) {
       return `🔑 **Authentication Failed** (${timestamp})
 
@@ -2560,7 +2598,7 @@ Your API key is invalid or missing.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
       return `🚫 **Access Denied** (${timestamp})
 
@@ -2574,7 +2612,7 @@ Your API key doesn't have the required permissions.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     if (errorMessage.includes('400') || errorMessage.includes('invalid')) {
       return `❌ **Invalid Request** (${timestamp})
 
@@ -2588,7 +2626,7 @@ The request couldn't be processed due to formatting issues.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     if (errorMessage.includes('timeout') || errorMessage.includes('network')) {
       return `⏱️ **Network Timeout** (${timestamp})
 
@@ -2602,7 +2640,7 @@ The request took too long to process.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     // Handle model-specific errors (Gemini, GPT, Claude)
     if (errorMessage.includes('quota') || errorMessage.includes('usage') || errorMessage.includes('limit')) {
       return `📊 **Usage Limit Reached** (${timestamp})
@@ -2617,7 +2655,7 @@ You've reached your API usage limit for this period.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     if (errorMessage.includes('model') || errorMessage.includes('unsupported') || errorMessage.includes('deprecated')) {
       return `🤖 **Model Error** (${timestamp})
 
@@ -2631,7 +2669,7 @@ The selected AI model is not available or supported.
 
 **Technical Details:** ${errorMessage}`;
     }
-    
+
     // For any other error, show enhanced message with demo
     return `❌ **Unexpected Error** (${timestamp})
 
@@ -2664,90 +2702,7 @@ Something went wrong while processing your request.
           sendResponse(configResult);
           break;
 
-        case 'START_DEEPHUD_LOGIN':
-          // Handle authentication in background script context
-          try {
-            const authUrl = 'https://nextjs-app-410940835135.us-central1.run.app/ext/sign-in';
-            
-            // Create new tab for authentication
-            const tab = await chrome.tabs.create({ 
-              url: authUrl, 
-              active: true 
-            });
 
-            // Poll for authentication success
-            const checkAuth = async () => {
-              try {
-                // Validate session by attempting to fetch user data
-                const response = await fetch('https://nextjs-app-410940835135.us-central1.run.app/api/user/', {
-                  credentials: 'include'
-                });
-                
-                if (response.ok) {
-                  // Authentication successful, close tab
-                  try { 
-                    if (tab?.id) {
-                      await chrome.tabs.remove(tab.id);
-                    }
-                  } catch (closeError) {
-                    console.warn('Could not close auth tab:', closeError);
-                  }
-                  return { success: true };
-                }
-              } catch (error) {
-                console.warn('Error checking auth:', error);
-              }
-              return { success: false };
-            };
-
-            // Poll every 2 seconds
-            const pollInterval = setInterval(async () => {
-              const authResult = await checkAuth();
-              if (authResult.success) {
-                clearInterval(pollInterval);
-                
-                // Get user data and store it
-                try {
-                  const userResponse = await fetch('https://nextjs-app-410940835135.us-central1.run.app/api/user/', {
-                    credentials: 'include'
-                  });
-                  
-                  if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    
-                    // Store complete user data in chrome.storage.local
-                    await chrome.storage.local.set({
-                      userAuth: {
-                        user: userData.user,
-                        organizations: userData.organizations || [],
-                        timestamp: Date.now()
-                      },
-                      authData: {
-                        user: userData.user,
-                        timestamp: Date.now()
-                      }
-                    });
-                    
-                    sendResponse({ success: true, message: 'Authentication successful', user: userData.user });
-                  } else {
-                    sendResponse({ success: false, error: 'Failed to get user data' });
-                  }
-                } catch (error) {
-                  sendResponse({ success: false, error: 'Failed to get user data: ' + error.message });
-                }
-              }
-            }, 2000);
-
-            // Timeout after 5 minutes
-            setTimeout(() => {
-              clearInterval(pollInterval);
-              sendResponse({ success: false, error: 'Authentication timeout' });
-            }, 300000);
-
-          } catch (error) {
-            sendResponse({ success: false, error: error.message });
-          }
-          break;
 
         default:
           sendResponse({ success: false, error: 'Unknown action' });
@@ -2760,7 +2715,7 @@ Something went wrong while processing your request.
   async getAgentStatus() {
     const config = await this.getConfig();
     const hasValidKey = await this.hasValidApiKey(config);
-    
+
     return {
       isRunning: true,
       hasAgent: true,
@@ -2788,10 +2743,10 @@ Something went wrong while processing your request.
     try {
       // Save to sync storage
       await chrome.storage.sync.set({ agentConfig: config });
-      
+
       // Immediately reinitialize services
       await this.reinitializeServices(config);
-      
+
       return { success: true, message: 'Configuration updated and applied' };
     } catch (error) {
       return { success: false, error: error.message };
@@ -2813,7 +2768,7 @@ Something went wrong while processing your request.
     } catch (error) {
       return {
         url: 'unknown',
-        title: 'Unknown Page', 
+        title: 'Unknown Page',
         elementsCount: 0
       };
     }
@@ -2823,7 +2778,7 @@ Something went wrong while processing your request.
     if (!content || typeof content !== 'string') {
       return false;
     }
-    
+
     // Check for common markdown patterns
     const markdownPatterns = [
       /\*\*(.*?)\*\*/, // bold
@@ -2838,7 +2793,7 @@ Something went wrong while processing your request.
       /^\|.*\|$/, // tables
       /^>/, // blockquotes
     ];
-    
+
     return markdownPatterns.some(pattern => pattern.test(content));
   }
 }
@@ -2858,8 +2813,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-chrome.alarms.create('keep-alive', { 
-  periodInMinutes: 0.1 
+chrome.alarms.create('keep-alive', {
+  periodInMinutes: 0.1
 });
 
 chrome.runtime.onStartup.addListener(() => {
