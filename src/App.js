@@ -57,7 +57,7 @@ function AppContent() {
         />
         <Route
           path="/how-to-use"
-          element={!isLoggedIn ? <Navigate to="/startup" replace /> : <HowToUsePage />}
+          element={<HowToUsePage />}
         />
         <Route path="/settings" element={<SettingsModal isOpen={true} />} />
 

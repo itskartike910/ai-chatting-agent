@@ -24,7 +24,7 @@ const ChatInterface = () => {
 
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   // eslint-disable-next-line no-unused-vars
-  const { messages, addMessage, clearMessages, updateMessageState, loading, saveCurrentChat } = useChat(historyId);
+  const { messages, addMessage, clearMessages, updateMessageState, loading, saveCurrentChat, totalTokens, updateTotalTokens } = useChat(historyId);
   const [isExecuting, setIsExecuting] = useState(false);
   const [taskStatus, setTaskStatus] = useState(null);
   const portRef = useRef(null);
@@ -36,9 +36,6 @@ const ChatInterface = () => {
 
   // Add state for typing indicator
   const [isTyping, setIsTyping] = useState(false);
-
-  // Add token usage tracking
-  const [totalTokens, setTotalTokens] = useState(0);
 
   // Add function to handle template clicks
   const handleTemplateClick = (templateCommand) => {
@@ -205,11 +202,11 @@ const ChatInterface = () => {
               // Additional cleanup if needed
               setTaskStatus(null);
               setIsExecuting(false);
-              setTotalTokens(0);
+              updateTotalTokens(0);
               break;
 
             case 'token_update':
-              setTotalTokens(message.tokens);
+              updateTotalTokens(message.tokens);
               break;
 
             case 'task_start':
@@ -671,7 +668,7 @@ const ChatInterface = () => {
           }}>
             Social Shopping Agent
           </h3>
-          <div className="chat-status-bar" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '1px' }}>
+          <div className="chat-status-bar" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
             <div className="chat-status" style={{
               fontSize: '12px',
               color: getConnectionStatusColor(),
@@ -685,13 +682,13 @@ const ChatInterface = () => {
             </div>
             {totalTokens > 0 && (
               <div className="token-usage" style={{
-                fontSize: '10px',
+                fontSize: '11px',
                 color: '#FFBA08FF',
                 display: 'flex',
                 alignItems: 'center',
-                lineHeight: '10px'
+                lineHeight: '12px'
               }}>
-                Tokens: {totalTokens.toLocaleString()}
+                • {totalTokens.toLocaleString()} Tokens
               </div>
             )}
           </div>

@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useChatHistory } from '../hooks/useChatHistory';
-import { 
-  FaHistory, 
-  FaArrowLeft, 
-  FaTrash, 
+import {
+  FaHistory,
+  FaArrowLeft,
+  FaTrash,
   FaClock,
   FaComment,
-  FaTrashAlt
+  FaTrashAlt,
+  FaCoins
 } from 'react-icons/fa';
 
 const ChatHistoryPage = () => {
@@ -38,7 +39,7 @@ const ChatHistoryPage = () => {
   const handleDelete = async (chatId, e) => {
     e.stopPropagation();
     setDeletingIds(prev => new Set([...prev, chatId]));
-    
+
     setTimeout(async () => {
       await deleteChatHistory(chatId);
       setDeletingIds(prev => {
@@ -51,7 +52,7 @@ const ChatHistoryPage = () => {
 
   const handleSwipeDelete = async (chatId) => {
     setSwipedIds(prev => new Set([...prev, chatId]));
-    
+
     setTimeout(async () => {
       await deleteChatHistory(chatId);
       setSwipedIds(prev => {
@@ -67,7 +68,7 @@ const ChatHistoryPage = () => {
     const now = new Date();
     const diffTime = Math.abs(now - date);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) {
       return `Today, ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     } else if (diffDays === 2) {
@@ -86,7 +87,7 @@ const ChatHistoryPage = () => {
   const containerStyle = {
     width: '100%',
     height: '100%',
-    display: 'flex', 
+    display: 'flex',
     flexDirection: 'column',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     backgroundColor: '#002550FF',
@@ -101,9 +102,9 @@ const ChatHistoryPage = () => {
   };
 
   const headerStyle = {
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: '12px 16px',
     borderBottom: '1px solid rgba(255, 220, 220, 0.3)',
     background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
@@ -209,11 +210,11 @@ const ChatHistoryPage = () => {
 
       {/* Header */}
       <div className="chat-history-header" style={headerStyle}>
-        <button 
+        <button
           onClick={handleBack}
           className="chat-header-button"
-          style={{ 
-            padding: '6px 8px', 
+          style={{
+            padding: '6px 8px',
             backgroundColor: 'rgba(255, 220, 220, 0.2)',
             border: '1px solid rgba(255, 220, 220, 0.3)',
             borderRadius: '8px',
@@ -229,12 +230,12 @@ const ChatHistoryPage = () => {
         >
           <FaArrowLeft />
         </button>
-        
+
         <div style={{ minWidth: 0, flex: 1, textAlign: 'center' }}>
-          <h3 className="chat-title" style={{ 
-            margin: 0, 
-            color: '#FFDCDCFF', 
-            fontSize: '18px', 
+          <h3 className="chat-title" style={{
+            margin: 0,
+            color: '#FFDCDCFF',
+            fontSize: '18px',
             fontWeight: '700',
             lineHeight: '22px',
             display: 'flex',
@@ -245,9 +246,9 @@ const ChatHistoryPage = () => {
             <FaHistory />
             RECENT CHATS
           </h3>
-          <p className="chat-subtitle" style={{ 
-            margin: 0, 
-            color: 'rgba(255, 220, 220, 0.8)', 
+          <p className="chat-subtitle" style={{
+            margin: 0,
+            color: 'rgba(255, 220, 220, 0.8)',
             fontSize: '12px',
             lineHeight: '14px',
             marginTop: '2px'
@@ -255,7 +256,7 @@ const ChatHistoryPage = () => {
             {chatHistories.length} conversation{chatHistories.length !== 1 ? 's' : ''}
           </p>
         </div>
-        
+
         {/* <button 
           onClick={handleClearAll}
           disabled={chatHistories.length === 0}
@@ -282,25 +283,25 @@ const ChatHistoryPage = () => {
       {/* Content */}
       <div className="chat-history-content" style={contentStyle}>
         {loading ? (
-          <div className="chat-history-loading" style={{ 
-            display: 'flex', 
+          <div className="chat-history-loading" style={{
+            display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'center', 
+            justifyContent: 'center',
             alignItems: 'center',
             height: '200px',
             color: 'rgba(255, 220, 220, 0.8)'
           }}>
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              gap: '12px' 
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px'
             }}>
               <div style={{ transform: 'scale(0.7)' }}>
                 <div className="profile-loader" />
               </div>
-              <p style={{ 
-                color: 'rgba(255, 220, 220, 0.7)', 
+              <p style={{
+                color: 'rgba(255, 220, 220, 0.7)',
                 margin: '0',
                 fontSize: '13px'
               }}>
@@ -309,10 +310,10 @@ const ChatHistoryPage = () => {
             </div>
           </div>
         ) : chatHistories.length === 0 ? (
-          <div className="chat-history-empty" style={{ 
-            display: 'flex', 
+          <div className="chat-history-empty" style={{
+            display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'center', 
+            justifyContent: 'center',
             alignItems: 'center',
             height: '300px',
             color: 'rgba(255, 220, 220, 0.8)',
@@ -331,7 +332,7 @@ const ChatHistoryPage = () => {
             {sortedHistories.map((chat) => {
               const isDeleting = deletingIds.has(chat.id);
               const isSwiped = swipedIds.has(chat.id);
-              
+
               return (
                 <div
                   key={chat.id}
@@ -360,7 +361,7 @@ const ChatHistoryPage = () => {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={{ 
+                      <h4 style={{
                         margin: '0 0 8px 0',
                         fontSize: '14px',
                         fontWeight: '600',
@@ -371,8 +372,8 @@ const ChatHistoryPage = () => {
                       }}>
                         {chat.title}
                       </h4>
-                      
-                      <div style={{ 
+
+                      <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '12px',
@@ -387,6 +388,12 @@ const ChatHistoryPage = () => {
                           <FaComment style={{ fontSize: '10px' }} />
                           {getMessageCount(chat.messages)} messages
                         </div>
+                        {chat.totalTokens > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#FFBA08FF' }}>
+                            <FaCoins style={{ fontSize: '10px' }} />
+                            {chat.totalTokens.toLocaleString()} tokens
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div

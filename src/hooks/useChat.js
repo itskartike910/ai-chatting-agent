@@ -6,12 +6,13 @@ export const useChat = (chatId = null) => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentChatId, setCurrentChatId] = useState(chatId);
+  const [totalTokens, setTotalTokens] = useState(0);
   const { saveChatHistory, updateChatHistory } = useChatHistory();
 
   useEffect(() => {
     // Clear existing messages before loading new ones
     setMessages([]);
-    
+
     if (chatId) {
       loadChatFromHistory(chatId);
     } else {
@@ -30,19 +31,21 @@ export const useChat = (chatId = null) => {
   const loadChatFromHistory = useCallback(async (id) => {
     try {
       setLoading(true);
-      
+
       if (typeof chrome !== 'undefined' && chrome.storage) {
         const result = await chrome.storage.local.get(['chatHistories']);
         const histories = result.chatHistories || [];
         const chatHistory = histories.find(chat => chat.id === id);
-        
+
         if (chatHistory && chatHistory.messages) {
           setMessages(chatHistory.messages);
+          setTotalTokens(chatHistory.totalTokens || 0);
           setCurrentChatId(id);
           console.log('Loaded chat history:', chatHistory.title, 'with', chatHistory.messages.length, 'messages');
         } else {
           console.warn('Chat history not found for ID:', id);
           setMessages([]);
+          setTotalTokens(0);
           setCurrentChatId(null);
         }
       }
@@ -60,8 +63,12 @@ export const useChat = (chatId = null) => {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         // Check if there's an active connection that will handle message restoration
-        const storage = await chrome.storage.local.get(['isExecuting', 'activeTaskId', 'currentSessionMessages', 'disconnectedMessages']);
-        
+        const storage = await chrome.storage.local.get(['isExecuting', 'activeTaskId', 'currentSessionMessages', 'disconnectedMessages', 'currentSessionTokens']);
+
+        if (storage.currentSessionTokens) {
+          setTotalTokens(storage.currentSessionTokens);
+        }
+
         // If there's an active task OR disconnected messages exist, don't load messages here
         // ConnectionManager will handle restoration via restore_message events
         if ((storage.isExecuting && storage.activeTaskId) || storage.disconnectedMessages?.length > 0) {
@@ -69,20 +76,20 @@ export const useChat = (chatId = null) => {
           setLoading(false);
           return;
         }
-        
-        const result = await chrome.storage.local.get(['currentSessionMessages', 'lastMessageTimestamp']);
+
+        const result = storage;
         if (result.currentSessionMessages && Array.isArray(result.currentSessionMessages)) {
           // Remove duplicates by message ID and ensure all required fields are present
           const uniqueMessages = result.currentSessionMessages
-            .filter((message, index, self) => 
+            .filter((message, index, self) =>
               index === self.findIndex((m) => m.id === message.id))
             .filter(message => {
               // Validate message structure
-              const isValid = message && 
-                            message.id && 
-                            message.type && 
-                            message.timestamp;
-              
+              const isValid = message &&
+                message.id &&
+                message.type &&
+                message.timestamp;
+
               // Special handling for task_complete messages that might have content in result
               if (message.type === 'task_complete' && message.result) {
                 const responseContent = message.result.response || message.result.message;
@@ -91,27 +98,27 @@ export const useChat = (chatId = null) => {
                   message.isMarkdown = message.result.isMarkdown || false;
                 }
               }
-              
+
               // Ensure content exists (either directly or in result)
-              const hasContent = message.content !== undefined || 
-                               (message.result && (message.result.response || message.result.message));
-              
+              const hasContent = message.content !== undefined ||
+                (message.result && (message.result.response || message.result.message));
+
               if (!isValid || !hasContent) {
                 console.warn('Filtered out invalid message:', message);
                 return false;
               }
-              
+
               return true;
             })
             .map(message => {
               // Ensure all required fields are present with defaults
               let content = message.content;
-              
+
               // For task_complete messages, extract content from result if not directly available
               if (message.type === 'task_complete' && message.result && !content) {
                 content = message.result.response || message.result.message;
               }
-              
+
               const processedMessage = {
                 ...message,
                 id: message.id,
@@ -127,25 +134,25 @@ export const useChat = (chatId = null) => {
                 pauseReason: message.pauseReason,
                 pauseDescription: message.pauseDescription
               };
-              
+
               // Convert task_paused messages to appropriate type based on pause_reason
               if (processedMessage.type === 'task_paused') {
                 const pauseReason = processedMessage.pause_reason || processedMessage.pauseReason;
                 processedMessage.type = pauseReason === 'approval' ? 'approval' : 'pause';
-                
+
                 // Ensure content is set from message field for converted messages
                 if (processedMessage.message && !processedMessage.content) {
                   processedMessage.content = processedMessage.message;
                 }
               }
-              
+
               return processedMessage;
             })
             .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-          
+
           setMessages(uniqueMessages);
           console.log('Loaded current session:', uniqueMessages.length, 'unique messages');
-          
+
           // Debug: Check for approval/pause messages and their states
           const approvalMessages = uniqueMessages.filter(msg => msg.type === 'approval' || msg.type === 'pause');
           if (approvalMessages.length > 0) {
@@ -159,13 +166,13 @@ export const useChat = (chatId = null) => {
               pauseDescription: msg.pauseDescription
             })));
           }
-          
+
           console.log('📥 Loaded messages from storage:', {
             totalMessages: uniqueMessages.length,
             approvalMessages: approvalMessages.length,
             messageTypes: uniqueMessages.map(m => m.type)
           });
-          
+
           // Update storage with validated messages
           if (uniqueMessages.length !== result.currentSessionMessages.length) {
             console.log('Updated storage with validated messages');
@@ -184,17 +191,17 @@ export const useChat = (chatId = null) => {
     // If message already has an ID, use it; otherwise generate new one
     const messageId = message.id || Date.now().toString(36) + Math.random().toString(36).substr(2);
     const timestamp = message.timestamp || Date.now();
-    
+
     // Extract content from complex message structures
     let content = message.content;
     let isMarkdown = message.isMarkdown || false;
-    
+
     // For task_complete messages, extract content from result if not directly available
     if (message.type === 'task_complete' && message.result && !content) {
       content = message.result.response || message.result.message;
       isMarkdown = message.result.isMarkdown || false;
     }
-    
+
     // Ensure all required fields are present with proper types
     const newMessage = {
       ...message,
@@ -208,13 +215,13 @@ export const useChat = (chatId = null) => {
       approved: message.approved || false,
       declined: message.declined || false
     };
-    
+
     // Validate message structure
     if (!newMessage.type || !newMessage.content) {
       console.error('Invalid message structure:', newMessage);
       return;
     }
-    
+
     setMessages(prev => {
       // Check if message with same ID already exists
       const messageExists = prev.some(m => m.id === messageId);
@@ -222,18 +229,18 @@ export const useChat = (chatId = null) => {
         console.log('Skipping duplicate message:', messageId);
         return prev;
       }
-      
+
       const updated = [...prev, newMessage];
       const limited = updated.slice(-100); // Keep last 100 messages
-      
+
       // Save current session messages to storage for persistence during active tasks
       if (typeof chrome !== 'undefined' && chrome.storage) {
-        chrome.storage.local.set({ 
+        chrome.storage.local.set({
           currentSessionMessages: limited,
           lastMessageTimestamp: timestamp // Store last message timestamp
         }).catch(console.error);
       }
-      
+
       return limited;
     });
   }, []);
@@ -241,15 +248,16 @@ export const useChat = (chatId = null) => {
   const clearMessages = useCallback(async () => {
     setMessages([]);
     setCurrentChatId(null);
-  
+    setTotalTokens(0);
+
     try {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         // Clear session messages and ensure no duplicates remain
-        await chrome.storage.local.remove(['currentSessionMessages']);
-        
+        await chrome.storage.local.remove(['currentSessionMessages', 'currentSessionTokens']);
+
         // Also clear any stored disconnected messages to prevent duplicates
         await chrome.storage.local.remove(['disconnectedMessages']);
-        
+
         console.log('Cleared all message storage');
       }
     } catch (error) {
@@ -259,15 +267,15 @@ export const useChat = (chatId = null) => {
 
   const updateMessage = useCallback((messageId, updates) => {
     setMessages(prev => {
-      const updated = prev.map(msg => 
+      const updated = prev.map(msg =>
         msg.id === messageId ? { ...msg, ...updates } : msg
       );
-      
+
       // Update session storage
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.local.set({ currentSessionMessages: updated }).catch(console.error);
       }
-      
+
       return updated;
     });
   }, []);
@@ -278,8 +286,8 @@ export const useChat = (chatId = null) => {
     setMessages(prev => {
       const updated = prev.map(msg => {
         if (msg.id === messageId) {
-          const newMsg = { 
-            ...msg, 
+          const newMsg = {
+            ...msg,
             ...state,
             // Ensure timestamp is updated for state changes
             lastStateUpdate: Date.now()
@@ -289,15 +297,22 @@ export const useChat = (chatId = null) => {
         }
         return msg;
       });
-      
+
       // Update session storage
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.local.set({ currentSessionMessages: updated }).catch(console.error);
         console.log('💾 Message state persisted to storage');
       }
-      
+
       return updated;
     });
+  }, []);
+
+  const updateTotalTokens = useCallback((tokens) => {
+    setTotalTokens(tokens);
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ currentSessionTokens: tokens }).catch(console.error);
+    }
   }, []);
 
   // Manual save function (called only when explicitly needed)
@@ -306,30 +321,32 @@ export const useChat = (chatId = null) => {
       const userMessages = messages.filter(msg => msg.type === 'user' || msg.type === 'assistant');
       if (userMessages.length >= 1) {
         if (currentChatId) {
-          await updateChatHistory(currentChatId, messages);
+          await updateChatHistory(currentChatId, messages, totalTokens);
         } else {
-          const newChatId = await saveChatHistory(messages);
+          const newChatId = await saveChatHistory(messages, totalTokens);
           if (newChatId) {
             setCurrentChatId(newChatId);
           }
         }
-        
+
         // Clear current session after saving to history
         if (typeof chrome !== 'undefined' && chrome.storage) {
-          chrome.storage.local.remove(['currentSessionMessages']).catch(console.error);
+          chrome.storage.local.remove(['currentSessionMessages', 'currentSessionTokens']).catch(console.error);
         }
       }
     }
-  }, [messages, currentChatId, updateChatHistory, saveChatHistory]);
+  }, [messages, currentChatId, updateChatHistory, saveChatHistory, totalTokens]);
 
-  return { 
-    messages, 
-    addMessage, 
-    clearMessages, 
+  return {
+    messages,
+    addMessage,
+    clearMessages,
     updateMessage,
     updateMessageState,
     loading,
     currentChatId,
-    saveCurrentChat
+    saveCurrentChat,
+    totalTokens,
+    updateTotalTokens
   };
 };
