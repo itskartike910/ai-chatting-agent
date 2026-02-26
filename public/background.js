@@ -1068,6 +1068,44 @@ class MultiAgentExecutor {
         return defaultState;
       }
 
+      // Check if we're on a chrome-native page and early exit
+      const isChromeNative = tab.url && this.isChromeNativePage(tab.url);
+      if (isChromeNative) {
+        console.log('⚠️ Chrome-native page detected - early exit to save API calls');
+        const chromeState = {
+          pageInfo: {
+            url: tab.url || 'unknown',
+            title: 'Chrome Native Page',
+            domain: 'chrome'
+          },
+          pageContext: {
+            platform: 'chrome-native',
+            pageType: 'chrome-native',
+            hasLoginForm: false,
+            hasUserMenu: false,
+            isLoggedIn: false,
+            capabilities: {},
+            isChromeNative: true,
+            needsNavigation: true
+          },
+          interactiveElements: [],
+          elementCategories: {},
+          viewportInfo: {
+            width: tab.width || 1280,
+            height: tab.height || 800,
+            isMobileWidth: false,
+            isTabletWidth: false,
+            isPortrait: false,
+            deviceType: 'desktop',
+            aspectRatio: 1.6
+          },
+          loginStatus: { isLoggedIn: false },
+          extractedContent: 'chrome-native page – navigation required'
+        };
+        this.lastPageState = chromeState;
+        return chromeState;
+      }
+
       const result = await domService.getPageState(tab.id, {
         debugMode: true,
         includeHidden: true,
@@ -1091,45 +1129,6 @@ class MultiAgentExecutor {
           const defaultState = this.getDefaultState();
           this.lastPageState = defaultState;
           return defaultState;
-        }
-
-        // Check if we're on a chrome-native page and early exit
-        const isChromeNative = this.isChromeNativePage(pageState.url);
-        if (isChromeNative) {
-          console.log('⚠️ Chrome-native page detected - early exit to save API calls');
-          const chromeState = {
-            pageInfo: {
-              url: pageState.url || 'unknown',
-              title: 'Chrome Native Page',
-              domain: 'chrome'
-            },
-            pageContext: {
-              platform: 'chrome-native',
-              pageType: 'chrome-native',
-              hasLoginForm: false,
-              hasUserMenu: false,
-              isLoggedIn: false,
-              capabilities: {},
-              isChromeNative: true,
-              needsNavigation: true
-            },
-            interactiveElements: [],
-            elementCategories: {},
-            viewportInfo: {
-              width: pageState.viewport?.width || 0,
-              height: pageState.viewport?.height || 0,
-              isMobileWidth: pageState.viewport?.isMobileWidth || false,
-              isTabletWidth: pageState.viewport?.isTabletWidth || false,
-              isPortrait: pageState.viewport?.isPortrait || true,
-              deviceType: pageState.viewport?.deviceType || 'mobile',
-              aspectRatio: pageState.viewport?.aspectRatio || 0.75
-            },
-            loginStatus: { isLoggedIn: false },
-            extractedContent: 'chrome-native page – navigation required'
-          };
-          this.lastPageState = chromeState;
-          resolve(chromeState);
-          return;
         }
 
         // Process elements and create enhanced state

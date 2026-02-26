@@ -10,7 +10,8 @@ import {
   FaCog,
   FaWifi,
   FaExclamationTriangle,
-  FaHistory
+  FaHistory,
+  FaCoins
 } from 'react-icons/fa';
 import { RiChatNewFill } from 'react-icons/ri';
 
@@ -686,9 +687,11 @@ const ChatInterface = () => {
                 color: '#FFBA08FF',
                 display: 'flex',
                 alignItems: 'center',
+                gap: '4px',
                 lineHeight: '12px'
               }}>
-                • {totalTokens.toLocaleString()} Tokens
+                <FaCoins style={{ fontSize: '10px' }} />
+                <span>{totalTokens.toLocaleString()} Tokens Used</span>
               </div>
             )}
           </div>

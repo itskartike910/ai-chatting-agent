@@ -77,6 +77,7 @@ export class ActionRegistry {
       schema: {
         index: 'number - The element index from the page state',
         selector: 'string - CSS selector (from page state only)',
+        xpath: 'string - XPath selector (from page state only)',
         intent: 'string - Description of what you are clicking and why'
       },
       handler: async (input) => {
@@ -88,10 +89,17 @@ export class ActionRegistry {
           if (input.index !== undefined) {
             actionParams.index = input.index;
             console.log(`🎯 Using element index: ${input.index}`);
-          } else if (input.selector) {
+          }
+          if (input.selector) {
             actionParams.selector = input.selector;
             console.log(`🎯 Using selector: ${input.selector}`);
-          } else {
+          }
+          if (input.xpath) {
+            actionParams.xpath = input.xpath;
+            console.log(`🎯 Using xpath: ${input.xpath}`);
+          }
+
+          if (input.index === undefined && !input.selector && !input.xpath) {
             return {
               success: false,
               error: 'No index or selector provided',
@@ -137,6 +145,7 @@ export class ActionRegistry {
       schema: {
         index: 'number - The element index from the page state',
         selector: 'string - CSS selector (from page state only)',
+        xpath: 'string - XPath selector (from page state only)',
         text: 'string - The text to type into the element',
         intent: 'string - Description of what you are typing and why'
       },
@@ -147,9 +156,15 @@ export class ActionRegistry {
           const actionParams = { text: input.text };
           if (input.index !== undefined) {
             actionParams.index = input.index;
-          } else if (input.selector) {
+          }
+          if (input.selector) {
             actionParams.selector = input.selector;
-          } else {
+          }
+          if (input.xpath) {
+            actionParams.xpath = input.xpath;
+          }
+
+          if (input.index === undefined && !input.selector && !input.xpath) {
             return {
               success: false,
               error: 'No index or selector provided for text input',

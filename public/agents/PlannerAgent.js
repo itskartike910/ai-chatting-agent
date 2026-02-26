@@ -308,6 +308,7 @@ ${progressAnalysis}
         "url": "https://example.com/xyz", // for navigate (try to generate the most closest url to the platform which is more closest to the user message or task.)
         "index": 5, // for CLICKABLE and TYPEABLE elements only (PREFERRED over selector)
         "selector": "#simple-id", // ONLY use simple selectors (avoid aria-label with quotes)
+        "xpath": "//div/button", // PROVIDE EXACT XPATH AS FALLBACK
         "text": "search term / button text / post text", // required text for Type Action
         "purpose": "submit|add-to-cart|product-link",
         "category": "action|form|navigation", 

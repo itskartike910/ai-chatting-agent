@@ -12,14 +12,25 @@ export class DOMService {
   }
 
   /**
+   * Helper to execute script with a timeout to prevent hanging during navigation
+   */
+  async executeWithTimeout(options, timeoutMs = 8000) {
+    const executePromise = chrome.scripting.executeScript(options);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Script execution timed out after ${timeoutMs}ms`)), timeoutMs)
+    );
+    return Promise.race([executePromise, timeoutPromise]);
+  }
+
+  /**
    * Check if buildDomTree script is already injected in a tab
    */
   async isScriptInjected(tabId) {
     try {
-      const results = await chrome.scripting.executeScript({
+      const results = await this.executeWithTimeout({
         target: { tabId, allFrames: false },
         func: () => Object.prototype.hasOwnProperty.call(window, 'buildDomTree'),
-      });
+      }, 5000);
       return results?.[0]?.result || false;
     } catch (error) {
       console.error('Failed to check script injection:', error);
@@ -43,10 +54,10 @@ export class DOMService {
       }
 
       // Inject the script
-      await chrome.scripting.executeScript({
+      await this.executeWithTimeout({
         target: { tabId, allFrames: true },
         files: ['buildDomTree.js'],
-      });
+      }, 10000);
 
       this.injectedTabs.add(tabId);
       console.log(`✅ Injected buildDomTree script into tab ${tabId}`);
@@ -55,10 +66,10 @@ export class DOMService {
       console.error('Failed to inject buildDomTree script:', error);
       // Try to inject anyway even if check failed
       try {
-        await chrome.scripting.executeScript({
+        await this.executeWithTimeout({
           target: { tabId },
           files: ['buildDomTree.js'],
-        });
+        }, 8000);
         this.injectedTabs.add(tabId);
         return true;
       } catch (retryError) {
@@ -86,7 +97,7 @@ export class DOMService {
       await this.injectBuildDomTreeScript(tabId);
 
       // Execute buildDomTree in the page context
-      const results = await chrome.scripting.executeScript({
+      const results = await this.executeWithTimeout({
         target: { tabId },
         func: (args) => {
           if (!window.buildDomTree) {
@@ -104,7 +115,7 @@ export class DOMService {
             debugMode,
           },
         ],
-      });
+      }, 15000); // 15s timeout for full DOM parsing
 
       const result = results?.[0]?.result;
       if (!result || result.error) {
@@ -171,12 +182,12 @@ export class DOMService {
           bounds: node.bounds || {},
           highlightIndex: node.highlightIndex,
         };
-        
+
         // Add category and purpose fields for planner compatibility
         const { category, purpose } = this._categorizeElement(element);
         element.category = category;
         element.purpose = purpose;
-        
+
         elements.push(element);
       }
 
@@ -235,7 +246,7 @@ export class DOMService {
     // Form elements
     if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
       category = 'form';
-      
+
       if (type === 'submit' || type === 'button') {
         purpose = 'submit';
       } else if (type === 'search') {
@@ -253,11 +264,11 @@ export class DOMService {
       }
     }
     // Button and action elements
-    else if (tagName === 'button' || role === 'button' || 
-             (tagName === 'a' && attrs.href) || 
-             role === 'link') {
+    else if (tagName === 'button' || role === 'button' ||
+      (tagName === 'a' && attrs.href) ||
+      role === 'link') {
       category = 'action';
-      
+
       // Determine purpose from text/attributes
       if (text.includes('cart') || text.includes('add to cart') || className.includes('cart') || id.includes('cart')) {
         purpose = 'add-to-cart';
@@ -283,8 +294,8 @@ export class DOMService {
       }
     }
     // Navigation elements
-    else if (tagName === 'nav' || role === 'navigation' || 
-             tagName === 'a' || role === 'link') {
+    else if (tagName === 'nav' || role === 'navigation' ||
+      tagName === 'a' || role === 'link') {
       category = 'navigation';
       purpose = 'link';
     }
@@ -305,7 +316,7 @@ export class DOMService {
     try {
       await this.injectBuildDomTreeScript(tabId);
 
-      const result = await chrome.scripting.executeScript({
+      const result = await this.executeWithTimeout({
         target: { tabId },
         func: (params) => {
           // Find element by index, selector, or xpath
@@ -313,7 +324,11 @@ export class DOMService {
 
           if (params.index !== undefined && params.index !== null) {
             // Get buildDomTree result to find element by highlightIndex
-            const treeResult = window.buildDomTree({ showHighlightElements: false });
+            const treeResult = window.buildDomTree({
+              showHighlightElements: false,
+              startHighlightIndex: 0,
+              startId: 0
+            });
             if (treeResult && treeResult.map) {
               // Find the node with matching highlightIndex
               for (const id in treeResult.map) {
@@ -347,10 +362,13 @@ export class DOMService {
                 }
               }
             }
-            
+
             if (!element) {
               return { success: false, error: `Element with index ${params.index} not found in DOM tree` };
             }
+          } else if (params.xpath) {
+            const evaluateResult = document.evaluate(params.xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            element = evaluateResult.singleNodeValue;
           } else if (params.selector) {
             element = document.querySelector(params.selector);
           }
@@ -389,7 +407,7 @@ export class DOMService {
     try {
       await this.injectBuildDomTreeScript(tabId);
 
-      const result = await chrome.scripting.executeScript({
+      const result = await this.executeWithTimeout({
         target: { tabId },
         func: (params) => {
           // Find element by index, selector, or xpath
@@ -397,7 +415,11 @@ export class DOMService {
 
           if (params.index !== undefined && params.index !== null) {
             // Get buildDomTree result to find element by highlightIndex
-            const treeResult = window.buildDomTree({ showHighlightElements: false });
+            const treeResult = window.buildDomTree({
+              showHighlightElements: false,
+              startHighlightIndex: 0,
+              startId: 0
+            });
             if (treeResult && treeResult.map) {
               // Find the node with matching highlightIndex
               for (const id in treeResult.map) {
@@ -430,10 +452,13 @@ export class DOMService {
                 }
               }
             }
-            
+
             if (!element) {
               return { success: false, error: `Element with index ${params.index} not found in DOM tree` };
             }
+          } else if (params.xpath) {
+            const evaluateResult = document.evaluate(params.xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+            element = evaluateResult.singleNodeValue;
           } else if (params.selector) {
             element = document.querySelector(params.selector);
           }
@@ -485,7 +510,7 @@ export class DOMService {
    */
   async performScroll(tabId, params) {
     try {
-      const result = await chrome.scripting.executeScript({
+      const result = await this.executeWithTimeout({
         target: { tabId },
         func: (params) => {
           const { direction = 'down', amount = 300 } = params;
