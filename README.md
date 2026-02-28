@@ -1,17 +1,98 @@
-# 🤖 AI Social Shopping Agent
+# 🚀 OmniBrowse
 
-An intelligent Chrome/Wootz browser extension that automates web tasks using advanced AI agents. Perfect for social media automation, e-commerce shopping, content discovery, and general web navigation tasks.
+### AI-Orchestrated Browser Automation Agent
 
-![AI Social Shopping Agent](https://img.shields.io/badge/AI%20Agent-Browser%20Extension-blue)
-![Version](https://img.shields.io/badge/version-1.0.0-green)
-![React](https://img.shields.io/badge/React-18.2.0-61DAFB)
+OmniBrowse is a production-grade Chromium extension that enables autonomous multi-step web workflows using structured AI-driven execution. It converts natural language tasks into deterministic browser actions while maintaining cross-browser compatibility and system reliability.
+
+Built for automation across social platforms, e-commerce workflows, research tasks, and general web navigation.
+
+---
+
+## 🌐 Universal Chromium Compatibility
+
+OmniBrowse uses only standard Chromium Extension APIs:
+
+* `chrome.scripting`
+* `chrome.tabs`
+* Manifest V3 service workers
+* Custom DOM state extraction engine
+
+Fully compatible with:
+
+* Google Chrome
+* Chromium
+* Microsoft Edge
+* Brave
+* And Other Chromium Based Desktop Browsers
+
+No proprietary APIs. No vendor lock-in.
+
+---
+
+## ⚙️ Core Capabilities
+
+### 🔹 AI Task Execution Engine
+
+* Converts natural language requests into structured multi-step execution plans
+* Separates task classification, planning, execution, and validation stages
+* Maintains execution history to improve reliability and reduce loop failures
+
+### 🔹 Deterministic Interaction Pipeline
+
+* DOM state extraction using semantic tree representation
+* Renderer-based action execution (click, type, scroll, navigation)
+* Async-safe interaction handling for dynamic web pages
+
+### 🔹 Secure Orchestration
+
+* Backend-integrated authentication
+* Token-based usage tracking
+* Controlled execution lifecycle
+
+### 🔹 Cross-Browser Architecture
+
+* Modular extension design
+* Standard Chromium APIs only
+* Portable across desktop and mobile Chromium builds
+
+---
+
+## 🏗 Architecture Overview
+
+```
+ai-social-agent/
+├── public/                     # Extension files
+│   ├── agents/                # AI agent implementations
+│   │   ├── AITaskRouter.js    # Request classification
+│   │   ├── PlannerAgent.js    # Task planning
+│   │   └── ValidatorAgent.js  # Completion validation
+│   ├── actions/               # Action handlers
+│   │   └── ActionRegistry.js  # Universal action system
+│   ├── services/              # Core services
+│   │   ├── DOMService.js      # Universal DOM interaction (buildDomTree)
+│   │   └── MultiLLMService.js # Multi-LLM provider support
+│   ├── managers/              # State & connection managers
+│   ├── background.js          # Service worker (universal Chromium)
+│   ├── content.js             # Content script
+│   ├── buildDomTree.js        # DOM analysis engine
+│   ├── manifest.json          # Extension manifest (Chromium standard)
+│   └── index.html             # Popup HTML
+├── src/                       # React frontend
+│   ├── components/            # UI components
+│   ├── hooks/                # Custom React hooks
+│   └── styles/               # CSS and animations
+└── build/                    # Built extension (generated)
+```
+
+---
+
 
 ## 🌟 Key Features
 
 ### 🧠 **Multi-Agent AI System**
 - **AI Task Router**: Intelligently classifies user requests (chat vs web automation)
 - **Planner Agent**: Creates strategic batch execution plans (2-7 sequential actions)
-- **Navigator Agent**: Executes precise web interactions with mobile optimization
+- **Navigator Agent**: Executes precise web interactions within the browser
 - **Validator Agent**: Validates task completion with progressive assessment
 
 ### 🚀 **Smart Web Automation**
@@ -20,65 +101,55 @@ An intelligent Chrome/Wootz browser extension that automates web tasks using adv
 - **Content Discovery**: YouTube video search and playback, research tasks
 - **Universal Navigation**: Intelligent URL routing and page interaction
 
-### 💬 **Interactive Chat Interface**
-- **Real-time Communication**: Chat with AI agents during task execution
+### 💬 **Interactive Chat Interface (Sidebar)**
+- **Sidebar Experience**: Full-height sidebar panel for seamless multitasking
+- **Real-time Communication**: Chat with AI agents while browsing
 - **Task Status Tracking**: Live updates with observation and strategy display
 - **Chat History**: Persistent conversation storage with search functionality
 - **Markdown Support**: Rich text formatting for code, links, and emphasis
+- **Always Accessible**: Keep the agent visible while navigating websites
 
-### 📱 **Mobile-Optimized Design**
-- **Responsive UI**: Optimized for Android browser extensions
-- **Touch-Friendly**: Large buttons and intuitive mobile interactions
-- **Element Highlighting**: Visual feedback during automation (with auto-cleanup)
-- **Progress Tracking**: Real-time task completion indicators
+### 🔧 **Modern Architecture**
+- **Sidebar Interface**: Persistent side panel for multitasking (Chrome Side Panel API)
+- **Standard Chrome APIs**: Uses `chrome.scripting` and `chrome.tabs` for universal compatibility
+- **BuildDomTree Engine**: Advanced DOM analysis for precise element targeting
+- **No Proprietary Dependencies**: Works on any Chromium-based browser
+
+---
 
 ## 🔧 Installation & Setup
 
 ### Prerequisites
-- **Wootz Browser** or **Chrome Browser** (with developer mode enabled)
+
+#### For Desktop (Chrome, Edge, Brave, etc.):
+- **Any Chromium-based browser** (Chrome, Edge, Brave, Opera, Vivaldi, etc.)
 - **Node.js** (v16 or higher)
 - **npm** or **yarn** package manager
 
-### 1. Clone & Install Dependencies
-```bash
-# Clone the repository
-git clone <repository-url>
-cd ai-social-agent
+### 1️⃣ Clone Repository
 
-# Install dependencies
+```bash
+git clone https://github.com/itskartike910/ai-chatting-agent.git
+cd ai-chatting-agent
 npm install
 ```
 
-### 2. Build the Extension
-```bash
-# Build for production
-npm run build:extension
+### 2️⃣ Build Extension
 
-# Or for development with watch mode
-npm run dev:webpack
+```bash
+npm run build
 ```
 
-### 3. Load Extension in Browser
+### 3️⃣ Load in Chromium Browser
 
-#### For Wootz Browser:
-1. Open Wootz Browser
-2. Navigate to `wootz://extensions/`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked**
-5. Select the `build/` directory from your project
+1. Open `chrome://extensions/`
+2. Enable Developer Mode
+3. Click “Load Unpacked”
+4. Select the `build/` directory
 
-#### For Chrome Browser:
-1. Open Chrome Browser
-2. Navigate to `chrome://extensions/`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked**
-5. Select the `build/` directory from your project
+### 4️⃣ Configure AI API Keys
 
-### 4. Configure AI API Keys
-
-1. Click the extension icon in your browser toolbar
-2. Go to **Settings** (gear icon)
-3. Configure your preferred AI provider:
+1. Configure your preferred AI provider:
 
 #### Option A: Google Gemini (Recommended)
 - **Provider**: Select "Gemini"
@@ -95,140 +166,37 @@ npm run dev:webpack
 - **API Key**: Get from [OpenAI Console](https://platform.openai.com/api-keys)
 - **Model**: `gpt-4o` (default) or `gpt-4o-mini`
 
-## 🎯 How to Use
 
-### 💬 **Chat Mode**
-Ask general questions, get explanations, or request code examples:
+---
 
-```
-Examples:
-• "What is machine learning?"
-• "Write a JavaScript function to sort an array"
-• "Explain how REST APIs work"
-• "Help me understand React hooks"
-```
+## 🤖 Example Use Cases
 
-### 🤖 **Web Automation Mode**
-Request specific web actions using natural language:
+* “Search for AI research papers and summarize findings”
+* “Find the cheapest iPhone 15 and add to cart”
+* “Post a tweet about system design patterns”
+* “Navigate to YouTube and play first machine learning tutorial”
 
-#### Social Media Automation
-```
-Examples:
-• "Post 'Hello World!' on Twitter"
-• "Search for AI tutorials on YouTube and play the first video"
-• "Find trending topics on LinkedIn"
-• "Share my latest blog post on Facebook"
-```
+---
 
-#### E-commerce & Shopping
-```
-Examples:
-• "Find iPhone 15 on Amazon and add to cart"
-• "Search for wireless headphones under $100"
-• "Compare prices of laptops on different sites"
-• "Add the first Labubu doll to my shopping cart"
-```
+## 🛠 Technology Stack
 
-#### Research & Content Discovery
-```
-Examples:
-• "Search for latest AI news on Google"
-• "Find reviews of the new Tesla Model 3"
-• "Look up restaurants near me on Yelp"
-• "Find cooking tutorials on YouTube"
-```
+* JavaScript (ES6+)
+* React (UI Layer)
+* Chromium Extension APIs (Manifest V3)
+* Custom DOM Analysis Engine
+* Multi-LLM Support (OpenAI / Gemini / Claude)
 
-#### Web Navigation
-```
-Examples:
-• "Go to Gmail and check my inbox"
-• "Open Netflix and browse comedy movies"
-• "Navigate to my bank's website"
-• "Visit the latest news on BBC"
-```
+---
 
-### 🔄 **Task Execution Flow**
+## 🔐 Security & Privacy
 
-1. **Input**: Type your request in natural language
-2. **Classification**: AI determines if it's a chat or automation task
-3. **Planning**: Planner Agent creates an optimal execution strategy
-4. **Execution**: Navigator Agent performs actions with real-time updates
-5. **Validation**: Validator Agent confirms task completion
-6. **Feedback**: Get detailed results and next steps
+* No external data collection
+* API keys stored locally
+* Direct communication with AI providers
+* Minimal permission model
 
-## 🛠️ Development
+---
 
-### Project Structure
-```
-ai-social-agent/
-├── public/                 # Extension files
-│   ├── agents/            # AI agent implementations
-│   │   ├── AITaskRouter.js    # Request classification
-│   │   ├── PlannerAgent.js    # Task planning
-│   │   ├── NavigatorAgent.js  # Action execution
-│   │   └── ValidatorAgent.js  # Completion validation
-│   ├── background.js      # Service worker
-│   ├── manifest.json      # Extension manifest
-│   └── index.html         # Popup HTML
-├── src/                   # React frontend
-│   ├── components/        # UI components
-│   ├── hooks/            # Custom React hooks
-│   ├── services/         # API services
-│   └── styles/           # CSS and animations
-└── build/                # Built extension (generated)
-```
+## 📝 License
 
-### Available Scripts
-
-```bash
-# Development
-npm start              # Start React dev server
-npm run dev:webpack    # Watch mode for extension files
-
-# Building
-npm run build          # Build React app
-npm run build:webpack  # Build extension files
-npm run build:extension # Complete extension build
-
-# Testing
-npm test              # Run test suite
-```
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-#### Extension Not Loading
-- Ensure Developer mode is enabled
-- Check console for error messages
-- Verify all files are in the `build/` directory
-- Try reloading the extension
-
-#### AI API Errors
-- Verify API key is correct and active
-- Check internet connection
-- Ensure API provider has sufficient quota
-- Try switching to a different model
-
-#### Automation Failures
-- Enable Debug mode for detailed logs
-- Check if website structure has changed
-- Verify element highlighting works
-- Try manual execution first
-
-### Error Codes
-- **401**: Invalid API key
-- **429**: Rate limit exceeded
-- **500**: Server error
-- **TIMEOUT**: Action took too long
-- **ELEMENT_NOT_FOUND**: Page structure changed
-
-## 🔒 Privacy & Security
-
-- **Local Storage**: Chat history stored locally in browser
-- **API Communication**: Direct communication with AI providers
-- **No Data Collection**: Extension doesn't collect personal data
-- **Secure Headers**: All API calls use secure authentication
-- **Permission Model**: Minimal required permissions
-
-
+[MIT License](LICENSE)

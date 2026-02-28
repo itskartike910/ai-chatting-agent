@@ -6,13 +6,13 @@ export class AITaskRouter {
   async analyzeAndRoute(userMessage, currentState = {}) {
     // Store userMessage for use in fallback methods.
     this.userMessage = userMessage;
-    
+
     console.log('[AITaskRouter] userMessage:', userMessage,
-                'currentState:', currentState
-              );
+      'currentState:', currentState
+    );
 
     try {
-      const intelligentPrompt = `# You are an intelligent AI Agent that specializes in mobile web automation such as SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
+      const intelligentPrompt = `# You are an intelligent AI Agent that specializes in desktop/laptop web automation for Chromium browsers, focusing on SOCIAL MEDIA SITES, SHOPPING OR E-COMMERCE SITES, and CONVERSATIONS AND RESEARCH.
       
 ALWAYS OUTPUT THE DELIMITER BLOCKS EXACTLY AS WRITTEN. DO NOT USE MARKDOWN CODE BLOCKS. RESPOND WITH ONLY THE DELIMITED BLOCKS, NO EXTRA TEXT OR FORMATTING.
 
@@ -103,7 +103,7 @@ Use this visual context along with the element data to make accurate decisions a
 Do NOT include any extra characters before or after these blocks.
 
 # **RESPONSE FORMAT**
-Use this EXACT format with special delimiters to avoid JSON parsing issues. When planning WEB_AUTOMATION, prefer mobile-friendly actions including heuristic finders when index/selector is not known.
+Use this EXACT format with special delimiters to avoid JSON parsing issues. When planning WEB_AUTOMATION, use standard desktop web interactions with element indices and selectors.
 
 ===CLASSIFICATION_START===
 INTENT: CHAT|WEB_AUTOMATION
@@ -173,9 +173,10 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
 - Set done=true and provide complete analysis in observation and analysis_result
 
 **For ACTION TASKS:**
-- Plan mobile-optimized interactions using screenshot analysis for visual verification
+- Plan desktop/laptop-optimized interactions using screenshot analysis for visual verification
 - Use reliable element identification (index, selector, text) verified against screenshot
 - Consider all the interactive elements visible in the screenshot
+- Remember this is a full desktop browser with standard web elements
 - Consider viewport constraints, touch targets, and element visibility from visual context
 - Handle navigation, authentication, and page loading states appropriately
 - Provide step-by-step sequences with clear completion criteria and error alternatives
@@ -197,9 +198,16 @@ Always provide complete, well-formatted responses!
       ], { maxTokens: 2000 });
 
       console.log('[AITaskRouter] LLM response:', response);
-      
-      const result = this.parseDelimitedResponse(response);
-      
+
+      const responseText = typeof response === 'string' ? response : response.text;
+      const usage = typeof response === 'object' && response.usage ? response.usage : null;
+
+      const result = this.parseDelimitedResponse(responseText);
+
+      if (usage) {
+        result.usage = usage;
+      }
+
       console.log('🎯 Intelligent classification result:', {
         intent: result.intent,
         confidence: result.confidence,
@@ -217,7 +225,7 @@ Always provide complete, well-formatted responses!
   detectPlatformFromUrl(url) {
     if (!url) return 'unknown';
     const urlLower = url.toLowerCase();
-    
+
     if (urlLower.includes('x.com') || urlLower.includes('twitter.com')) return 'twitter';
     if (urlLower.includes('youtube.com')) return 'youtube';
     if (urlLower.includes('amazon.')) return 'amazon';
@@ -235,18 +243,18 @@ Always provide complete, well-formatted responses!
     if (urlLower.includes('hashnode.com')) return 'hashnode';
     if (urlLower.includes('github.com')) return 'github';
     if (urlLower.includes('stackoverflow.com')) return 'stackoverflow';
-    
+
     return 'general';
   }
 
   // Format elements for context display in prompts with optimized token usage
   formatElementsForContext(elements) {
     if (!elements || elements.length === 0) return "No elements found";
-    
+
     return elements.map(el => {
       const textContent = (el.textContent || '').trim();
       const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
- 
+
       // Limit selector length
       const selector = (el.selector || 'none').trim();
       const limitedSelector = selector.length > 50 ? selector.substring(0, 50) + '...' : selector;
@@ -263,7 +271,7 @@ Always provide complete, well-formatted responses!
         width: Math.round(bounds.width || 0),
         height: Math.round(bounds.height || 0)
       };
-      
+
       return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
   Category: ${el.category || 'unknown'}
   Purpose: ${el.purpose || 'general'}
@@ -281,24 +289,24 @@ Always provide complete, well-formatted responses!
       // Extract classification section with more robust regex
       const classificationMatch = response.match(/===CLASSIFICATION_START===([\s\S]*?)===CLASSIFICATION_END===/);
       const responseMatch = response.match(/===RESPONSE_START===([\s\S]*?)(?:===RESPONSE_END===|$)/);
-      
+
       if (!classificationMatch || !responseMatch) {
         console.warn('Could not find delimited sections, using fallback parsing');
         return this.parseJSONResponse(response);
       }
-      
+
       const classificationText = classificationMatch[1].trim();
       let responseText = responseMatch[1].trim();
-      
+
       // Parse classification with better regex
       const intentMatch = classificationText.match(/INTENT:\s*(CHAT|WEB_AUTOMATION)/i);
       const confidenceMatch = classificationText.match(/CONFIDENCE:\s*([0-9.]+)/);
       const reasoningMatch = classificationText.match(/REASONING:\s*(.+?)(?=\n|$)/s);
-      
+
       const intent = intentMatch ? intentMatch[1].toUpperCase() : 'CHAT';
       const confidence = confidenceMatch ? parseFloat(confidenceMatch[1]) : 0.8;
       const reasoning = reasoningMatch ? reasoningMatch[1].trim() : 'Classified using enhanced delimiter parsing';
-      
+
       // Parse response based on intent
       let parsedResponse;
       if (intent === 'CHAT') {
@@ -311,21 +319,21 @@ Always provide complete, well-formatted responses!
         responseText = responseText.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
         try {
           parsedResponse = JSON.parse(responseText);
-          
+
           // For done tasks, next_action can be null, but observation and strategy are required
           if (!parsedResponse.observation || !parsedResponse.strategy) {
             throw new Error('Missing required fields in automation response');
           }
-          
+
           // If task is done but no next_action specified, set it to "complete"
           if (parsedResponse.done && !parsedResponse.next_action) {
             parsedResponse.next_action = "complete";
           }
-          
+
         } catch (jsonError) {
           console.error('AITaskRouter JSON parsing error:', jsonError.message);
           console.error('Raw text that failed to parse:', responseText);
-          
+
           // Enhanced error handling with more context
           let errorMessage;
           if (jsonError.message.includes('Unexpected end of JSON input')) {
@@ -335,13 +343,13 @@ Always provide complete, well-formatted responses!
           } else {
             errorMessage = `AITaskRouter response parsing failed: Unable to process AI response due to formatting issues. Original error: ${jsonError.message}. Raw response length: ${responseText?.length || 0} characters.`;
           }
-          
+
           console.error('Enhanced error message:', errorMessage);
-  
+
           parsedResponse = {
             observation: "Enhanced parsing failed - analyzing current page state",
             done: false,
-            strategy: "Analyze current mobile page and determine appropriate actions",
+            strategy: "Analyze current desktop page and determine appropriate actions",
             next_action: "Get current page state and identify interactive elements",
             reasoning: `JSON parsing error occurred: ${errorMessage}`,
             completion_criteria: "Complete user request based on available actions",
@@ -349,14 +357,14 @@ Always provide complete, well-formatted responses!
           };
         }
       }
-      
+
       return {
         intent: intent,
         confidence: confidence,
         reasoning: reasoning,
         response: parsedResponse
       };
-      
+
     } catch (error) {
       console.error('Enhanced delimiter parsing failed:', error);
       return this.fallbackIntelligentResponse();
@@ -379,15 +387,15 @@ Always provide complete, well-formatted responses!
     // Use stored userMessage
     const userMessage = this.userMessage || 'Unknown message';
     const lowerMessage = userMessage.toLowerCase();
-    
+
     // Action indicators for web automation
     const actionWords = ['open', 'go', 'navigate', 'search', 'click', 'type', 'post', 'buy', 'find', 'visit', 'play', 'watch', 'scroll', 'fill'];
     const hasActionWords = actionWords.some(word => lowerMessage.includes(word));
-    
+
     // Conversational indicators
     const chatWords = ['hello', 'hi', 'what', 'how', 'why', 'explain', 'tell me', 'can you', 'help'];
     const hasChatWords = chatWords.some(word => lowerMessage.includes(word));
-    
+
     if (hasActionWords && !hasChatWords) {
       return {
         intent: 'WEB_AUTOMATION',

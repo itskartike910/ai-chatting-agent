@@ -26,19 +26,20 @@ export const useChatHistory = () => {
     loadChatHistories();
   }, []); // Only run once on mount
 
-  const saveChatHistory = useCallback(async (messages, title = null) => {
+  const saveChatHistory = useCallback(async (messages, tokens = 0, title = null) => {
     if (!messages || messages.length === 0) return null;
 
     try {
       const chatId = Date.now().toString();
       const firstUserMessage = messages.find(msg => msg.type === 'user');
-      const autoTitle = firstUserMessage?.content.substring(0, 50) + 
-                       (firstUserMessage?.content.length > 50 ? '...' : '');
+      const autoTitle = firstUserMessage?.content.substring(0, 50) +
+        (firstUserMessage?.content.length > 50 ? '...' : '');
 
       const chatHistory = {
         id: chatId,
         title: title || autoTitle || 'New Chat',
         messages: messages,
+        totalTokens: tokens,
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
@@ -47,13 +48,13 @@ export const useChatHistory = () => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         const result = await chrome.storage.local.get(['chatHistories']);
         const currentHistories = result.chatHistories || [];
-        
+
         // Keep only the 9 most recent chats and add the new one (total 10)
         const updatedHistories = [chatHistory, ...currentHistories].slice(0, 10);
-        
+
         // Update storage
         await chrome.storage.local.set({ chatHistories: updatedHistories });
-        
+
         // Update state
         const sortedHistories = updatedHistories.sort((a, b) => b.updatedAt - a.updatedAt);
         setChatHistories(sortedHistories);
@@ -66,22 +67,22 @@ export const useChatHistory = () => {
     }
   }, []);
 
-  const updateChatHistory = useCallback(async (chatId, messages) => {
+  const updateChatHistory = useCallback(async (chatId, messages, tokens = 0) => {
     try {
       // Get fresh data from storage
       if (typeof chrome !== 'undefined' && chrome.storage) {
         const result = await chrome.storage.local.get(['chatHistories']);
         const currentHistories = result.chatHistories || [];
-        
-        const updatedHistories = currentHistories.map(chat => 
-          chat.id === chatId 
-            ? { ...chat, messages, updatedAt: Date.now() }
+
+        const updatedHistories = currentHistories.map(chat =>
+          chat.id === chatId
+            ? { ...chat, messages, totalTokens: tokens, updatedAt: Date.now() }
             : chat
         );
-        
+
         // Update storage
         await chrome.storage.local.set({ chatHistories: updatedHistories });
-        
+
         // Update state
         const sortedHistories = updatedHistories.sort((a, b) => b.updatedAt - a.updatedAt);
         setChatHistories(sortedHistories);

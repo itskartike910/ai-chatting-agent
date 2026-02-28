@@ -1,0 +1,295 @@
+/**
+ * Sidebar-specific CSS adjustments
+ * Optimizes the UI for sidebar display (typically 300-400px width)
+ * Reduces padding and margins while maintaining the same UI/UX
+ */
+
+/* Root container adjustments for sidebar */
+#root {
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden; /* Prevent horizontal scroll in sidebar */
+}
+
+body {
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* App container adjustments */
+.App {
+  max-width: 100%; /* Use full sidebar width */
+  padding: 12px; /* Reduced from 20px */
+  margin: 0;
+}
+
+.App-header {
+  padding: 12px; /* Reduced from 20px */
+  margin-bottom: 12px; /* Reduced from 20px */
+}
+
+.App-main {
+  padding: 16px; /* Reduced from 30px */
+}
+
+/* Form and section spacing adjustments */
+.form-section {
+  padding: 12px; /* Reduced from 20px */
+  margin-bottom: 16px; /* Reduced from 30px */
+}
+
+.form-group {
+  margin-bottom: 10px; /* Reduced from 15px */
+}
+
+/* Chat interface adjustments */
+.chat-container {
+  padding: 8px; /* Reduced padding */
+}
+
+.chat-messages {
+  padding: 8px; /* Reduced padding */
+}
+
+.chat-input-container {
+  padding: 8px; /* Reduced padding */
+}
+
+/* Message spacing */
+.message-item {
+  margin-bottom: 10px; /* Reduced from potential larger values */
+  padding: 10px; /* Reduced padding */
+}
+
+/* Button and control spacing */
+.controls {
+  gap: 8px; /* Reduced from 15px */
+}
+
+.nav-tabs {
+  gap: 6px; /* Reduced from 10px */
+}
+
+/* Status card adjustments */
+.status-card {
+  padding: 12px; /* Reduced from 20px */
+}
+
+/* Settings modal adjustments for sidebar */
+.settings-modal {
+  max-width: 100%;
+}
+
+.modal-content {
+  margin: 8px;
+  padding: 12px;
+}
+
+/* Dashboard spacing */
+.dashboard {
+  gap: 16px; /* Reduced from 30px */
+}
+
+/* Responsive text sizing for sidebar */
+.App-header h1 {
+  font-size: 1.3rem; /* Slightly smaller for sidebar */
+  margin: 0 0 10px 0;
+}
+
+/* Chat history adjustments */
+.history-item {
+  padding: 8px; /* Reduced padding */
+  margin-bottom: 8px;
+}
+
+/* Profile page adjustments */
+.profile-section {
+  padding: 12px; /* Reduced padding */
+  margin-bottom: 12px;
+}
+
+/* Task status adjustments */
+.task-status {
+  padding: 8px; /* Reduced padding */
+}
+
+/* Subscription page adjustments */
+.subscription-container {
+  padding: 12px; /* Reduced padding */
+}
+
+.subscription-card {
+  margin-bottom: 12px; /* Reduced spacing */
+  padding: 12px;
+}
+
+/* How to use page adjustments */
+.how-to-use {
+  padding: 12px; /* Reduced padding */
+}
+
+.how-to-section {
+  margin-bottom: 16px; /* Reduced from potential larger values */
+}
+
+/* Input and button sizing for sidebar */
+input, textarea, select {
+  font-size: 14px; /* Ensure readable text */
+}
+
+button {
+  padding: 8px 12px; /* Comfortable button size */
+  font-size: 14px;
+}
+
+/* Ensure images and media fit sidebar */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Scrollbar styling for sidebar (optional) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Loading spinner adjustments */
+.spinner-loader {
+  /* Keep spinner size as is for visibility */
+}
+
+/* Message list container */
+.message-list-container {
+  padding: 8px;
+}
+
+/* Auth page in sidebar */
+.auth-container {
+  padding: 16px;
+  max-width: 100%;
+}
+
+/* Ensure proper text wrapping */
+.message-content,
+.task-description,
+.status-text {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Adjust any fixed widths to be responsive */
+.fixed-width-container {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Tab navigation adjustments */
+.tab-navigation {
+  padding: 8px;
+}
+
+.tab-button {
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/* Modal overlays should fit sidebar */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* Settings form in sidebar */
+.settings-form {
+  max-width: 100%;
+}
+
+.settings-group {
+  margin-bottom: 12px;
+}
+
+/* Compact mode for lists */
+.list-item {
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+/* Ensure code blocks fit */
+pre, code {
+  max-width: 100%;
+  overflow-x: auto;
+  font-size: 12px;
+}
+
+/* Markdown content adjustments */
+.markdown-content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.markdown-content h1 {
+  font-size: 1.4rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.2rem;
+}
+
+.markdown-content h3 {
+  font-size: 1.1rem;
+}
+
+/* Chat input area */
+.chat-input-wrapper {
+  padding: 8px;
+}
+
+.chat-input-field {
+  padding: 8px;
+  font-size: 14px;
+}
+
+/* Action buttons in sidebar */
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Ensure tooltips fit */
+.tooltip {
+  max-width: 250px;
+}
+
+/* Grid layouts should stack in sidebar */
+@media (max-width: 500px) {
+  .grid-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Focus states remain visible */
+button:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid rgba(49, 130, 206, 0.6);
+  outline-offset: 2px;
+}
+

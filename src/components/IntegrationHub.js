@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/IntegrationHub.css';
 
 const IntegrationHub = () => {
   const navigate = useNavigate();
@@ -35,8 +34,8 @@ const IntegrationHub = () => {
         {/* Header */}
         <div className="hub-header">
           <div className="logo-container">            <div className="main-logo">
-              <span className="logo-icon">🤖</span>
-            </div>
+            <span className="logo-icon">🤖</span>
+          </div>
           </div>
           <h1 className="hub-title">
             <span className="title-gradient">AI Shopping</span>
@@ -48,7 +47,7 @@ const IntegrationHub = () => {
         {/* Action Buttons */}
         <div className="action-buttons">
           {/* Social Shopping Agent Button */}
-          <button 
+          <button
             className="neon-button social-agent-btn"
             onClick={handleSocialAgentClick}
           >
@@ -65,7 +64,7 @@ const IntegrationHub = () => {
           </button>
 
           {/* Labubu Autobuy Button */}
-          <button 
+          <button
             className="neon-button labubu-btn"
             onClick={handleLabubuClick}
           >

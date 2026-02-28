@@ -1,8 +1,10 @@
 /* global chrome */
+import { domService } from '../services/DOMService.js';
 
 export class ActionRegistry {
   constructor(browserContext) {
     this.browserContext = browserContext;
+    this.domService = domService;
     this.actions = new Map();
     this.initializeActions();
   }
@@ -21,31 +23,42 @@ export class ActionRegistry {
           if (!url) {
             throw new Error('Invalid or missing URL');
           }
-          
+
           console.log(`🌐 Universal Navigation: ${url}`);
-          
+
           const currentTab = await this.browserContext.getCurrentActiveTab();
-          if (currentTab) {
+          let newTab;
+
+          if (currentTab && currentTab.id) {
             try {
-              await chrome.tabs.remove(currentTab.id);
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // Update the current tab instead of closing it
+              console.log(`🔄 Updating existing tab ${currentTab.id} to ${url}`);
+              await chrome.tabs.update(currentTab.id, { url: url, active: true });
+              newTab = await chrome.tabs.get(currentTab.id);
+              this.browserContext.activeTabId = newTab.id;
             } catch (e) {
-              console.log('Could not close current tab:', e);
+              console.log('Could not update tab, creating new one:', e);
+              // Fallback: create new tab
+              newTab = await chrome.tabs.create({ url: url, active: true });
+              this.browserContext.activeTabId = newTab.id;
             }
+          } else {
+            // No current tab, create new one
+            console.log(`🆕 Creating new tab for ${url}`);
+            newTab = await chrome.tabs.create({ url: url, active: true });
+            this.browserContext.activeTabId = newTab.id;
           }
-          
-          const newTab = await chrome.tabs.create({ url: url, active: true });
-          this.browserContext.activeTabId = newTab.id;
+
           await this.browserContext.waitForReady(newTab.id);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
           return {
             success: true,
             extractedContent: `Successfully navigated to ${url}`,
             includeInMemory: true,
             navigationCompleted: true
           };
-          
+
         } catch (error) {
           console.error('Navigation error:', error);
           return {
@@ -64,42 +77,56 @@ export class ActionRegistry {
       schema: {
         index: 'number - The element index from the page state',
         selector: 'string - CSS selector (from page state only)',
+        xpath: 'string - XPath selector (from page state only)',
         intent: 'string - Description of what you are clicking and why'
       },
       handler: async (input) => {
         try {
           console.log(`🖱️ Universal Click: ${input.intent || 'Click action'}`);
-          
-          return new Promise((resolve) => {
-            const actionParams = {};
-            
-            if (input.index !== undefined) {
-              actionParams.index = input.index;
-              console.log(`🎯 Using element index: ${input.index}`);
-            } else if (input.selector) {
-              actionParams.selector = input.selector;
-              console.log(`🎯 Using selector: ${input.selector}`);
-            } else {
-              resolve({
-                success: false,
-                error: 'No index or selector provided',
-                extractedContent: 'Click failed: No target specified',
-                includeInMemory: true
-              });
-              return;
-            }
 
-            chrome.wootz.performAction('click', actionParams, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ?
-                  `Successfully clicked: ${input.intent}` :
-                  `Click failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
+          const actionParams = {};
+
+          if (input.index !== undefined) {
+            actionParams.index = input.index;
+            console.log(`🎯 Using element index: ${input.index}`);
+          }
+          if (input.selector) {
+            actionParams.selector = input.selector;
+            console.log(`🎯 Using selector: ${input.selector}`);
+          }
+          if (input.xpath) {
+            actionParams.xpath = input.xpath;
+            console.log(`🎯 Using xpath: ${input.xpath}`);
+          }
+
+          if (input.index === undefined && !input.selector && !input.xpath) {
+            return {
+              success: false,
+              error: 'No index or selector provided',
+              extractedContent: 'Click failed: No target specified',
+              includeInMemory: true
+            };
+          }
+
+          const tab = await this.browserContext.getCurrentActiveTab();
+          if (!tab || !tab.id) {
+            return {
+              success: false,
+              error: 'No active tab available for click',
+              extractedContent: 'Click failed: No active tab found',
+              includeInMemory: true
+            };
+          }
+          const result = await this.domService.performClick(tab.id, actionParams);
+
+          return {
+            success: result.success,
+            extractedContent: result.success ?
+              `Successfully clicked: ${input.intent}` :
+              `Click failed: ${result.error}`,
+            includeInMemory: true,
+            error: result.error
+          };
         } catch (error) {
           console.error('Click action error:', error);
           return {
@@ -118,38 +145,53 @@ export class ActionRegistry {
       schema: {
         index: 'number - The element index from the page state',
         selector: 'string - CSS selector (from page state only)',
+        xpath: 'string - XPath selector (from page state only)',
         text: 'string - The text to type into the element',
         intent: 'string - Description of what you are typing and why'
       },
       handler: async (input) => {
         try {
           console.log(`⌨️ Universal Type: "${input.text}" - ${input.intent}`);
-          return new Promise((resolve) => {
-            const actionParams = { text: input.text };
-            if (input.index !== undefined) {
-              actionParams.index = input.index;
-            } else if (input.selector) {
-              actionParams.selector = input.selector;
-            } else {
-              resolve({
-                success: false,
-                error: 'No index or selector provided for text input',
-                extractedContent: `Type failed: No target specified for "${input.text}"`,
-                includeInMemory: true
-              });
-              return;
-            }
-            chrome.wootz.performAction('fill', actionParams, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ?
-                  `Successfully typed: "${input.text}"` :
-                  `Type failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
-          });
+
+          const actionParams = { text: input.text };
+          if (input.index !== undefined) {
+            actionParams.index = input.index;
+          }
+          if (input.selector) {
+            actionParams.selector = input.selector;
+          }
+          if (input.xpath) {
+            actionParams.xpath = input.xpath;
+          }
+
+          if (input.index === undefined && !input.selector && !input.xpath) {
+            return {
+              success: false,
+              error: 'No index or selector provided for text input',
+              extractedContent: `Type failed: No target specified for "${input.text}"`,
+              includeInMemory: true
+            };
+          }
+
+          const tab = await this.browserContext.getCurrentActiveTab();
+          if (!tab || !tab.id) {
+            return {
+              success: false,
+              error: 'No active tab available for typing',
+              extractedContent: 'Type failed: No active tab found',
+              includeInMemory: true
+            };
+          }
+          const result = await this.domService.performFill(tab.id, actionParams);
+
+          return {
+            success: result.success,
+            extractedContent: result.success ?
+              `Successfully typed: "${input.text}"` :
+              `Type failed: ${result.error}`,
+            includeInMemory: true,
+            error: result.error
+          };
         } catch (error) {
           console.error('Type action error:', error);
           return {
@@ -174,24 +216,32 @@ export class ActionRegistry {
         try {
           const amount = String(input.amount || 300);
           const direction = input.direction || 'down';
-          
+
           console.log(`📜 Universal Scroll: ${direction} by ${amount}px - ${input.intent}`);
-          
-          return new Promise((resolve) => {
-            chrome.wootz.performAction('scroll', {
-              direction: direction,
-              amount: amount
-            }, (result) => {
-              resolve({
-                success: result.success,
-                extractedContent: result.success ? 
-                  `Scrolled ${direction} by ${amount}px` : 
-                  `Scroll failed: ${result.error}`,
-                includeInMemory: true,
-                error: result.error
-              });
-            });
+
+          const tab = await this.browserContext.getCurrentActiveTab();
+          if (!tab || !tab.id) {
+            return {
+              success: false,
+              error: 'No active tab available for scroll',
+              extractedContent: 'Scroll failed: No active tab',
+              includeInMemory: true
+            };
+          }
+
+          const result = await this.domService.performScroll(tab.id, {
+            direction: direction,
+            amount: amount
           });
+
+          return {
+            success: result.success,
+            extractedContent: result.success ?
+              `Scrolled ${direction} by ${amount}px` :
+              `Scroll failed: ${result.error}`,
+            includeInMemory: true,
+            error: result.error
+          };
         } catch (error) {
           console.error('Scroll action error:', error);
           return {
@@ -261,7 +311,7 @@ export class ActionRegistry {
     //       const ariaLabel = (el.attributes?.['aria-label'] || '').toLowerCase();
     //       const className = (el.attributes?.class || '').toLowerCase();
     //       const id = (el.attributes?.id || '').toLowerCase();
-          
+
     //       // Enhanced text matching
     //       if (input.text) {
     //         const searchText = String(input.text).toLowerCase();
@@ -269,7 +319,7 @@ export class ActionRegistry {
     //         if (ariaLabel.includes(searchText)) s += 12;
     //         if (className.includes(searchText.replace(/\s+/g, '-'))) s += 8; // CSS class format
     //         if (id.includes(searchText.replace(/\s+/g, '-'))) s += 10; // ID format
-            
+
     //         // Partial word matching for better flexibility
     //         const searchWords = searchText.split(' ');
     //         const matchingWords = searchWords.filter(word => 
@@ -279,20 +329,20 @@ export class ActionRegistry {
     //           s += (matchingWords.length / searchWords.length) * 8;
     //         }
     //       }
-          
+
     //       // Purpose and category matching with higher weights
     //       if (input.purpose && (el.purpose || '').toLowerCase() === String(input.purpose).toLowerCase()) s += 8;
     //       if (input.category && (el.category || '').toLowerCase() === String(input.category).toLowerCase()) s += 6;
-          
+
     //       // Element type preferences for actions
     //       if (el.tagName === 'BUTTON') s += 3;
     //       if (el.tagName === 'A' && el.attributes?.href) s += 2;
     //       if (el.tagName === 'INPUT' && el.attributes?.type === 'submit') s += 4;
-          
+
     //       // Size bonus (larger elements are often more important)
     //       const area = (el.bounds?.width || 0) * (el.bounds?.height || 0);
     //       s += Math.min(3, Math.log10(1 + area/1000));
-          
+
     //       return s;
     //     };
     //     return new Promise((resolve) => {
@@ -361,8 +411,8 @@ export class ActionRegistry {
       handler: async (_input) => {
         try {
           const tab = await this.browserContext.getCurrentActiveTab();
-          if (!tab?.id) return { success:false, error:'No active tab', includeInMemory:true };
-          
+          if (!tab?.id) return { success: false, error: 'No active tab', includeInMemory: true };
+
           // Try content script message first
           let contentScriptError = null;
           try {
@@ -375,49 +425,49 @@ export class ActionRegistry {
                 }
               });
             });
-            
+
             if (res?.ok) {
               await this.browserContext.waitForReady(tab.id);
-              return { success:true, extractedContent:'Went back one step', includeInMemory:true };
+              return { success: true, extractedContent: 'Went back one step', includeInMemory: true };
             }
           } catch (error) {
             contentScriptError = error;
             console.log('Content script go_back failed, trying alternative method:', error.message);
           }
-          
+
           // Fallback: Use chrome.tabs.goBack if content script fails
           try {
             // Check if we can go back by getting tab info first
             const tabInfo = await chrome.tabs.get(tab.id);
-            
+
             // If this is the first page in history, we can't go back
             if (tabInfo.pendingUrl || tabInfo.url === 'about:blank') {
-              return { 
-                success: false, 
+              return {
+                success: false,
                 error: 'Cannot go back: This is the first page in tab history. Use navigate action instead.',
                 extractedContent: 'Go back failed: No previous page in history',
-                includeInMemory: true 
+                includeInMemory: true
               };
             }
-            
+
             await chrome.tabs.goBack(tab.id);
             await this.browserContext.waitForReady(tab.id);
-            return { success:true, extractedContent:'Went back one step (fallback method)', includeInMemory:true };
+            return { success: true, extractedContent: 'Went back one step (fallback method)', includeInMemory: true };
           } catch (fallbackError) {
             // Handle specific "no history" error
             if (fallbackError.message.includes('Cannot find a next page in history')) {
-              return { 
-                success: false, 
+              return {
+                success: false,
                 error: 'Cannot go back: No previous page in browser history. This tab was opened directly to the current URL.',
                 extractedContent: 'Go back failed: No previous page in history',
-                includeInMemory: true 
+                includeInMemory: true
               };
             }
-            
-            return { success:false, error: `Both methods failed: content script (${contentScriptError?.message || 'unknown'}), fallback (${fallbackError.message})`, includeInMemory:true };
+
+            return { success: false, error: `Both methods failed: content script (${contentScriptError?.message || 'unknown'}), fallback (${fallbackError.message})`, includeInMemory: true };
           }
         } catch (e) {
-          return { success:false, error: e.message, extractedContent:`Back failed: ${e.message}`, includeInMemory:true };
+          return { success: false, error: e.message, extractedContent: `Back failed: ${e.message}`, includeInMemory: true };
         }
       }
     });
@@ -475,9 +525,9 @@ export class ActionRegistry {
       console.error('Invalid URL provided:', url);
       return null;
     }
-    
+
     url = url.trim().replace(/['"]/g, '');
-    
+
     if (url.startsWith('http://') || url.startsWith('https://')) {
       try {
         new URL(url);
@@ -487,11 +537,11 @@ export class ActionRegistry {
         return null;
       }
     }
-    
+
     if (!url.startsWith('http')) {
       url = 'https://' + url;
     }
-    
+
     try {
       new URL(url);
       return url;
