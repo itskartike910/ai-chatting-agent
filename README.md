@@ -1,199 +1,64 @@
-# 🤖 AI Social Shopping Agent
+# 🚀 OmniBrowse
 
-An intelligent **universal Chromium extension** that automates web tasks using advanced AI agents. Works on **Chrome, Edge, Brave, and all Chromium-based browsers** including Wootzapp Browser for Android. Perfect for social media automation, e-commerce shopping, content discovery, and general web navigation tasks.
+### AI-Orchestrated Browser Automation Agent
 
-![AI Social Shopping Agent](https://img.shields.io/badge/AI%20Agent-Browser%20Extension-blue)
-![Chromium Compatible](https://img.shields.io/badge/Chromium-Universal-green)
-![Version](https://img.shields.io/badge/version-1.0.4-green)
-![React](https://img.shields.io/badge/React-18.2.0-61DAFB)
+OmniBrowse is a production-grade Chromium extension that enables autonomous multi-step web workflows using structured AI-driven execution. It converts natural language tasks into deterministic browser actions while maintaining cross-browser compatibility and system reliability.
+
+Built for automation across social platforms, e-commerce workflows, research tasks, and general web navigation.
+
+---
 
 ## 🌐 Universal Chromium Compatibility
 
-This extension uses **standard Chromium APIs** (`chrome.scripting`, `chrome.tabs`) and the powerful **buildDomTree** DOM analysis engine, making it compatible with all Chromium-based browsers:
+OmniBrowse uses only standard Chromium Extension APIs:
 
-✅ **Google Chrome** - Full support  
-✅ **Microsoft Edge** - Full support  
-✅ **Brave Browser** - Full support  
-✅ **Opera** - Full support  
-✅ **Vivaldi** - Full support  
-✅ **Wootzapp Browser** (Android) - Full support with mobile optimization  
+* `chrome.scripting`
+* `chrome.tabs`
+* Manifest V3 service workers
+* Custom DOM state extraction engine
 
-No proprietary APIs required - works everywhere Chromium does!
+Fully compatible with:
 
-## 🌟 Key Features
+* Google Chrome
+* Chromium
+* Microsoft Edge
+* Brave
+* And Other Chromium Based Desktop Browsers
 
-### 🧠 **Multi-Agent AI System**
-- **AI Task Router**: Intelligently classifies user requests (chat vs web automation)
-- **Planner Agent**: Creates strategic batch execution plans (2-7 sequential actions)
-- **Navigator Agent**: Executes precise web interactions with mobile optimization
-- **Validator Agent**: Validates task completion with progressive assessment
+No proprietary APIs. No vendor lock-in.
 
-### 🚀 **Smart Web Automation**
-- **Social Media**: Automated posting on X/Twitter, LinkedIn, Facebook
-- **E-commerce**: Product search, shopping cart management, order placement
-- **Content Discovery**: YouTube video search and playback, research tasks
-- **Universal Navigation**: Intelligent URL routing and page interaction
+---
 
-### 💬 **Interactive Chat Interface (Sidebar)**
-- **Sidebar Experience**: Full-height sidebar panel for seamless multitasking
-- **Real-time Communication**: Chat with AI agents while browsing
-- **Task Status Tracking**: Live updates with observation and strategy display
-- **Chat History**: Persistent conversation storage with search functionality
-- **Markdown Support**: Rich text formatting for code, links, and emphasis
-- **Always Accessible**: Keep the agent visible while navigating websites
+## ⚙️ Core Capabilities
 
-### 📱 **Responsive Design**
-- **Desktop & Mobile**: Works on both desktop and mobile Chromium browsers
-- **Touch-Friendly**: Optimized for both mouse and touch interactions
-- **Element Highlighting**: Visual feedback during automation (with auto-cleanup)
-- **Progress Tracking**: Real-time task completion indicators
+### 🔹 AI Task Execution Engine
 
-### 🔧 **Modern Architecture**
-- **Sidebar Interface**: Persistent side panel for multitasking (Chrome Side Panel API)
-- **Standard Chrome APIs**: Uses `chrome.scripting` and `chrome.tabs` for universal compatibility
-- **BuildDomTree Engine**: Advanced DOM analysis for precise element targeting
-- **No Proprietary Dependencies**: Works on any Chromium-based browser
+* Converts natural language requests into structured multi-step execution plans
+* Separates task classification, planning, execution, and validation stages
+* Maintains execution history to improve reliability and reduce loop failures
 
-## 🔧 Installation & Setup
+### 🔹 Deterministic Interaction Pipeline
 
-### Prerequisites
+* DOM state extraction using semantic tree representation
+* Renderer-based action execution (click, type, scroll, navigation)
+* Async-safe interaction handling for dynamic web pages
 
-#### For Desktop (Chrome, Edge, Brave, etc.):
-- **Any Chromium-based browser** (Chrome, Edge, Brave, Opera, Vivaldi, etc.)
-- **Node.js** (v16 or higher)
-- **npm** or **yarn** package manager
+### 🔹 Secure Orchestration
 
-#### For Mobile (Wootzapp Browser):
-- **Wootzapp Browser** installed on Android device
-- **Node.js** (v16 or higher) - for building the extension
-- **npm** or **yarn** package manager
+* Backend-integrated authentication
+* Token-based usage tracking
+* Controlled execution lifecycle
 
-### 1. Clone & Install Dependencies
-```bash
-# Clone the repository
-git clone <repository-url>
-cd ai-social-agent
+### 🔹 Cross-Browser Architecture
 
-# Install dependencies
-npm install
-```
+* Modular extension design
+* Standard Chromium APIs only
+* Portable across desktop and mobile Chromium builds
 
-### 2. Build the Extension
-```bash
-# Build for production
-npm run build:extension
+---
 
-# Or for development with watch mode
-npm run dev:webpack
-```
+## 🏗 Architecture Overview
 
-### 3. Load Extension in Browser
-
-#### For Chrome, Edge, Brave (Desktop):
-1. Open your Chromium browser
-2. Navigate to the extensions page:
-   - **Chrome**: `chrome://extensions/`
-   - **Edge**: `edge://extensions/`
-   - **Brave**: `brave://extensions/`
-   - **Opera**: `opera://extensions/`
-   - **Vivaldi**: `vivaldi://extensions/`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked**
-5. Select the `build/` directory from your project
-6. **Click the extension icon** in the toolbar to open the sidebar
-
-#### For Wootzapp Browser (Android):
-1. Open Wootzapp Browser on your Android device
-2. Navigate to `wootz://extensions/` or tap menu → Extensions
-3. Enable **Developer mode** using the toggle switch
-4. Tap **Load unpacked**
-5. Navigate to the `build/` folder (transfer to device via USB, cloud, or file sharing)
-
-### 4. Configure AI API Keys
-
-1. Click the extension icon in your browser toolbar
-2. Go to **Settings** (gear icon)
-3. Configure your preferred AI provider:
-
-#### Option A: Google Gemini (Recommended)
-- **Provider**: Select "Gemini"
-- **API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
-- **Model**: `gemini-2.5-flash` (default) or `gemini-pro`
-
-#### Option B: Anthropic Claude
-- **Provider**: Select "Claude"
-- **API Key**: Get from [Anthropic Console](https://console.anthropic.com/)
-- **Model**: `claude-3-haiku` or `claude-3-sonnet`
-
-#### Option C: OpenAI GPT-4o
-- **Provider**: Select "OpenAI"
-- **API Key**: Get from [OpenAI Console](https://platform.openai.com/api-keys)
-- **Model**: `gpt-4o` (default) or `gpt-4o-mini`
-
-## 🎯 How to Use
-
-### 💬 **Chat Mode**
-Ask general questions, get explanations, or request code examples:
-
-```
-Examples:
-• "What is machine learning?"
-• "Write a JavaScript function to sort an array"
-• "Explain how REST APIs work"
-• "Help me understand React hooks"
-```
-
-### 🤖 **Web Automation Mode**
-Request specific web actions using natural language:
-
-#### Social Media Automation
-```
-Examples:
-• "Post 'Hello World!' on Twitter"
-• "Search for AI tutorials on YouTube and play the first video"
-• "Find trending topics on LinkedIn"
-• "Share my latest blog post on Facebook"
-```
-
-#### E-commerce & Shopping
-```
-Examples:
-• "Find iPhone 15 on Amazon and add to cart"
-• "Search for wireless headphones under $100"
-• "Compare prices of laptops on different sites"
-• "Add the first Labubu doll to my shopping cart"
-```
-
-#### Research & Content Discovery
-```
-Examples:
-• "Search for latest AI news on Google"
-• "Find reviews of the new Tesla Model 3"
-• "Look up restaurants near me on Yelp"
-• "Find cooking tutorials on YouTube"
-```
-
-#### Web Navigation
-```
-Examples:
-• "Go to Gmail and check my inbox"
-• "Open Netflix and browse comedy movies"
-• "Navigate to my bank's website"
-• "Visit the latest news on BBC"
-```
-
-### 🔄 **Task Execution Flow**
-
-1. **Input**: Type your request in natural language
-2. **Classification**: AI determines if it's a chat or automation task
-3. **Planning**: Planner Agent creates an optimal execution strategy
-4. **Execution**: Navigator Agent performs actions with real-time updates
-5. **Validation**: Validator Agent confirms task completion
-6. **Feedback**: Get detailed results and next steps
-
-## 🛠️ Development
-
-### Project Structure
 ```
 ai-social-agent/
 ├── public/                     # Extension files
@@ -219,82 +84,119 @@ ai-social-agent/
 └── build/                    # Built extension (generated)
 ```
 
-### Available Scripts
+---
+
+
+## 🌟 Key Features
+
+### 🧠 **Multi-Agent AI System**
+- **AI Task Router**: Intelligently classifies user requests (chat vs web automation)
+- **Planner Agent**: Creates strategic batch execution plans (2-7 sequential actions)
+- **Navigator Agent**: Executes precise web interactions within the browser
+- **Validator Agent**: Validates task completion with progressive assessment
+
+### 🚀 **Smart Web Automation**
+- **Social Media**: Automated posting on X/Twitter, LinkedIn, Facebook
+- **E-commerce**: Product search, shopping cart management, order placement
+- **Content Discovery**: YouTube video search and playback, research tasks
+- **Universal Navigation**: Intelligent URL routing and page interaction
+
+### 💬 **Interactive Chat Interface (Sidebar)**
+- **Sidebar Experience**: Full-height sidebar panel for seamless multitasking
+- **Real-time Communication**: Chat with AI agents while browsing
+- **Task Status Tracking**: Live updates with observation and strategy display
+- **Chat History**: Persistent conversation storage with search functionality
+- **Markdown Support**: Rich text formatting for code, links, and emphasis
+- **Always Accessible**: Keep the agent visible while navigating websites
+
+### 🔧 **Modern Architecture**
+- **Sidebar Interface**: Persistent side panel for multitasking (Chrome Side Panel API)
+- **Standard Chrome APIs**: Uses `chrome.scripting` and `chrome.tabs` for universal compatibility
+- **BuildDomTree Engine**: Advanced DOM analysis for precise element targeting
+- **No Proprietary Dependencies**: Works on any Chromium-based browser
+
+---
+
+## 🔧 Installation & Setup
+
+### Prerequisites
+
+#### For Desktop (Chrome, Edge, Brave, etc.):
+- **Any Chromium-based browser** (Chrome, Edge, Brave, Opera, Vivaldi, etc.)
+- **Node.js** (v16 or higher)
+- **npm** or **yarn** package manager
+
+### 1️⃣ Clone Repository
 
 ```bash
-# Development
-npm start              # Start React dev server
-npm run dev:webpack    # Watch mode for extension files
-
-# Building
-npm run build          # Build React app
-npm run build:webpack  # Build extension files
-npm run build:extension # Complete extension build
-
-# Testing
-npm test              # Run test suite
+git clone https://github.com/itskartike910/ai-chatting-agent.git
+cd ai-chatting-agent
+npm install
 ```
 
-### Technical Architecture
+### 2️⃣ Build Extension
 
-This extension uses **standard Chromium APIs** for universal compatibility:
+```bash
+npm run build
+```
 
-#### DOM Interaction
-- **`buildDomTree.js`**: Advanced DOM analysis engine that creates a semantic representation of web pages
-- **`chrome.scripting.executeScript()`**: Injects and executes scripts in page context
-- **DOMService**: Abstraction layer providing universal DOM operations
+### 3️⃣ Load in Chromium Browser
 
-#### Actions System
-- Uses `chrome.scripting` to perform clicks, typing, scrolling
-- No browser-specific APIs required
-- Works identically across all Chromium browsers
+1. Open `chrome://extensions/`
+2. Enable Developer Mode
+3. Click “Load Unpacked”
+4. Select the `build/` directory
 
-#### Screenshot Capture
-- **`chrome.tabs.captureVisibleTab()`**: Standard screenshot API
-- Supports both PNG and JPEG formats
-- No additional permissions needed beyond standard tabs
+### 4️⃣ Configure AI API Keys
 
-#### Key Benefits
-✅ **Universal**: Works on any Chromium browser (desktop & mobile)  
-✅ **Standard**: Uses only official Chrome Extension APIs  
-✅ **Portable**: No vendor lock-in or proprietary dependencies  
-✅ **Future-proof**: Based on stable, long-term APIs
+1. Configure your preferred AI provider:
 
-## 🚨 Troubleshooting
+#### Option A: Google Gemini (Recommended)
+- **Provider**: Select "Gemini"
+- **API Key**: Get from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Model**: `gemini-2.5-flash` (default) or `gemini-pro`
 
-### Common Issues
+#### Option B: Anthropic Claude
+- **Provider**: Select "Claude"
+- **API Key**: Get from [Anthropic Console](https://console.anthropic.com/)
+- **Model**: `claude-3-haiku` or `claude-3-sonnet`
 
-#### Extension Not Loading
-- Ensure Developer mode is enabled
-- Check console for error messages
-- Verify all files are in the `build/` directory
-- Try reloading the extension
-
-#### AI API Errors
-- Verify API key is correct and active
-- Check internet connection
-- Ensure API provider has sufficient quota
-- Try switching to a different model
-
-#### Automation Failures
-- Enable Debug mode for detailed logs
-- Check if website structure has changed
-- Verify element highlighting works
-- Try manual execution first
-
-### Error Codes
-- **401**: Invalid API key
-- **429**: Rate limit exceeded
-- **500**: Server error
-- **TIMEOUT**: Action took too long
-- **ELEMENT_NOT_FOUND**: Page structure changed
-
-## 🔒 Privacy & Security
-
-- **Local Storage**: Chat history stored locally in browser
-- **API Communication**: Direct communication with AI providers
-- **No Data Collection**: Extension doesn't collect personal data
-- **Secure Headers**: All API calls use secure authentication
-- **Permission Model**: Minimal required permissions
+#### Option C: OpenAI GPT-4o
+- **Provider**: Select "OpenAI"
+- **API Key**: Get from [OpenAI Console](https://platform.openai.com/api-keys)
+- **Model**: `gpt-4o` (default) or `gpt-4o-mini`
 
 
+---
+
+## 🤖 Example Use Cases
+
+* “Search for AI research papers and summarize findings”
+* “Find the cheapest iPhone 15 and add to cart”
+* “Post a tweet about system design patterns”
+* “Navigate to YouTube and play first machine learning tutorial”
+
+---
+
+## 🛠 Technology Stack
+
+* JavaScript (ES6+)
+* React (UI Layer)
+* Chromium Extension APIs (Manifest V3)
+* Custom DOM Analysis Engine
+* Multi-LLM Support (OpenAI / Gemini / Claude)
+
+---
+
+## 🔐 Security & Privacy
+
+* No external data collection
+* API keys stored locally
+* Direct communication with AI providers
+* Minimal permission model
+
+---
+
+## 📝 License
+
+[MIT License](LICENSE)
