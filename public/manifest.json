@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Social Shopping Agent",
+  "name": "OmniBrowse",
   "version": "1.0.5",
-  "description": "AI-powered Social Shopping Agent",
+  "description": "OmniBrowse is a production-grade Chromium extension that enables autonomous multi-step web workflows using structured AI-driven execution. It converts natural language tasks into deterministic browser actions while maintaining cross-browser compatibility and system reliability.",
   "permissions": [
     "storage",
     "alarms",
@@ -15,11 +15,7 @@
     "sidePanel"
   ],
   "host_permissions": [
-    "<all_urls>",
-    "https://popmart.com/*",
-    "https://m.popmart.com/*",
-    "https://www.popmart.com/*",
-    "https://generativelanguage.googleapis.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js",
@@ -36,7 +32,7 @@
     "default_path": "index.html"
   },
   "action": {
-    "default_title": "Social Shopping Agent"
+    "default_title": "OmniBrowse"
   },
   "icons": {
     "16": "icons/icon.png",

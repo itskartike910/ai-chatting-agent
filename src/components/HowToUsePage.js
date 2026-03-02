@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaRobot, FaShoppingCart, FaSearch, FaShieldAlt, FaLightbulb } from 'react-icons/fa';
+import '../styles/StartupPageAnimations.css';
 
 const HowToUsePage = () => {
   const navigate = useNavigate();
@@ -10,23 +11,26 @@ const HowToUsePage = () => {
   };
 
   return (
-    <div style={{
+    <div className="startup-container" style={{
       width: '100%',
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#002550FF',
+      backgroundColor: '#002e63',
       overflow: 'hidden',
       position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
+      top: '0',
+      left: '0',
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTouchCallout: 'none',
       touchAction: 'manipulation'
     }}>
+      {/* Background Glow Elements */}
+      <div className="bg-glow glow-top"></div>
+      <div className="bg-glow glow-bottom"></div>
+
       {/* Background Animation */}
       <div className="background-animation">
         <div className="floating-orb chat-orb-1"></div>
@@ -96,12 +100,14 @@ const HowToUsePage = () => {
       </div>
 
       {/* Content */}
-      <div style={{
+      <div className="startup-content" style={{
         flex: 1,
         overflowY: 'auto',
         padding: '16px',
         position: 'relative',
-        zIndex: 1
+        zIndex: 1,
+        alignItems: 'stretch',
+        justifyContent: 'flex-start'
       }}>
         {/* Introduction */}
         <div style={{
@@ -125,7 +131,7 @@ const HowToUsePage = () => {
               fontSize: '14px',
               fontWeight: '600'
             }}>
-              Welcome to Your AI Shopping Assistant
+              Welcome to OmniBrowse
             </h2>
           </div>
           <p style={{
@@ -134,7 +140,7 @@ const HowToUsePage = () => {
             fontSize: '12px',
             lineHeight: '1.4'
           }}>
-            Social Shopping Agent is your intelligent companion for web automation, shopping, social media tasks, and more. 
+            OmniBrowse is your intelligent companion for web automation, shopping, social media tasks, and more.
             Simply describe what you want to do, and our AI will handle the rest.
           </p>
         </div>

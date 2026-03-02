@@ -440,7 +440,7 @@ const SettingsModal = () => {
         </div>
 
         {/* Agent Models Section */}
-        <div style={sectionStyle}>
+        <div className="settings-provider-section" style={sectionStyle}>
           <h4 style={{
             color: '#FFDCDCFF',
             fontSize: '16px',

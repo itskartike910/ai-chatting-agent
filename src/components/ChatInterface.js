@@ -667,7 +667,7 @@ const ChatInterface = () => {
             lineHeight: '20px',
             textAlign: 'left'
           }}>
-            Social Shopping Agent
+            OmniBrowse
           </h3>
           <div className="chat-status-bar" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
             <div className="chat-status" style={{

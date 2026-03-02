@@ -67,7 +67,7 @@ const StartupPage = () => {
                         lineHeight: '20px',
                         textAlign: 'left'
                     }}>
-                        Social Shopping Agent
+                        OmniBrowse
                     </h3>
                 </div>
             </div>
@@ -77,7 +77,7 @@ const StartupPage = () => {
                     <RiRobot2Fill className="startup-icon" />
                 </div>
 
-                <h1 className="startup-title">AI Agent Assistant</h1>
+                <h1 className="startup-title">OmniBrowse</h1>
                 <p className="startup-subtitle">
                     Your intelligent assistant for seamless web navigation, planning, and task execution.
                 </p>

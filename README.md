@@ -60,7 +60,7 @@ No proprietary APIs. No vendor lock-in.
 ## 🏗 Architecture Overview
 
 ```
-ai-social-agent/
+ai-chatting-agent/
 ├── public/                     # Extension files
 │   ├── agents/                # AI agent implementations
 │   │   ├── AITaskRouter.js    # Request classification

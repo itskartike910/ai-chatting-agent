@@ -58,21 +58,21 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
     } else if (!isInitialLoad && messages.length > prevMessageCountRef.current) {
       // For subsequent messages, animate only the newest ones
       const newMessageIds = new Set();
-      
+
       messages.forEach((msg, index) => {
         const messageId = msg.id || `msg-${index}`;
         if (!animatedMessages.has(messageId)) {
           newMessageIds.add(messageId);
         }
       });
-      
+
       if (newMessageIds.size > 0) {
         setAnimatedMessages(prev => new Set([...prev, ...newMessageIds]));
       }
-      
+
       prevMessageCountRef.current = messages.length;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, isInitialLoad]);
 
   const getTypingIndicatorStyle = () => {
@@ -152,7 +152,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             fontStyle: 'italic',
             border: '1px solid #ffeaa7',
             textAlign: 'left',
-            maxWidth: '80%', 
+            maxWidth: '80%',
             margin: '2px 8px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
             animation: 'slideInFromLeft 0.3s ease-out'
@@ -165,7 +165,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             alignSelf: 'center',
             border: '1px solid #f5c6cb',
             textAlign: 'left',
-            maxWidth: '80%', 
+            maxWidth: '80%',
             fontSize: '11px',
             margin: '2px 8px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
@@ -179,7 +179,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             alignSelf: 'center',
             border: '1px solid #ffeaa7',
             textAlign: 'center',
-            maxWidth: '85%', 
+            maxWidth: '85%',
             fontSize: '12px',
             margin: '4px 8px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -193,7 +193,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             alignSelf: 'center',
             border: '1px solid #bbdefb',
             textAlign: 'center',
-            maxWidth: '85%', 
+            maxWidth: '85%',
             fontSize: '12px',
             margin: '4px 8px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
@@ -236,7 +236,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             fontStyle: 'italic',
             border: '1px solid #ffeaa7',
             textAlign: 'left',
-            maxWidth: '80%', 
+            maxWidth: '80%',
             margin: '2px 8px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
           };
@@ -248,7 +248,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             alignSelf: 'center',
             border: '1px solid #f5c6cb',
             textAlign: 'left',
-            maxWidth: '80%', 
+            maxWidth: '80%',
             fontSize: '11px',
             margin: '2px 8px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
@@ -261,7 +261,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             alignSelf: 'center',
             border: '1px solid #ffeaa7',
             textAlign: 'center',
-            maxWidth: '85%', 
+            maxWidth: '85%',
             fontSize: '12px',
             margin: '4px 8px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
@@ -274,7 +274,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             alignSelf: 'center',
             border: '1px solid #bbdefb',
             textAlign: 'center',
-            maxWidth: '85%', 
+            maxWidth: '85%',
             fontSize: '12px',
             margin: '4px 8px',
             boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
@@ -455,7 +455,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
   };
 
   const TemplateCommands = () => (
-    <div style={{ 
+    <div style={{
       padding: '16px',
       display: 'flex',
       flexDirection: 'column',
@@ -465,22 +465,22 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
       margin: '0 auto'
     }}>
       {/* Header Section */}
-      <div style={{ 
-        textAlign: 'center', 
+      <div style={{
+        textAlign: 'center',
         marginBottom: '2px'
       }}>
-        <h2 style={{ 
-          color: '#FFDCDCFF', 
-          marginBottom: '2px', 
-          fontSize: '18px', 
+        <h2 style={{
+          color: '#FFDCDCFF',
+          marginBottom: '2px',
+          fontSize: '18px',
           fontWeight: '700',
           margin: '0 0 2px 0'
         }}>
           How can I help you today?
         </h2>
-        <p style={{ 
-          fontSize: '12px', 
-          color: '#ABDFFFEA', 
+        <p style={{
+          fontSize: '12px',
+          color: '#ABDFFFEA',
           fontWeight: '400',
           margin: '0',
           lineHeight: '1.4'
@@ -532,7 +532,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             }}>
               {template.emoji}
             </div>
-            
+
             {/* Template Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <h3 style={{
@@ -552,7 +552,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                 {template.description}
               </p>
             </div>
-            
+
             {/* Try Arrow */}
             <div style={{
               fontSize: '12px',
@@ -575,8 +575,8 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         textAlign: 'center',
         backdropFilter: 'blur(10px)'
       }}>
-        <p style={{ 
-          fontSize: '11px', 
+        <p style={{
+          fontSize: '11px',
           color: '#ABDFFFEA',
           margin: 0,
           lineHeight: '1.4'
@@ -588,29 +588,29 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
   );
 
   const WelcomeMessage = () => (
-    <div style={{ 
-      textAlign: 'center', 
+    <div style={{
+      textAlign: 'center',
       marginTop: '16px',
       padding: '0 16px'
     }}>
-      <h3 style={{ 
-        color: '#FFDCDCFF', 
-        marginBottom: '6px', 
-        fontSize: '16px', 
-        fontWeight: '600' 
+      <h3 style={{
+        color: '#FFDCDCFF',
+        marginBottom: '6px',
+        fontSize: '16px',
+        fontWeight: '600'
       }}>
-        🤖 Welcome to Social Shopping Agent!
+        🤖 Welcome to OmniBrowse!
       </h3>
-      <p style={{ 
-        marginBottom: '16px', 
-        fontSize: '12px', 
-        color: '#ABDFFFEA', 
+      <p style={{
+        marginBottom: '16px',
+        fontSize: '12px',
+        color: '#ABDFFFEA',
         fontWeight: '400',
         lineHeight: '1.4'
       }}>
         Your intelligent companion for web automation, shopping, and social media tasks.
       </p>
-      
+
       {/* How to Use Button */}
       <button
         onClick={() => window.location.hash = '/how-to-use'}
@@ -637,14 +637,14 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
   );
 
   return (
-    <div 
+    <div
       ref={containerRef}
-      style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        display: 'flex', 
+      style={{
+        flex: 1,
+        overflowY: 'auto',
+        display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#002550FF', 
+        backgroundColor: '#002550FF',
         WebkitOverflowScrolling: 'touch',
         scrollBehavior: 'smooth',
         position: 'relative'
@@ -655,10 +655,10 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         className="background-animation"
         style={{
           position: "absolute",
-          top: 0,           
-          left: 0,          
-          right: 0,         
-          bottom: 0,        
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           pointerEvents: "none",
           zIndex: 0,
         }}
@@ -766,16 +766,16 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
           </div>
         </>
       )}
-      
+
       {messages.map((message, index) => {
         const prevMessage = index > 0 ? messages[index - 1] : null;
         const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
         const isFirstInGroup = !prevMessage || prevMessage.type !== message.type;
         const isLastInGroup = !nextMessage || nextMessage.type !== message.type;
-        
+
         // Get base style
         const baseStyle = getMessageStyle(message.type, message.id || `msg-${index}`);
-        
+
         // Modify style for grouped messages
         const style = {
           ...baseStyle,
@@ -808,21 +808,21 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                   {message.pauseReason === 'signin' ? '🔐' : message.pauseReason === 'approval' ? '⏳' : '❓'} {message.content}
                 </div>
                 {message.pauseDescription && (
-                  <div style={{ 
-                    marginBottom: '12px', 
-                    fontSize: '11px', 
+                  <div style={{
+                    marginBottom: '12px',
+                    fontSize: '11px',
                     color: message.type === 'approval' ? '#1565c0' : '#856404',
                     fontStyle: 'italic'
                   }}>
                     {message.pauseDescription}
                   </div>
                 )}
-                
+
                 {message.type === 'approval' ? (
                   // Approval message rendering
                   (() => {
                     const messageId = message.id || `msg-${index}`;
-                    
+
                     if (message.approved) {
                       return (
                         <div style={{
@@ -977,7 +977,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
               /* Render content with proper markdown support */
               <div style={{ textAlign: 'left', width: '100%' }}>
                 {message.isMarkdown ? (
-                  <ReactMarkdown 
+                  <ReactMarkdown
                     components={markdownComponents}
                     remarkPlugins={[remarkGfm]}
                     style={{ textAlign: 'left' }}
@@ -985,7 +985,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                     {message.content}
                   </ReactMarkdown>
                 ) : message.type === 'error' ? (
-                  <ReactMarkdown 
+                  <ReactMarkdown
                     components={markdownComponents}
                     remarkPlugins={[remarkGfm]}
                     style={{ textAlign: 'left' }}
@@ -998,9 +998,9 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
               </div>
             )}
             {message.actions && message.actions.length > 0 && (
-              <div style={{ 
-                marginTop: '6px', 
-                fontSize: '10px', 
+              <div style={{
+                marginTop: '6px',
+                fontSize: '10px',
                 opacity: 0.9,
                 borderTop: '1px solid rgba(0,0,0,0.1)',
                 paddingTop: '4px'
@@ -1008,7 +1008,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                 <strong>Actions:</strong>
                 <div style={{ marginTop: '2px' }}>
                   {message.actions.map((action, i) => (
-                    <div key={i} style={{ 
+                    <div key={i} style={{
                       margin: '1px 0',
                       padding: '2px 6px',
                       backgroundColor: action.success ? '#d4edda' : '#f8d7da',
@@ -1023,9 +1023,9 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             )}
             {/* Only show timestamp for last message in group */}
             {isLastInGroup && (
-              <div style={{ 
-                fontSize: '9px', 
-                opacity: 0.6, 
+              <div style={{
+                fontSize: '9px',
+                opacity: 0.6,
                 marginTop: '2px',
                 textAlign: message.type === 'user' ? 'right' : 'left'
               }}>
@@ -1035,11 +1035,11 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
           </div>
         );
       })}
-      
+
       {/* Typing Indicator */}
       {isTyping && (
-        <div 
-          className="typing-indicator" 
+        <div
+          className="typing-indicator"
           style={getTypingIndicatorStyle()}
         >
           <div style={{ textAlign: 'left', width: '100%' }}>
@@ -1051,7 +1051,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
           </div>
         </div>
       )}
-      
+
       <div ref={messagesEndRef} />
     </div>
   );
