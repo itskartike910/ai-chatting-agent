@@ -117,9 +117,6 @@
 
 .message-assistant {
   animation: slideInLeft 0.2s ease-out;
-  background-color: #f7f9fa !important;
-  border: 1px solid #e1e8ed !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
 }
 
 .message-system {
@@ -141,13 +138,7 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* Ensure assistant messages always have proper background */
-.message-item.message-assistant,
-div.message-item.message-assistant {
-  background-color: #f7f9fa !important;
-  border: 1px solid #e1e8ed !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
-}
+/* Assistant message styles handled by inline styles in MessageList.js */
 
 /* Ensure typing indicator is always transparent - more specific selectors */
 .typing-indicator,
@@ -212,7 +203,7 @@ div.typing-indicator,
   animation: pulseGlow 0.5s ease-out;
 }
 
-.chat-input:focus + .chat-send-button {
+.chat-input:focus+.chat-send-button {
   animation: glow 0.5s ease-out;
 }
 
@@ -241,10 +232,13 @@ div.typing-indicator,
 }
 
 @keyframes stopButtonPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     box-shadow: 0 2px 8px rgba(224, 36, 94, 0.9);
   }
+
   50% {
     opacity: 0.8;
     box-shadow: 0 4px 12px rgba(224, 36, 94, 0.7);
@@ -261,7 +255,7 @@ div.typing-indicator,
 }
 
 /* Input container focus effect */
-.chat-input-container:focus-within > form > div {
+.chat-input-container:focus-within>form>div {
   border-color: #00F064FF !important;
   box-shadow: 0 0 0 2px rgba(0, 240, 100, 0.2);
 }
@@ -354,16 +348,28 @@ div.typing-indicator,
   animation: typingBounce 1.4s ease-in-out infinite;
 }
 
-.typing-dot:nth-child(1) { animation-delay: 0s; }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes typingBounce {
-  0%, 80%, 100% { 
+
+  0%,
+  80%,
+  100% {
     transform: scale(1) translateY(0);
     opacity: 0.5;
   }
-  40% { 
+
+  40% {
     transform: scale(1.2) translateY(-10px);
     opacity: 1;
   }
@@ -375,12 +381,12 @@ div.typing-indicator,
     width: 100px;
     height: 100px;
   }
-  
+
   .chat-orb-2 {
     width: 80px;
     height: 80px;
   }
-  
+
   .chat-orb-3 {
     width: 60px;
     height: 60px;

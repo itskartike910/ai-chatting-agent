@@ -11,7 +11,6 @@ const StartupPage = () => {
     const navigate = useNavigate();
 
     const handleContinue = () => {
-        // Navigate straight to settings so user can input their API key
         navigate('/settings');
     };
 
@@ -25,53 +24,49 @@ const StartupPage = () => {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            backgroundColor: '#002550FF',
+            fontFamily: "var(--font-sans, 'Inter', -apple-system, sans-serif)",
+            backgroundColor: 'var(--bg-primary, #0a0f1e)',
             overflow: 'hidden',
             position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             userSelect: 'none',
             WebkitUserSelect: 'none',
             WebkitTouchCallout: 'none',
             touchAction: 'manipulation'
         }}>
-            {/* Background Animation Matches ChatInterface */}
+            {/* Neon App Border */}
+            <div className="neon-app-border"></div>
+
+            {/* Background Glows */}
+            <div className="bg-glow glow-top"></div>
+            <div className="bg-glow glow-bottom"></div>
+            <div className="bg-glow glow-center"></div>
+
+            {/* Floating Particles */}
+            <div className="particle particle-1"></div>
+            <div className="particle particle-2"></div>
+            <div className="particle particle-3"></div>
+            <div className="particle particle-4"></div>
+            <div className="particle particle-5"></div>
+            <div className="particle particle-6"></div>
+            <div className="particle particle-7"></div>
+            <div className="particle particle-8"></div>
+            <div className="particle particle-9"></div>
+            <div className="particle particle-10"></div>
+            <div className="particle particle-11"></div>
+            <div className="particle particle-12"></div>
+
+            {/* Background Animation Orbs */}
             <div className="background-animation">
                 <div className="floating-orb chat-orb-1"></div>
                 <div className="floating-orb chat-orb-2"></div>
                 <div className="floating-orb chat-orb-3"></div>
             </div>
 
-            {/* Fixed Header */}
-            <div className="chat-header" style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '8px 12px',
-                borderBottom: '1px solid #8A8A8AFF',
-                background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
-                flexShrink: 0,
-                minHeight: '50px',
-                maxHeight: '75px',
-                boxSizing: 'border-box',
-                zIndex: 20
-            }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                    <h3 className="chat-title" style={{
-                        margin: 0,
-                        color: '#FFDCDCFF',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        lineHeight: '20px',
-                        textAlign: 'left'
-                    }}>
-                        OmniBrowse
-                    </h3>
-                </div>
-            </div>
-
+            {/* No header bar — full immersive startup */}
             <div className="startup-content" style={{ overflowY: 'auto' }}>
                 <div className="logo-container">
                     <RiRobot2Fill className="startup-icon" />
@@ -83,7 +78,7 @@ const StartupPage = () => {
                 </p>
 
                 <div className="features-grid">
-                    <div className="feature-card">
+                    <div className="feature-card neon-card">
                         <div className="feature-icon-wrapper">
                             <FaMagic className="feature-icon" />
                         </div>
@@ -93,7 +88,7 @@ const StartupPage = () => {
                         </div>
                     </div>
 
-                    <div className="feature-card">
+                    <div className="feature-card neon-card">
                         <div className="feature-icon-wrapper">
                             <RiSecurePaymentLine className="feature-icon" />
                         </div>
@@ -103,7 +98,7 @@ const StartupPage = () => {
                         </div>
                     </div>
 
-                    <div className="feature-card">
+                    <div className="feature-card neon-card">
                         <div className="feature-icon-wrapper">
                             <RiSettings4Line className="feature-icon" />
                         </div>
@@ -114,15 +109,28 @@ const StartupPage = () => {
                     </div>
                 </div>
 
-                <div className="startup-actions" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    <button className="continue-button secondary-btn" onClick={handleHowToUse} style={{
-                        background: 'rgba(255, 220, 220, 0.1)',
-                        border: '1px solid rgba(255, 220, 220, 0.3)',
+                <div className="startup-actions" style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '14px',
+                    alignItems: 'center',
+                    width: '100%',
+                    maxWidth: '320px'
+                }}>
+                    <button className="neon-btn neon-btn-subtle continue-button secondary-btn" onClick={handleHowToUse} style={{
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        width: '100%',
+                        justifyContent: 'center',
+                        borderRadius: '9999px'
                     }}>
                         <FaBookOpen className="continue-icon" style={{ marginRight: '8px' }} />
                         How to Use
                     </button>
-                    <button className="continue-button" onClick={handleContinue}>
+                    <button className="neon-btn continue-button" onClick={handleContinue} style={{
+                        width: '100%',
+                        justifyContent: 'center',
+                        borderRadius: '9999px'
+                    }}>
                         Configure Settings
                         <BsArrowRight className="continue-icon" style={{ marginLeft: '8px' }} />
                     </button>

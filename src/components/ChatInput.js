@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-const ChatInput = ({ 
-  onSendMessage, 
-  onStopExecution, 
-  isExecuting, 
-  disabled, 
+const ChatInput = ({
+  onSendMessage,
+  onStopExecution,
+  isExecuting,
+  disabled,
   placeholder,
   value = '',
-  onChange 
+  onChange
 }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef(null);
@@ -23,7 +23,7 @@ const ChatInput = ({
       const maxHeight = 120; // Match the maxHeight in the style
       const newHeight = Math.min(scrollHeight, maxHeight);
       textareaRef.current.style.height = newHeight + 'px';
-      
+
       // If content exceeds maxHeight, ensure scrollbar is visible
       if (scrollHeight > maxHeight) {
         textareaRef.current.style.overflowY = 'auto';
@@ -48,7 +48,7 @@ const ChatInput = ({
     }
   };
 
-  const handleKeyDown = (e) => { 
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && isExecuting) {
       e.preventDefault();
       handleStop(e);
@@ -56,27 +56,28 @@ const ChatInput = ({
   };
 
   return (
-    <div className="chat-input-container" style={{ 
-      padding: '6px 8px',
-      borderTop: '1px solid #8A8A8AFF',
-      background: 'linear-gradient(to top, #00499CFF, #002550FF)',
+    <div className="chat-input-container" style={{
+      padding: '8px 10px',
+      borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+      background: 'linear-gradient(to top, var(--bg-primary, #0a0f1e), var(--bg-secondary, #111827))',
       flexShrink: 0
     }}>
-      <form onSubmit={isExecuting ? handleStop : handleSubmit} style={{ 
+      <form onSubmit={isExecuting ? handleStop : handleSubmit} style={{
         display: 'flex',
         alignItems: 'flex-end',
         position: 'relative'
       }}>
-        <div style={{ 
-          flex: 1, 
+        <div style={{
+          flex: 1,
           position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          backgroundColor: disabled ? '#FFDCDCCB' : '#FFDCDCFF',
+          backgroundColor: disabled ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)',
           borderRadius: '24px',
-          border: '1px solid #00F064FF',
+          border: '1px solid var(--border-medium, rgba(255,255,255,0.12))',
           padding: '0',
-          minHeight: '48px'
+          minHeight: '48px',
+          transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
         }}>
           <textarea
             ref={textareaRef}
@@ -99,13 +100,13 @@ const ChatInput = ({
               fontFamily: 'inherit',
               outline: 'none',
               backgroundColor: 'transparent',
-              color: disabled ? '#657786' : '#14171a',
+              color: disabled ? 'rgba(241,245,249,0.3)' : 'var(--text-primary, #f1f5f9)',
               boxSizing: 'border-box',
               overflow: 'auto'
             }}
             rows={1}
           />
-          
+
           {/* Integrated Send/Stop Button */}
           {isExecuting ? (
             <button
@@ -149,9 +150,9 @@ const ChatInput = ({
                 transform: 'translateY(-50%)',
                 width: '36px',
                 height: '36px',
-                backgroundColor: (!currentValue.trim() || disabled) ? '#CCCCCC' : '#00B64CFF',
+                backgroundColor: (!currentValue.trim() || disabled) ? 'rgba(255,255,255,0.08)' : 'var(--accent-primary, #6366f1)',
                 color: 'white',
-                border: (!currentValue.trim() || disabled) ? '1px solid #AFAFAFFF' : '1px solid #00F064FF',
+                border: (!currentValue.trim() || disabled) ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(99,102,241,0.5)',
                 borderRadius: '50%',
                 cursor: (!currentValue.trim() || disabled) ? 'default' : 'pointer',
                 fontSize: '22px',
@@ -159,7 +160,7 @@ const ChatInput = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: (!currentValue.trim() || disabled) ? 'none' : '0 2px 8px rgba(0, 240, 100, 0.3)',
+                boxShadow: (!currentValue.trim() || disabled) ? 'none' : '0 2px 12px rgba(99, 102, 241, 0.4)',
                 transition: 'all 0.2s ease',
                 paddingBottom: '2px',
                 paddingRight: '4px'

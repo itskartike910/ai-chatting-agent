@@ -621,23 +621,27 @@ const ChatInterface = () => {
 
   // Add subscription choice modal as an overlay in the return statement
   return (
-    <div className="chat-interface" style={{
+    <div className={`chat-interface${isExecuting ? ' neon-active' : ''}`} style={{
       width: '100%',
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#002550FF',
+      fontFamily: "var(--font-sans, 'Inter', -apple-system, sans-serif)",
+      backgroundColor: 'var(--bg-primary, #0a0f1e)',
       overflow: 'hidden',
       position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       userSelect: 'none',
       WebkitUserSelect: 'none',
       WebkitTouchCallout: 'none',
       touchAction: 'manipulation'
     }}>
+      {/* Neon App Border */}
+      <div className="neon-app-border"></div>
+
       {/* Background Animation */}
       <div className="background-animation">
         <div className="floating-orb chat-orb-1"></div>
@@ -645,53 +649,72 @@ const ChatInterface = () => {
         <div className="floating-orb chat-orb-3"></div>
       </div>
 
+      {/* Floating Particles */}
+      <div className="particle particle-1"></div>
+      <div className="particle particle-2"></div>
+      <div className="particle particle-3"></div>
+      <div className="particle particle-4"></div>
+      <div className="particle particle-5"></div>
+      <div className="particle particle-6"></div>
+      <div className="particle particle-7"></div>
+      <div className="particle particle-8"></div>
+      <div className="particle particle-9"></div>
+      <div className="particle particle-10"></div>
+      <div className="particle particle-11"></div>
+      <div className="particle particle-12"></div>
+
       {/* Fixed Header - Updated with consistent styling */}
       <div className="chat-header" style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '8px 12px',
-        borderBottom: '1px solid #8A8A8AFF',
-        background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
+        padding: '10px 14px',
+        borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+        background: 'var(--gradient-header, linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%))',
         flexShrink: 0,
-        minHeight: '50px',
-        maxHeight: '75px',
-        boxSizing: 'border-box'
+        minHeight: '52px',
+        maxHeight: '70px',
+        boxSizing: 'border-box',
+        backdropFilter: 'blur(12px)'
       }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 className="chat-title" style={{
             margin: 0,
-            color: '#FFDCDCFF',
-            fontSize: '15px',
-            fontWeight: '600',
+            color: 'var(--text-primary, #f1f5f9)',
+            fontSize: '16px',
+            fontWeight: '700',
             lineHeight: '20px',
-            textAlign: 'left'
+            textAlign: 'left',
+            letterSpacing: '-0.02em'
           }}>
             OmniBrowse
           </h3>
           <div className="chat-status-bar" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
             <div className="chat-status" style={{
-              fontSize: '12px',
+              fontSize: '11px',
               color: getConnectionStatusColor(),
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              lineHeight: '12px'
+              lineHeight: '14px',
+              fontWeight: '500'
             }}>
               {getConnectionIcon()}
               <span>{getConnectionStatusText()}</span>
             </div>
             {totalTokens > 0 && (
               <div className="token-usage" style={{
-                fontSize: '11px',
-                color: '#FFBA08FF',
+                fontSize: '10px',
+                color: 'var(--accent-warning, #f59e0b)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                lineHeight: '12px'
+                lineHeight: '14px',
+                fontWeight: '500',
+                opacity: 0.9
               }}>
-                <FaCoins style={{ fontSize: '10px' }} />
-                <span>{totalTokens.toLocaleString()} Tokens Used</span>
+                <FaCoins style={{ fontSize: '9px' }} />
+                <span>{totalTokens.toLocaleString()} tokens</span>
               </div>
             )}
           </div>
@@ -701,16 +724,17 @@ const ChatInterface = () => {
             onClick={handleNewChat}
             className="chat-header-button"
             style={{
-              padding: '6px 8px',
-              backgroundColor: 'rgba(255, 220, 220, 0.2)',
-              border: '1px solid rgba(255, 220, 220, 0.3)',
-              borderRadius: '8px',
+              padding: '7px 9px',
+              backgroundColor: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              borderRadius: '10px',
               cursor: 'pointer',
-              fontSize: '16px',
-              color: '#FFDCDCFF',
+              fontSize: '15px',
+              color: 'var(--text-accent, #a5b4fc)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
             }}
             title="New Chat"
           >
@@ -721,16 +745,17 @@ const ChatInterface = () => {
             onClick={() => navigate('/history')}
             className="chat-header-button"
             style={{
-              padding: '6px 8px',
-              backgroundColor: 'rgba(255, 220, 220, 0.2)',
-              border: '1px solid rgba(255, 220, 220, 0.3)',
-              borderRadius: '8px',
+              padding: '7px 9px',
+              backgroundColor: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              borderRadius: '10px',
               cursor: 'pointer',
-              fontSize: '16px',
-              color: '#FFDCDCFF',
+              fontSize: '15px',
+              color: 'var(--text-accent, #a5b4fc)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
             }}
             title="Chat History"
           >
@@ -742,16 +767,17 @@ const ChatInterface = () => {
               onClick={() => navigate('/settings')}
               className="chat-header-button"
               style={{
-                padding: '6px 8px',
-                backgroundColor: 'rgba(255, 220, 220, 0.2)',
-                border: '1px solid rgba(255, 220, 220, 0.3)',
-                color: '#FFDCDCFF',
-                borderRadius: '8px',
+                padding: '7px 9px',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                color: 'var(--text-accent, #a5b4fc)',
+                borderRadius: '10px',
                 cursor: 'pointer',
-                fontSize: '16px',
+                fontSize: '15px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                transition: 'all 0.2s ease'
               }}
               title="Settings"
             >

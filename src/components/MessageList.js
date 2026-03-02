@@ -104,184 +104,113 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
     const isNewMessage = !animatedMessages.has(messageId);
     const baseStyle = {
       margin: '4px 8px',
-      padding: '8px 12px',
-      borderRadius: '14px',
-      maxWidth: '82%',
+      padding: '10px 14px',
+      borderRadius: '16px',
+      maxWidth: '85%',
       wordWrap: 'break-word',
       fontSize: '13px',
-      fontWeight: '600',
-      lineHeight: '1.3',
+      fontWeight: '400',
+      lineHeight: '1.5',
       transition: 'all 0.3s ease',
       opacity: 1,
       transform: 'translateY(0)'
     };
 
-    // Add animation only for new messages (not in animatedMessages set yet)
-    if (isNewMessage && !isInitialLoad) {
-      switch (type) {
-        case 'user':
-          return {
-            ...baseStyle,
-            backgroundColor: '#1da1f2',
-            color: 'white',
-            alignSelf: 'flex-end',
-            marginLeft: 'auto',
-            borderBottomRightRadius: '4px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            animation: 'slideInFromRight 0.3s ease-out'
-          };
-        case 'assistant':
-          return {
-            ...baseStyle,
-            backgroundColor: '#f7f9fa',
-            color: '#14171a',
-            alignSelf: 'flex-start',
-            border: '1px solid #e1e8ed',
-            borderBottomLeftRadius: '4px',
-            textAlign: 'left',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            animation: 'slideInFromLeft 0.3s ease-out'
-          };
-        case 'system':
-          return {
-            ...baseStyle,
-            backgroundColor: '#fff3cd',
-            color: '#856404',
-            alignSelf: 'center',
-            fontSize: '11px',
-            fontStyle: 'italic',
-            border: '1px solid #ffeaa7',
-            textAlign: 'left',
-            maxWidth: '80%',
-            margin: '2px 8px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            animation: 'slideInFromLeft 0.3s ease-out'
-          };
-        case 'error':
-          return {
-            ...baseStyle,
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            alignSelf: 'center',
-            border: '1px solid #f5c6cb',
-            textAlign: 'left',
-            maxWidth: '80%',
-            fontSize: '11px',
-            margin: '2px 8px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-            animation: 'slideInFromLeft 0.3s ease-out'
-          };
-        case 'pause':
-          return {
-            ...baseStyle,
-            backgroundColor: '#fff3cd',
-            color: '#856404',
-            alignSelf: 'center',
-            border: '1px solid #ffeaa7',
-            textAlign: 'center',
-            maxWidth: '85%',
-            fontSize: '12px',
-            margin: '4px 8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            animation: 'slideInFromLeft 0.3s ease-out'
-          };
-        case 'approval':
-          return {
-            ...baseStyle,
-            backgroundColor: '#e3f2fd',
-            color: '#1565c0',
-            alignSelf: 'center',
-            border: '1px solid #bbdefb',
-            textAlign: 'center',
-            maxWidth: '85%',
-            fontSize: '12px',
-            margin: '4px 8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            animation: 'slideInFromLeft 0.3s ease-out'
-          };
-        default:
-          return baseStyle;
-      }
-    } else {
-      // No animation for existing messages or initial load
-      switch (type) {
-        case 'user':
-          return {
-            ...baseStyle,
-            backgroundColor: '#1da1f2',
-            color: 'white',
-            alignSelf: 'flex-end',
-            marginLeft: 'auto',
-            borderBottomRightRadius: '4px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          };
-        case 'assistant':
-          return {
-            ...baseStyle,
-            backgroundColor: '#f7f9fa',
-            color: '#14171a',
-            alignSelf: 'flex-start',
-            border: '1px solid #e1e8ed',
-            borderBottomLeftRadius: '4px',
-            textAlign: 'left',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          };
-        case 'system':
-          return {
-            ...baseStyle,
-            backgroundColor: '#fff3cd',
-            color: '#856404',
-            alignSelf: 'center',
-            fontSize: '11px',
-            fontStyle: 'italic',
-            border: '1px solid #ffeaa7',
-            textAlign: 'left',
-            maxWidth: '80%',
-            margin: '2px 8px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-          };
-        case 'error':
-          return {
-            ...baseStyle,
-            backgroundColor: '#f8d7da',
-            color: '#721c24',
-            alignSelf: 'center',
-            border: '1px solid #f5c6cb',
-            textAlign: 'left',
-            maxWidth: '80%',
-            fontSize: '11px',
-            margin: '2px 8px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-          };
-        case 'pause':
-          return {
-            ...baseStyle,
-            backgroundColor: '#fff3cd',
-            color: '#856404',
-            alignSelf: 'center',
-            border: '1px solid #ffeaa7',
-            textAlign: 'center',
-            maxWidth: '85%',
-            fontSize: '12px',
-            margin: '4px 8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          };
-        case 'approval':
-          return {
-            ...baseStyle,
-            backgroundColor: '#e3f2fd',
-            color: '#1565c0',
-            alignSelf: 'center',
-            border: '1px solid #bbdefb',
-            textAlign: 'center',
-            maxWidth: '85%',
-            fontSize: '12px',
-            margin: '4px 8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          };
-        default:
-          return baseStyle;
-      }
+    const animClass = (dir) => isNewMessage && !isInitialLoad ? `slideIn${dir} 0.3s ease-out` : undefined;
+
+    switch (type) {
+      case 'user':
+        return {
+          ...baseStyle,
+          background: 'linear-gradient(135deg, var(--accent-primary, #6366f1), #7c3aed)',
+          color: 'white',
+          alignSelf: 'flex-end',
+          marginLeft: 'auto',
+          borderBottomRightRadius: '4px',
+          boxShadow: '0 2px 12px rgba(99,102,241,0.3)',
+          fontWeight: '500',
+          animation: animClass('FromRight')
+        };
+      case 'assistant':
+        return {
+          ...baseStyle,
+          backgroundColor: '#1e2537',
+          color: 'var(--text-primary, #e2e8f0)',
+          alignSelf: 'flex-start',
+          border: '1px solid rgba(99, 102, 241, 0.12)',
+          borderBottomLeftRadius: '4px',
+          textAlign: 'left',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          animation: animClass('FromLeft')
+        };
+      case 'system':
+        return {
+          ...baseStyle,
+          backgroundColor: '#1a1f35',
+          color: '#a5b4fc',
+          alignSelf: 'flex-start',
+          fontSize: '11px',
+          fontStyle: 'normal',
+          fontWeight: '500',
+          border: '1px solid rgba(99, 102, 241, 0.18)',
+          textAlign: 'left',
+          maxWidth: '85%',
+          margin: '3px 8px',
+          borderRadius: '12px',
+          borderBottomLeftRadius: '4px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+          animation: animClass('FromLeft')
+        };
+      case 'error':
+        return {
+          ...baseStyle,
+          backgroundColor: '#2a1520',
+          color: '#fca5a5',
+          alignSelf: 'flex-start',
+          border: '1px solid rgba(239, 68, 68, 0.25)',
+          textAlign: 'left',
+          maxWidth: '85%',
+          fontSize: '12px',
+          margin: '3px 8px',
+          borderRadius: '12px',
+          borderBottomLeftRadius: '4px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+          animation: animClass('FromLeft')
+        };
+      case 'pause':
+        return {
+          ...baseStyle,
+          backgroundColor: '#2a2415',
+          color: '#fbbf24',
+          alignSelf: 'flex-start',
+          border: '1px solid rgba(245, 158, 11, 0.25)',
+          textAlign: 'left',
+          maxWidth: '85%',
+          fontSize: '12px',
+          margin: '4px 8px',
+          borderRadius: '12px',
+          borderBottomLeftRadius: '4px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+          animation: animClass('FromLeft')
+        };
+      case 'approval':
+        return {
+          ...baseStyle,
+          backgroundColor: '#1a2035',
+          color: '#93c5fd',
+          alignSelf: 'flex-start',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          textAlign: 'left',
+          maxWidth: '85%',
+          fontSize: '12px',
+          margin: '4px 8px',
+          borderRadius: '12px',
+          borderBottomLeftRadius: '4px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+          animation: animClass('FromLeft')
+        };
+      default:
+        return baseStyle;
     }
   };
 
@@ -321,14 +250,15 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
     // Code blocks
     pre: ({ children }) => (
       <pre style={{
-        backgroundColor: '#F0F0F0FF',
-        border: '1px solid #A5A5A5FF',
-        borderRadius: '6px',
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '8px',
         padding: '12px',
         overflow: 'auto',
         margin: '8px 0',
         fontSize: '11px',
-        lineHeight: '1.4'
+        lineHeight: '1.5',
+        color: '#e2e8f0'
       }}>
         {children}
       </pre>
@@ -337,9 +267,10 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
     code: ({ node, inline, children, ...props }) => (
       inline ? (
         <code style={{
-          backgroundColor: '#f6f8fa',
-          padding: '2px 4px',
-          borderRadius: '3px',
+          backgroundColor: 'rgba(99, 102, 241, 0.15)',
+          color: '#a5b4fc',
+          padding: '2px 6px',
+          borderRadius: '4px',
           fontSize: '11px',
           fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace'
         }} {...props}>
@@ -360,7 +291,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         fontSize: '16px',
         fontWeight: '600',
         margin: '12px 0 8px 0',
-        color: '#14171a'
+        color: 'var(--text-primary, #f1f5f9)'
       }}>
         {children}
       </h1>
@@ -370,7 +301,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         fontSize: '14px',
         fontWeight: '600',
         margin: '12px 0 8px 0',
-        color: '#14171a'
+        color: 'var(--text-primary, #f1f5f9)'
       }}>
         {children}
       </h2>
@@ -380,7 +311,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         fontSize: '13px',
         fontWeight: '600',
         margin: '12px 0 8px 0',
-        color: '#14171a'
+        color: 'var(--text-primary, #f1f5f9)'
       }}>
         {children}
       </h3>
@@ -389,7 +320,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
     strong: ({ children }) => (
       <strong style={{
         fontWeight: '600',
-        color: '#14171a'
+        color: 'var(--text-primary, #f1f5f9)'
       }}>
         {children}
       </strong>
@@ -470,17 +401,18 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         marginBottom: '2px'
       }}>
         <h2 style={{
-          color: '#FFDCDCFF',
+          color: 'var(--text-primary, #f1f5f9)',
           marginBottom: '2px',
           fontSize: '18px',
           fontWeight: '700',
-          margin: '0 0 2px 0'
+          margin: '0 0 2px 0',
+          letterSpacing: '-0.02em'
         }}>
           How can I help you today?
         </h2>
         <p style={{
           fontSize: '12px',
-          color: '#ABDFFFEA',
+          color: 'var(--text-secondary, rgba(241,245,249,0.7))',
           fontWeight: '400',
           margin: '0',
           lineHeight: '1.4'
@@ -501,19 +433,19 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             key={template.id}
             onClick={() => onTemplateClick?.(template.command)}
             style={{
-              background: 'rgba(255, 220, 220, 0.08)',
-              border: '1px solid rgba(255, 220, 220, 0.15)',
-              borderRadius: '12px',
-              padding: '8px',
+              background: 'var(--bg-glass, rgba(255, 255, 255, 0.06))',
+              border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+              borderRadius: '14px',
+              padding: '10px 12px',
               cursor: 'pointer',
               textAlign: 'left',
-              transition: 'all 0.3s ease',
+              transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
               display: 'flex',
               alignItems: 'center',
               gap: '11px',
               width: '100%',
-              color: '#FFDCDCFF',
-              backdropFilter: 'blur(10px)',
+              color: 'var(--text-primary, #f1f5f9)',
+              backdropFilter: 'blur(8px)',
               position: 'relative',
               overflow: 'hidden'
             }}
@@ -527,7 +459,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              background: 'rgba(78, 205, 196, 0.1)',
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)',
               borderRadius: '10px'
             }}>
               {template.emoji}
@@ -539,13 +471,13 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                 fontSize: '13px',
                 fontWeight: '600',
                 margin: '0 0 2px 0',
-                color: '#FFDCDCFF'
+                color: 'var(--text-primary, #f1f5f9)'
               }}>
                 {template.title}
               </h3>
               <p style={{
                 fontSize: '11px',
-                color: '#ABDFFFEA',
+                color: 'var(--text-tertiary, rgba(241,245,249,0.45))',
                 lineHeight: '1.3',
                 margin: 0
               }}>
@@ -556,7 +488,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             {/* Try Arrow */}
             <div style={{
               fontSize: '12px',
-              color: '#4ECDC4',
+              color: 'var(--text-accent, #a5b4fc)',
               flexShrink: 0
             }}>
               Try →
@@ -569,15 +501,15 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
       <div style={{
         marginTop: '4px',
         padding: '12px',
-        backgroundColor: 'rgba(255, 220, 220, 0.05)',
-        borderRadius: '8px',
-        border: '1px solid rgba(255, 220, 220, 0.1)',
+        backgroundColor: 'var(--bg-glass, rgba(255, 255, 255, 0.04))',
+        borderRadius: '10px',
+        border: '1px solid var(--border-subtle, rgba(255,255,255,0.06))',
         textAlign: 'center',
         backdropFilter: 'blur(10px)'
       }}>
         <p style={{
           fontSize: '11px',
-          color: '#ABDFFFEA',
+          color: 'var(--text-secondary, rgba(241,245,249,0.6))',
           margin: 0,
           lineHeight: '1.4'
         }}>
@@ -594,17 +526,18 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
       padding: '0 16px'
     }}>
       <h3 style={{
-        color: '#FFDCDCFF',
+        color: 'var(--text-primary, #f1f5f9)',
         marginBottom: '6px',
         fontSize: '16px',
-        fontWeight: '600'
+        fontWeight: '700',
+        letterSpacing: '-0.02em'
       }}>
         🤖 Welcome to OmniBrowse!
       </h3>
       <p style={{
         marginBottom: '16px',
         fontSize: '12px',
-        color: '#ABDFFFEA',
+        color: 'var(--text-secondary, rgba(241,245,249,0.7))',
         fontWeight: '400',
         lineHeight: '1.4'
       }}>
@@ -615,14 +548,14 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
       <button
         onClick={() => window.location.hash = '/how-to-use'}
         style={{
-          background: 'rgba(78, 205, 196, 0.1)',
-          border: '1px solid rgba(78, 205, 196, 0.3)',
-          borderRadius: '8px',
-          padding: '8px 16px',
+          background: 'rgba(99, 102, 241, 0.1)',
+          border: '1px solid rgba(99, 102, 241, 0.25)',
+          borderRadius: '10px',
+          padding: '8px 18px',
           cursor: 'pointer',
-          color: '#4ECDC4',
+          color: 'var(--text-accent, #a5b4fc)',
           fontSize: '12px',
-          fontWeight: '500',
+          fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
@@ -644,7 +577,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#002550FF',
+        backgroundColor: 'var(--bg-primary, #0a0f1e)',
         WebkitOverflowScrolling: 'touch',
         scrollBehavior: 'smooth',
         position: 'relative'
@@ -670,9 +603,9 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             width: "200px",
             height: "200px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #FF6B6B, #FF8E8E)",
-            filter: "blur(40px)",
-            opacity: 0.2,
+            background: "radial-gradient(circle, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.1))",
+            filter: "blur(50px)",
+            opacity: 0.15,
             top: "10%",
             left: "10%",
             animation: "float 6s ease-in-out infinite",
@@ -685,15 +618,29 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             width: "150px",
             height: "150px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #4ECDC4, #6EE7DF)",
-            filter: "blur(40px)",
-            opacity: 0.2,
+            background: "radial-gradient(circle, rgba(6, 182, 212, 0.2), rgba(99, 102, 241, 0.1))",
+            filter: "blur(50px)",
+            opacity: 0.12,
             top: "60%",
             right: "15%",
             animation: "float 6s ease-in-out infinite 2s",
           }}
         />
       </div>
+
+      {/* Floating Particles in Message Area */}
+      <div className="particle particle-1"></div>
+      <div className="particle particle-2"></div>
+      <div className="particle particle-3"></div>
+      <div className="particle particle-4"></div>
+      <div className="particle particle-5"></div>
+      <div className="particle particle-6"></div>
+      <div className="particle particle-7"></div>
+      <div className="particle particle-8"></div>
+      <div className="particle particle-9"></div>
+      <div className="particle particle-10"></div>
+      <div className="particle particle-11"></div>
+      <div className="particle particle-12"></div>
       {/* CSS Keyframes for animations */}
       <style>
         {`
@@ -740,11 +687,12 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
             animation-fill-mode: both;
           }
           
-          /* Ensure assistant messages always have proper background */
+          /* Assistant message dark theme */
           .message-item.message-assistant {
-            background-color: #f7f9fa !important;
-            border: 1px solid #e1e8ed !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+            background-color: #1e2537 !important;
+            color: #e2e8f0 !important;
+            border: 1px solid rgba(99, 102, 241, 0.12) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
           }
           
           /* Ensure typing indicator is always transparent */
@@ -1002,7 +950,7 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                 marginTop: '6px',
                 fontSize: '10px',
                 opacity: 0.9,
-                borderTop: '1px solid rgba(0,0,0,0.1)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
                 paddingTop: '4px'
               }}>
                 <strong>Actions:</strong>
@@ -1011,9 +959,10 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                     <div key={i} style={{
                       margin: '1px 0',
                       padding: '2px 6px',
-                      backgroundColor: action.success ? '#d4edda' : '#f8d7da',
+                      backgroundColor: action.success ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
                       borderRadius: '6px',
-                      fontSize: '9px'
+                      fontSize: '10px',
+                      color: action.success ? '#6ee7b7' : '#fca5a5'
                     }}>
                       {action.success ? '✅' : '❌'} {action.message || action.description}
                     </div>

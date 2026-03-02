@@ -1,30 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import './styles/GlobalAnimations.css';
 @import './styles/ChatInterfaceAnimations.css';
 @import './styles/SettingsPageAnimations.css';
 @import './styles/ChatHistoryPageAnimations.css';
 
+/* ── Design Tokens ────────────────────────────────────────────── */
+:root {
+  /* Background palette */
+  --bg-primary: #0a0f1e;
+  --bg-secondary: #111827;
+  --bg-surface: rgba(255, 255, 255, 0.04);
+  --bg-surface-hover: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --bg-glass-strong: rgba(255, 255, 255, 0.10);
+
+  /* Accent palette */
+  --accent-primary: #6366f1;
+  /* indigo */
+  --accent-primary-rgb: 99, 102, 241;
+  --accent-secondary: #8b5cf6;
+  /* violet */
+  --accent-tertiary: #06b6d4;
+  /* cyan */
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+
+  /* Text palette */
+  --text-primary: #f1f5f9;
+  --text-secondary: rgba(241, 245, 249, 0.7);
+  --text-tertiary: rgba(241, 245, 249, 0.45);
+  --text-accent: #a5b4fc;
+
+  /* Border palette */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-accent: rgba(99, 102, 241, 0.3);
+
+  /* Gradient presets */
+  --gradient-header: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+  --gradient-cta: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  --gradient-surface: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Font family */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* ── Base Styles ──────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #002e63;
-  color: #FFDCDCFF;
-  overflow-x: auto;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  overflow-x: hidden;
   overflow-y: auto;
+  letter-spacing: -0.01em;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: var(--font-mono);
 }
 
 #root {
-  background-color: #002e63;
+  background-color: var(--bg-primary);
   min-height: 100vh;
   width: 100%;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
+}
+
+/* ── Scrollbar Styling ────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+}
+
+/* ── Selection ────────────────────────────────────────────────── */
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: #fff;
 }

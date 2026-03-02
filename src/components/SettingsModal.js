@@ -116,7 +116,7 @@ const SettingsModal = () => {
     display: 'flex',
     flexDirection: 'column',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#002550FF',
+    backgroundColor: '#0a0f1e',
     overflow: 'hidden',
     position: 'fixed',
     top: '50%',
@@ -132,11 +132,12 @@ const SettingsModal = () => {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '12px 16px',
-    borderBottom: '1px solid rgba(255, 220, 220, 0.3)',
-    background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
+    borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+    background: 'var(--gradient-header, linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%))',
     flexShrink: 0,
     minHeight: '56px',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    backdropFilter: 'blur(12px)'
   };
 
   const contentStyle = {
@@ -148,18 +149,18 @@ const SettingsModal = () => {
 
   const sectionStyle = {
     padding: '16px',
-    borderBottom: '1px solid rgba(255, 220, 220, 0.2)',
-    backgroundColor: 'rgba(255, 220, 220, 0.03)',
-    backdropFilter: 'blur(5px)',
-    margin: '8px 0',
-    borderRadius: '8px'
+    borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.06))',
+    backgroundColor: 'var(--bg-glass, rgba(255, 255, 255, 0.04))',
+    backdropFilter: 'blur(8px)',
+    margin: '8px',
+    borderRadius: '14px'
   };
 
   const labelStyle = {
     display: 'block',
     marginBottom: '6px',
     fontWeight: '600',
-    color: '#FFDCDCFF',
+    color: 'var(--text-primary, #f1f5f9)',
     fontSize: '13px'
   };
 
@@ -167,23 +168,24 @@ const SettingsModal = () => {
     width: '100%',
     padding: '10px 12px',
     borderRadius: '8px',
-    border: '1px solid rgba(255, 220, 220, 0.3)',
+    border: '1px solid var(--border-medium, rgba(255,255,255,0.12))',
     fontSize: '14px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    backgroundColor: 'rgba(0, 58, 124, 0.8)',
-    backdropFilter: 'blur(10px)',
-    color: '#FFDCDCFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backdropFilter: 'blur(8px)',
+    color: 'var(--text-primary, #f1f5f9)',
     userSelect: 'text',
     WebkitUserSelect: 'text',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
   };
 
   const selectStyle = {
     ...inputStyle,
     cursor: 'pointer',
     appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23FFDCDC' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a5b4fc' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
     backgroundPosition: 'right 8px center',
     backgroundRepeat: 'no-repeat',
     backgroundSize: '16px',
@@ -195,8 +197,8 @@ const SettingsModal = () => {
     padding: '12px 16px',
     display: 'flex',
     gap: '8px',
-    borderTop: '1px solid rgba(255, 220, 220, 0.3)',
-    background: 'linear-gradient(to top, #00499CFF, #002550FF)',
+    borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+    background: 'linear-gradient(to top, var(--bg-primary, #0a0f1e), var(--bg-secondary, #111827))',
     flexShrink: 0
   };
 
@@ -217,6 +219,9 @@ const SettingsModal = () => {
 
   return (
     <div className="settings-container" style={containerStyle}>
+      {/* Neon App Border */}
+      <div className="neon-app-border"></div>
+
       {/* Background Animation */}
       <div
         className="background-animation"
@@ -237,7 +242,7 @@ const SettingsModal = () => {
             width: "200px",
             height: "200px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #FF6B6B, #FF8E8E)",
+            background: "radial-gradient(circle, rgba(99,102,241,0.3), rgba(139,92,246,0.1))",
             filter: "blur(40px)",
             opacity: 0.2,
             top: "10%",
@@ -252,7 +257,7 @@ const SettingsModal = () => {
             width: "150px",
             height: "150px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #4ECDC4, #6EE7DF)",
+            background: "radial-gradient(circle, rgba(6,182,212,0.2), rgba(99,102,241,0.1))",
             filter: "blur(40px)",
             opacity: 0.2,
             top: "60%",
@@ -267,7 +272,7 @@ const SettingsModal = () => {
             width: "180px",
             height: "180px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #45B7D1, #67C9E1)",
+            background: "radial-gradient(circle, rgba(139,92,246,0.2), rgba(99,102,241,0.08))",
             filter: "blur(40px)",
             opacity: 0.2,
             bottom: "20%",
@@ -277,15 +282,29 @@ const SettingsModal = () => {
         />
       </div>
 
+      {/* Floating Particles */}
+      <div className="particle particle-1"></div>
+      <div className="particle particle-2"></div>
+      <div className="particle particle-3"></div>
+      <div className="particle particle-4"></div>
+      <div className="particle particle-5"></div>
+      <div className="particle particle-6"></div>
+      <div className="particle particle-7"></div>
+      <div className="particle particle-8"></div>
+      <div className="particle particle-9"></div>
+      <div className="particle particle-10"></div>
+      <div className="particle particle-11"></div>
+      <div className="particle particle-12"></div>
+
       {/* Custom CSS for placeholder styling */}
       <style>
         {`
           .settings-input::placeholder {
-            color: rgba(255, 220, 220, 0.6) !important;
+            color: rgba(165, 180, 252, 0.5) !important;
             opacity: 1 !important;
           }
           .settings-input::-webkit-input-placeholder {
-            color: rgba(255, 220, 220, 0.6) !important;
+            color: rgba(165, 180, 252, 0.5) !important;
           }
           .settings-input::-moz-placeholder {
             color: rgba(255, 220, 220, 0.6) !important;
@@ -315,7 +334,7 @@ const SettingsModal = () => {
           </h3>
           <p className="settings-subtitle" style={{
             margin: 0,
-            color: 'rgba(255, 220, 220, 0.8)',
+            color: 'var(--text-secondary, rgba(241,245,249,0.7))',
             fontSize: '12px',
             lineHeight: '14px',
             marginTop: '2px'
@@ -328,12 +347,12 @@ const SettingsModal = () => {
           className="settings-button"
           style={{
             padding: '6px 8px',
-            backgroundColor: 'rgba(255, 220, 220, 0.2)',
-            border: '1px solid rgba(255, 220, 220, 0.3)',
+            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
             borderRadius: '8px',
             cursor: 'pointer',
             fontSize: '16px',
-            color: '#FFDCDCFF',
+            color: 'var(--text-accent, #a5b4fc)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -515,13 +534,13 @@ const SettingsModal = () => {
           </div>
 
           <div style={{
-            backgroundColor: '#003A7CFF',
-            border: '1px solid rgba(255, 220, 220, 0.3)',
+            backgroundColor: '#1e1b4b',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
             borderRadius: '6px',
             padding: '8px',
             marginTop: '10px'
           }}>
-            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255, 220, 220, 0.8)' }}>
+            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary, rgba(241,245,249,0.7))' }}>
               💡 Use faster models (Haiku, Mini, Flash) for validation to save costs
             </p>
           </div>
@@ -544,11 +563,15 @@ const SettingsModal = () => {
         </button> */}
         <button
           data-save-button
+          className="neon-btn"
           onClick={handleSave}
           style={{
             ...buttonStyle,
-            backgroundColor: '#3b82f6',
-            color: 'white'
+            backgroundColor: 'var(--accent-primary, #6366f1)',
+            color: 'white',
+            borderRadius: '10px',
+            position: 'relative',
+            zIndex: 1
           }}
         >
           <FaSave />

@@ -90,12 +90,13 @@ const ChatHistoryPage = () => {
     display: 'flex',
     flexDirection: 'column',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    backgroundColor: '#002550FF',
+    backgroundColor: 'var(--bg-primary, #0a0f1e)',
     overflow: 'hidden',
     position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     userSelect: 'none',
     WebkitUserSelect: 'none',
     touchAction: 'manipulation'
@@ -106,13 +107,14 @@ const ChatHistoryPage = () => {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '12px 16px',
-    borderBottom: '1px solid rgba(255, 220, 220, 0.3)',
-    background: 'linear-gradient(0deg, #002550FF 0%, #764ba2 100%)',
+    borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+    background: 'var(--gradient-header, linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%))',
     flexShrink: 0,
     minHeight: '56px',
     boxSizing: 'border-box',
     position: 'relative',
-    zIndex: 1
+    zIndex: 1,
+    backdropFilter: 'blur(12px)'
   };
 
   const contentStyle = {
@@ -127,6 +129,9 @@ const ChatHistoryPage = () => {
 
   return (
     <div className="chat-history-container" style={containerStyle}>
+      {/* Neon App Border */}
+      <div className="neon-app-border"></div>
+
       {/* Background Animation */}
       <div
         className="background-animation"
@@ -147,9 +152,9 @@ const ChatHistoryPage = () => {
             width: "200px",
             height: "200px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #FF6B6B, #FF8E8E)",
-            filter: "blur(40px)",
-            opacity: 0.2,
+            background: "radial-gradient(circle, rgba(99,102,241,0.3), rgba(139,92,246,0.1))",
+            filter: "blur(50px)",
+            opacity: 0.15,
             top: "10%",
             left: "10%",
             animation: "float 6s ease-in-out infinite",
@@ -162,9 +167,9 @@ const ChatHistoryPage = () => {
             width: "150px",
             height: "150px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #4ECDC4, #6EE7DF)",
-            filter: "blur(40px)",
-            opacity: 0.2,
+            background: "radial-gradient(circle, rgba(6,182,212,0.2), rgba(99,102,241,0.1))",
+            filter: "blur(50px)",
+            opacity: 0.12,
             top: "60%",
             right: "15%",
             animation: "float 6s ease-in-out infinite 2s",
@@ -177,15 +182,29 @@ const ChatHistoryPage = () => {
             width: "180px",
             height: "180px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, #45B7D1, #67C9E1)",
-            filter: "blur(40px)",
-            opacity: 0.2,
+            background: "radial-gradient(circle, rgba(139,92,246,0.2), rgba(99,102,241,0.08))",
+            filter: "blur(50px)",
+            opacity: 0.12,
             bottom: "20%",
             left: "20%",
             animation: "float 6s ease-in-out infinite 4s",
           }}
         />
       </div>
+
+      {/* Floating Particles */}
+      <div className="particle particle-1"></div>
+      <div className="particle particle-2"></div>
+      <div className="particle particle-3"></div>
+      <div className="particle particle-4"></div>
+      <div className="particle particle-5"></div>
+      <div className="particle particle-6"></div>
+      <div className="particle particle-7"></div>
+      <div className="particle particle-8"></div>
+      <div className="particle particle-9"></div>
+      <div className="particle particle-10"></div>
+      <div className="particle particle-11"></div>
+      <div className="particle particle-12"></div>
 
       <style>
         {`
@@ -214,17 +233,18 @@ const ChatHistoryPage = () => {
           onClick={handleBack}
           className="chat-header-button"
           style={{
-            padding: '6px 8px',
-            backgroundColor: 'rgba(255, 220, 220, 0.2)',
-            border: '1px solid rgba(255, 220, 220, 0.3)',
-            borderRadius: '8px',
+            padding: '7px 9px',
+            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+            border: '1px solid rgba(99, 102, 241, 0.25)',
+            borderRadius: '10px',
             cursor: 'pointer',
-            fontSize: '16px',
-            color: '#FFDCDCFF',
+            fontSize: '15px',
+            color: 'var(--text-accent, #a5b4fc)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backdropFilter: 'blur(5px)'
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s ease'
           }}
           title="Back"
         >
@@ -234,10 +254,11 @@ const ChatHistoryPage = () => {
         <div style={{ minWidth: 0, flex: 1, textAlign: 'center' }}>
           <h3 className="chat-title" style={{
             margin: 0,
-            color: '#FFDCDCFF',
-            fontSize: '18px',
+            color: 'var(--text-primary, #f1f5f9)',
+            fontSize: '17px',
             fontWeight: '700',
             lineHeight: '22px',
+            letterSpacing: '-0.02em',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -248,7 +269,7 @@ const ChatHistoryPage = () => {
           </h3>
           <p className="chat-subtitle" style={{
             margin: 0,
-            color: 'rgba(255, 220, 220, 0.8)',
+            color: 'var(--text-secondary, rgba(241,245,249,0.65))',
             fontSize: '12px',
             lineHeight: '14px',
             marginTop: '2px'
@@ -289,7 +310,7 @@ const ChatHistoryPage = () => {
             justifyContent: 'center',
             alignItems: 'center',
             height: '200px',
-            color: 'rgba(255, 220, 220, 0.8)'
+            color: 'var(--text-secondary, rgba(241,245,249,0.7))'
           }}>
             <div style={{
               display: 'flex',
@@ -301,7 +322,7 @@ const ChatHistoryPage = () => {
                 <div className="profile-loader" />
               </div>
               <p style={{
-                color: 'rgba(255, 220, 220, 0.7)',
+                color: 'var(--text-tertiary, rgba(241,245,249,0.45))',
                 margin: '0',
                 fontSize: '13px'
               }}>
@@ -316,13 +337,13 @@ const ChatHistoryPage = () => {
             justifyContent: 'center',
             alignItems: 'center',
             height: '300px',
-            color: 'rgba(255, 220, 220, 0.8)',
+            color: 'var(--text-secondary, rgba(241,245,249,0.65))',
             textAlign: 'center',
             padding: '0 32px',
             animation: 'fadeInScale 0.2s ease-out 0.1s both'
           }}>
             <FaComment className="empty-icon" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5, animation: 'pulse 3s ease-in-out infinite' }} />
-            <h4 style={{ margin: '0 0 8px 0', color: '#FFDCDCFF' }}>No Chat History</h4>
+            <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-primary, #f1f5f9)' }}>No Chat History</h4>
             <p style={{ margin: 0, fontSize: '14px' }}>
               Start a conversation to see your chat history here
             </p>
@@ -349,10 +370,10 @@ const ChatHistoryPage = () => {
                     }
                   }}
                   style={{
-                    backgroundColor: 'rgba(255, 220, 220, 0.08)',
-                    borderRadius: '12px',
+                    backgroundColor: 'var(--bg-glass, rgba(255, 255, 255, 0.06))',
+                    borderRadius: '14px',
                     padding: '16px',
-                    border: '1px solid rgba(255, 220, 220, 0.2)',
+                    border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
                     cursor: 'pointer',
                     opacity: isDeleting ? 0.5 : 1,
                     transform: isDeleting ? 'translateX(-10px)' : 'translateX(0)',
@@ -365,7 +386,7 @@ const ChatHistoryPage = () => {
                         margin: '0 0 8px 0',
                         fontSize: '14px',
                         fontWeight: '600',
-                        color: '#FFDCDCFF',
+                        color: 'var(--text-primary, #f1f5f9)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
@@ -378,7 +399,7 @@ const ChatHistoryPage = () => {
                         alignItems: 'center',
                         gap: '12px',
                         fontSize: '12px',
-                        color: 'rgba(255, 220, 220, 0.7)'
+                        color: 'var(--text-tertiary, rgba(241,245,249,0.45))'
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <FaClock style={{ fontSize: '10px' }} />
@@ -389,7 +410,7 @@ const ChatHistoryPage = () => {
                           {getMessageCount(chat.messages)} messages
                         </div>
                         {chat.totalTokens > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#FFBA08FF' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-warning, #f59e0b)' }}>
                             <FaCoins style={{ fontSize: '10px' }} />
                             {chat.totalTokens.toLocaleString()} tokens
                           </div>
@@ -400,7 +421,7 @@ const ChatHistoryPage = () => {
                       style={{
                         width: '1px',
                         height: '35px',
-                        backgroundColor: 'rgba(255, 220, 220, 0.3)',
+                        backgroundColor: 'var(--border-subtle, rgba(255,255,255,0.08))',
                         margin: '0 8px'
                       }}
                     />
