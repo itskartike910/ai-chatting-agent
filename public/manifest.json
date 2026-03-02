@@ -12,7 +12,8 @@
     "webNavigation",
     "notifications",
     "cookies",
-    "sidePanel"
+    "sidePanel",
+    "offscreen"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -23,8 +24,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js", "buildDomTree.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js",
+        "buildDomTree.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -36,13 +42,20 @@
   },
   "icons": {
     "16": "icons/icon.png",
-    "48": "icons/icon.png", 
+    "48": "icons/icon.png",
     "128": "icons/icon.png"
   },
   "web_accessible_resources": [
     {
-      "resources": ["index.html", "static/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "index.html",
+        "mic-permission.html",
+        "mic-permission.js",
+        "static/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

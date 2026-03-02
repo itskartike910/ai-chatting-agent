@@ -196,15 +196,15 @@ div.typing-indicator,
 }
 
 .chat-input {
-  transition: all 0.3s ease;
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .chat-input:focus {
-  animation: pulseGlow 0.5s ease-out;
+  outline: none;
 }
 
 .chat-input:focus+.chat-send-button {
-  animation: glow 0.5s ease-out;
+  opacity: 1;
 }
 
 .chat-send-button {
@@ -225,10 +225,6 @@ div.typing-indicator,
 .chat-stop-button {
   animation: stopButtonPulse 1.5s ease-in-out infinite;
   transition: all 0.2s ease;
-  position: absolute !important;
-  top: 50% !important;
-  right: 6px !important;
-  transform: translateY(-50%) !important;
 }
 
 @keyframes stopButtonPulse {
