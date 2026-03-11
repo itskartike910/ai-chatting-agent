@@ -214,22 +214,12 @@ const ChatInterface = () => {
               setIsExecuting(true);
               setIsTyping(true);
               setTaskStatus({ status: 'starting', message: 'Task started...' });
-              addMessage({
-                type: 'system',
-                content: '🚀 Task started...',
-                timestamp: Date.now()
-              });
               break;
 
             case 'execution_start':
               setIsExecuting(true);
               setIsTyping(true);
               setTaskStatus({ status: 'executing', message: 'Execution started...' });
-              addMessage({
-                type: 'system',
-                content: '⚡ Execution started...',
-                timestamp: Date.now()
-              });
               break;
 
             case 'status_update':
@@ -691,16 +681,10 @@ const ChatInterface = () => {
           </h3>
           <div className="chat-status-bar" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
             <div className="chat-status" style={{
-              fontSize: '11px',
-              color: getConnectionStatusColor(),
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              lineHeight: '14px',
-              fontWeight: '500'
+              height: '14px' // Keep space to align with token usage
             }}>
-              {getConnectionIcon()}
-              <span>{getConnectionStatusText()}</span>
             </div>
             {totalTokens > 0 && (
               <div className="token-usage" style={{
