@@ -368,7 +368,7 @@ export class MultiLLMService {
     const requestBody = {
       contents: processedMessages,
       generationConfig: {
-        maxOutputTokens: options.maxTokens || 4000,
+        maxOutputTokens: options.maxTokens || 16000,
         temperature: options.temperature || 0.4
       }
     };
@@ -397,8 +397,21 @@ export class MultiLLMService {
 
     const candidate = data.candidates[0];
 
-    // Handle MAX_TOKENS case
+    // Handle MAX_TOKENS case - use partial text if available instead of throwing
     if (candidate.finishReason === 'MAX_TOKENS') {
+      const partialText = candidate.content?.parts?.[0]?.text;
+      if (partialText && partialText.length > 50) {
+        console.warn('⚠️ Gemini response truncated (MAX_TOKENS) - using partial response');
+        return {
+          text: partialText,
+          usage: {
+            prompt: data.usageMetadata?.promptTokenCount || 0,
+            completion: data.usageMetadata?.candidatesTokenCount || 0,
+            total: data.usageMetadata?.totalTokenCount || 0
+          },
+          truncated: true
+        };
+      }
       throw new Error('Response exceeded maximum token limit. Try breaking down the task into smaller steps.');
     }
 

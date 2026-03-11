@@ -360,7 +360,7 @@ ${progressAnalysis}
     try {
       const response = await this.llmService.call([
         { role: 'user', content: plannerPrompt }
-      ], { maxTokens: 5000 }, 'planner');
+      ], { maxTokens: 16000 }, 'planner');
 
       console.log('[PlannerAgent] LLM response:', response);
 
@@ -591,15 +591,15 @@ ${progressAnalysis}
 
     return elements.map((el, index) => {
       const textContent = (el.textContent || '').trim();
-      const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
+      const limitedTextContent = textContent.length > 200 ? textContent.substring(0, 200) + '...' : textContent;
 
       // Limit selector length
       const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 50 ? selector.substring(0, 50) + '...' : selector;
+      const limitedSelector = selector.length > 80 ? selector.substring(0, 80) + '...' : selector;
 
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 70 ? xpath.substring(0, 70) + '...' : xpath;
+      const limitedXPath = xpath.length > 120 ? xpath.substring(0, 120) + '...' : xpath;
 
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
@@ -772,8 +772,35 @@ ${progressAnalysis}
       console.error('PlannerAgent JSON parsing error:', error.message);
       console.error('Raw text that failed to parse:', rawText);
 
+      // Try to recover a usable plan from truncated/malformed JSON
+      try {
+        const observationMatch = rawText.match(/"observation"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        const doneMatch = rawText.match(/"done"\s*:\s*(true|false)/);
+        const strategyMatch = rawText.match(/"strategy"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+
+        if (observationMatch && strategyMatch) {
+          console.log('🔧 Recovered partial plan from truncated response');
+          return {
+            observation: observationMatch[1],
+            done: doneMatch ? doneMatch[1] === 'true' : false,
+            strategy: strategyMatch[1],
+            batch_actions: [],
+            shouldValidate: false,
+            replan_trigger: 'truncated_response',
+            completion_criteria: '',
+            reasoning: 'Plan was recovered from a truncated LLM response - replanning needed',
+            pause: false,
+            pause_reason: '',
+            pause_description: '',
+            next_action: null
+          };
+        }
+      } catch (recoveryError) {
+        console.error('Recovery also failed:', recoveryError.message);
+      }
+
       // Enhanced error with more context
-      if (error.message.includes('Unexpected end of JSON input')) {
+      if (error.message.includes('Unexpected end of JSON input') || error.message.includes('Unterminated string')) {
         throw new Error(`Response parsing failed: The AI response was incomplete or cut off. This often happens with complex tasks. Try simplifying your request. Original error: ${error.message}`);
       } else if (error.message.includes('Unexpected token')) {
         throw new Error(`Response parsing failed: The AI response contained invalid formatting. This may be due to model overload or complex task requirements. Try again with a simpler request. Original error: ${error.message}`);

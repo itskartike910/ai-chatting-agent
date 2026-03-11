@@ -39,9 +39,12 @@ Classify user requests as either CHAT (general conversation) or WEB_AUTOMATION (
 - URL: ${currentState.pageInfo?.url || 'unknown'}
 - Platform: ${this.detectPlatformFromUrl(currentState.pageInfo?.url)}
 - Elements Count: ${currentState.interactiveElements?.length || 0}
-- Elements (First 40): ${this.formatElementsForContext(currentState.interactiveElements?.slice(0, 40) || [])}
+- Elements (Top 80): ${this.formatElementsForContext(this.selectRelevantElements(currentState.interactiveElements || [], userMessage, 80))}
 - Page Title: ${currentState.pageInfo?.title || 'unknown'}
 - Page Type: ${currentState.pageContext?.pageType || 'unknown'}
+
+# **PAGE TEXT CONTENT (for answering questions about the page)**
+${(currentState.extractedContent || '').substring(0, 1500) || 'No text content extracted'}
 
 # **VISUAL CONTEXT (Screenshot Analysis)**
 📸 A screenshot of the current page with highlighted interactive elements has been captured and is available as visual context. The screenshot shows:
@@ -145,9 +148,10 @@ For WEB_AUTOMATION: JSON with enhanced task understanding:
 ===RESPONSE_END===
 
 # **CLASSIFICATION RULES**
-- **CHAT**: General questions, greetings, explanations, help requests, coding questions, research
-  - Examples: "hello", "what is X?", "give me code for Y", "explain Z"
+- **CHAT**: General questions, greetings, explanations, help requests, coding questions, research, **questions about the current page content**
+  - Examples: "hello", "what is X?", "give me code for Y", "explain Z", "what is the problem on this page?", "summarize this article", "what does this page say?"
   - Response: Provide helpful response in **markdown format** with proper code blocks
+  - **IMPORTANT**: When answering questions about the current page, use the PAGE TEXT CONTENT section above to provide accurate answers
 
 - **WEB_AUTOMATION**: Action requests to perform tasks on websites OR analytical tasks  
   - Examples: "open xyz.com", "search for X", "click on Y", "fill form", "extract details", "analyze page", "summarize content"
@@ -195,7 +199,7 @@ Always provide complete, well-formatted responses!
 
       const response = await this.llmService.call([
         { role: 'user', content: intelligentPrompt }
-      ], { maxTokens: 2000 });
+      ], { maxTokens: 6000 });
 
       console.log('[AITaskRouter] LLM response:', response);
 
@@ -253,15 +257,15 @@ Always provide complete, well-formatted responses!
 
     return elements.map(el => {
       const textContent = (el.textContent || '').trim();
-      const limitedTextContent = textContent.length > 100 ? textContent.substring(0, 100) + '...' : textContent;
+      const limitedTextContent = textContent.length > 200 ? textContent.substring(0, 200) + '...' : textContent;
 
       // Limit selector length
       const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 50 ? selector.substring(0, 50) + '...' : selector;
+      const limitedSelector = selector.length > 80 ? selector.substring(0, 80) + '...' : selector;
 
       // Limit XPath length
       const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 70 ? xpath.substring(0, 70) + '...' : xpath;
+      const limitedXPath = xpath.length > 120 ? xpath.substring(0, 120) + '...' : xpath;
 
       // Process bounds to ensure they're concise
       const bounds = el.bounds || {};
@@ -421,5 +425,54 @@ Always provide complete, well-formatted responses!
         }
       };
     }
+  }
+
+  /**
+   * Select the most relevant elements for the current task
+   * Prioritizes elements based on task keywords and element properties
+   */
+  selectRelevantElements(allElements, userTask, maxCount = 200) {
+    if (!allElements || allElements.length === 0) return [];
+    if (allElements.length <= maxCount) return allElements;
+
+    const taskLower = (userTask || '').toLowerCase();
+
+    // Score each element based on relevance
+    const scoredElements = allElements.map((el, index) => {
+      let score = 0;
+
+      // Base score for element position (earlier elements get slight boost)
+      score += Math.max(0, 10 - (index / allElements.length) * 10);
+
+      // High priority for action elements
+      if (el.category === 'action') score += 50;
+      if (el.category === 'form') score += 30;
+      if (el.category === 'navigation') score += 20;
+
+      // Boost for visible elements with good bounds
+      if (el.isVisible && el.bounds?.width > 0 && el.bounds?.height > 0) {
+        score += 20;
+      }
+
+      // Task-specific keyword matching
+      const text = `${el.text || ''} ${el.textContent || ''} ${el.attributes?.['aria-label'] || ''}`.toLowerCase();
+
+      // Extract keywords from user task
+      const taskWords = taskLower.split(/\s+/).filter(w => w.length > 2);
+      for (const word of taskWords) {
+        if (text.includes(word)) score += 30;
+      }
+
+      // Penalize very generic divs with no text
+      if (el.tagName?.toLowerCase() === 'div' && !text.trim() && el.category === 'unknown') {
+        score -= 30;
+      }
+
+      return { element: el, score };
+    });
+
+    // Sort by score (highest first) and take top maxCount
+    scoredElements.sort((a, b) => b.score - a.score);
+    return scoredElements.slice(0, maxCount).map(item => item.element);
   }
 }

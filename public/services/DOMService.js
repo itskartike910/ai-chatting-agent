@@ -125,6 +125,31 @@ export class DOMService {
       // Get tab info for URL and title
       const tab = await chrome.tabs.get(tabId);
 
+      // Extract visible page text content (first 3000 chars) for page-level Q&A
+      let extractedContent = '';
+      try {
+        const textResults = await this.executeWithTimeout({
+          target: { tabId },
+          func: () => {
+            try {
+              const bodyText = document.body.innerText || '';
+              // Take first 3000 chars, trim to last complete sentence
+              let text = bodyText.substring(0, 3000).trim();
+              const lastPeriod = text.lastIndexOf('.');
+              if (lastPeriod > 2000) {
+                text = text.substring(0, lastPeriod + 1);
+              }
+              return text;
+            } catch (e) {
+              return '';
+            }
+          },
+        }, 5000);
+        extractedContent = textResults?.[0]?.result || '';
+      } catch (e) {
+        console.warn('Failed to extract page text:', e.message);
+      }
+
       // Transform result to match expected format
       return {
         success: true,
@@ -137,6 +162,7 @@ export class DOMService {
           },
           elements: this._transformElements(result.map, result.rootId),
           domTree: result,
+          extractedContent: extractedContent,
         },
       };
     } catch (error) {
@@ -380,9 +406,47 @@ export class DOMService {
           // Scroll into view
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-          // Click the element
+          // Click the element using proper mouse event dispatch
           try {
+            // Get element center for mouse event coordinates
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+
+            // Capture current URL before click
+            const urlBeforeClick = window.location.href;
+
+            const eventOpts = {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: x,
+              clientY: y,
+              button: 0
+            };
+
+            // Dispatch full mouse event sequence
+            element.dispatchEvent(new MouseEvent('mousedown', eventOpts));
+            element.dispatchEvent(new MouseEvent('mouseup', eventOpts));
+            element.dispatchEvent(new MouseEvent('click', eventOpts));
+
+            // Also call .click() as fallback
             element.click();
+
+            // For anchor tags with href, also follow the link as extra fallback
+            if (element.tagName?.toLowerCase() === 'a' && element.href && !element.href.startsWith('javascript:')) {
+              const target = element.getAttribute('target');
+              if (!target || target === '_self') {
+                // Give event handlers a moment to fire first
+                setTimeout(() => {
+                  // Only navigate if we didn't already navigate
+                  if (window.location.href === urlBeforeClick) {
+                    window.location.href = element.href;
+                  }
+                }, 200);
+              }
+            }
+
             return { success: true, message: 'Clicked successfully' };
           } catch (error) {
             return { success: false, error: error.message };

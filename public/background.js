@@ -387,6 +387,18 @@ class MultiAgentExecutor {
             const plan = await this.planner.plan(userTask, currentState, this.executionHistory,
               enhancedContext);
 
+            // Check for cancellation immediately after planner call returns
+            if (this.cancelled) {
+              console.log('🛑 Task cancelled while planner was running');
+              finalResult = {
+                success: false,
+                response: '🛑 Task cancelled by user',
+                message: 'Task cancelled',
+                steps: this.currentStep
+              };
+              break;
+            }
+
             // Add usage tracking from planner
             if (plan && plan.usage) {
               this.totalTokens += (plan.usage.total || 0);
@@ -1786,9 +1798,26 @@ class BackgroundScriptAgent {
         return await this.screenshotPromise;
       }
 
-      // Get current active tab using standard Chrome API
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      const tab = tabs[0];
+      // Use lastFocusedWindow (more reliable from background scripts than currentWindow)
+      let tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      let tab = tabs?.[0];
+
+      // Filter out devtools, chrome://, and other non-capturable URLs
+      const isSpecialUrl = (url) => {
+        if (!url) return false;
+        return url.startsWith('devtools://') ||
+          url.startsWith('chrome://') ||
+          url.startsWith('chrome-extension://') ||
+          url.startsWith('about:');
+      };
+
+      // If active tab is devtools/chrome, try to find a real web page tab
+      if (!tab || !tab.id || isSpecialUrl(tab.url)) {
+        // Try any active tab in non-special windows
+        tabs = await chrome.tabs.query({ active: true });
+        tab = tabs?.find(t => t.id && !isSpecialUrl(t.url));
+      }
+
       if (!tab || !tab.id) {
         console.log('❌ No active tab for screenshot');
         return null;
@@ -2804,11 +2833,11 @@ console.log('🚀 Universal AI Web Agent Background Script Initialized with Woot
 // Chrome Alarms for Android background persistence
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'keep-alive') {
-    console.log("🟢 Background Service Worker Active:", new Date().toISOString());
-    if (backgroundScriptAgent?.backgroundTaskManager) {
-      const runningTasks = backgroundScriptAgent.backgroundTaskManager.getAllRunningTasks();
-      console.log(`📊 Background status: ${runningTasks.length} tasks running`);
-    }
+    // console.log("🟢 Background Service Worker Active:", new Date().toISOString());
+    // if (backgroundScriptAgent?.backgroundTaskManager) {
+    //   const runningTasks = backgroundScriptAgent.backgroundTaskManager.getAllRunningTasks();
+    //   console.log(`📊 Background status: ${runningTasks.length} tasks running`);
+    // }
   }
 });
 
