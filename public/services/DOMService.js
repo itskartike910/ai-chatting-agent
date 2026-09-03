@@ -9,6 +9,8 @@
 export class DOMService {
   constructor() {
     this.injectedTabs = new Set();
+    // Store element maps by tabId for index-based lookup
+    this.elementMaps = new Map();
   }
 
   /**
@@ -149,6 +151,9 @@ export class DOMService {
       } catch (e) {
         console.warn('Failed to extract page text:', e.message);
       }
+
+      // Store the element map for this tab for index-based lookups
+      this.elementMaps.set(tabId, result.map);
 
       // Transform result to match expected format
       return {
@@ -342,6 +347,29 @@ export class DOMService {
     try {
       await this.injectBuildDomTreeScript(tabId);
 
+      // If index is provided, resolve xpath/selector from stored element map
+      let actionParams = { ...params };
+      if (params.index !== undefined && params.index !== null && !params.xpath && !params.selector) {
+        const elementNode = this.getElementByIndex(tabId, params.index);
+        if (elementNode) {
+          if (elementNode.xpath) {
+            actionParams.xpath = elementNode.xpath;
+          } else if (elementNode.attributes) {
+            // Build a selector from attributes
+            let selector = elementNode.tagName || '';
+            if (elementNode.attributes.id) {
+              selector += `#${elementNode.attributes.id}`;
+            } else if (elementNode.attributes.class) {
+              const classes = elementNode.attributes.class.split(' ').slice(0, 2).join('.');
+              selector += `.${classes}`;
+            }
+            if (selector) {
+              actionParams.selector = selector;
+            }
+          }
+        }
+      }
+
       const result = await this.executeWithTimeout({
         target: { tabId },
         func: (params) => {
@@ -452,7 +480,7 @@ export class DOMService {
             return { success: false, error: error.message };
           }
         },
-        args: [params],
+        args: [actionParams],
       });
 
       const actionResult = result?.[0]?.result;
@@ -470,6 +498,29 @@ export class DOMService {
   async performFill(tabId, params) {
     try {
       await this.injectBuildDomTreeScript(tabId);
+
+      // If index is provided, resolve xpath/selector from stored element map
+      let actionParams = { ...params };
+      if (params.index !== undefined && params.index !== null && !params.xpath && !params.selector) {
+        const elementNode = this.getElementByIndex(tabId, params.index);
+        if (elementNode) {
+          if (elementNode.xpath) {
+            actionParams.xpath = elementNode.xpath;
+          } else if (elementNode.attributes) {
+            // Build a selector from attributes
+            let selector = elementNode.tagName || '';
+            if (elementNode.attributes.id) {
+              selector += `#${elementNode.attributes.id}`;
+            } else if (elementNode.attributes.class) {
+              const classes = elementNode.attributes.class.split(' ').slice(0, 2).join('.');
+              selector += `.${classes}`;
+            }
+            if (selector) {
+              actionParams.selector = selector;
+            }
+          }
+        }
+      }
 
       const result = await this.executeWithTimeout({
         target: { tabId },
@@ -557,7 +608,7 @@ export class DOMService {
 
           return { success: true, message: 'Text filled successfully' };
         },
-        args: [params],
+        args: [actionParams],
       });
 
       const actionResult = result?.[0]?.result;
@@ -664,6 +715,26 @@ export class DOMService {
    */
   onTabClosed(tabId) {
     this.injectedTabs.delete(tabId);
+    this.elementMaps.delete(tabId);
+  }
+
+  /**
+   * Get element details by index from stored element map
+   * Returns the element node with xpath, selector, and attributes for action execution
+   */
+  getElementByIndex(tabId, index) {
+    const elementMap = this.elementMaps.get(tabId);
+    if (!elementMap) {
+      return null;
+    }
+
+    for (const id in elementMap) {
+      const node = elementMap[id];
+      if (node.highlightIndex === index) {
+        return node;
+      }
+    }
+    return null;
   }
 }
 

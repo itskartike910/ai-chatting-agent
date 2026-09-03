@@ -2730,7 +2730,33 @@ Something went wrong while processing your request.
           sendResponse(configResult);
           break;
 
+        case 'VALIDATE_API_KEY': {
+          const service = new MultiLLMService({
+            aiProvider: request.provider,
+            [`${request.provider}ApiKey`]: request.apiKey,
+            customOpenAIApiKey: request.apiKey,
+            customOpenAIBaseUrl: request.baseUrl,
+            localLLMApiKey: request.apiKey,
+            localLLMBaseUrl: request.baseUrl
+          });
+          const valResult = await service.validateApiKey(request.provider, request.apiKey, request.baseUrl);
+          sendResponse(valResult);
+          break;
+        }
 
+        case 'FETCH_MODELS': {
+          const service = new MultiLLMService({
+            aiProvider: request.provider,
+            [`${request.provider}ApiKey`]: request.apiKey,
+            customOpenAIApiKey: request.apiKey,
+            customOpenAIBaseUrl: request.baseUrl,
+            localLLMApiKey: request.apiKey,
+            localLLMBaseUrl: request.baseUrl
+          });
+          const modelsResult = await service.fetchModels(request.provider);
+          sendResponse({ success: true, models: modelsResult });
+          break;
+        }
 
         default:
           sendResponse({ success: false, error: 'Unknown action' });
