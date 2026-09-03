@@ -2,53 +2,100 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-// ── Typewriter Animation Component ──
-const TypewriterText = ({ text, speed = 20, onComplete, isActive = true }) => {
-  const [displayText, setDisplayText] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const timeoutRef = useRef(null);
+// ── Helper to extract thinking/reasoning from content ──
+const parseThinkingAndContent = (rawContent, explicitReasoning = null) => {
+  let thinking = explicitReasoning || '';
+  let content = rawContent || '';
 
-  // Calculate dynamic speed based on text length for 1-3 second animation
-  const effectiveSpeed = useMemo(() => {
-    const textLength = text?.length || 0;
-    if (textLength <= 100) return Math.max(10, speed); // ~1-2 seconds for short
-    if (textLength <= 500) return Math.max(5, Math.floor(speed * 0.7)); // ~1.5-2 seconds for medium
-    return Math.max(2, Math.floor(speed * 0.4)); // ~2-3 seconds for long
-  }, [text, speed]);
-
-  useEffect(() => {
-    if (!isActive) {
-      setDisplayText(text || '');
-      return;
+  if (typeof content === 'string') {
+    const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/i) || content.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
+    if (thinkMatch) {
+      thinking = (thinking ? thinking + '\n\n' : '') + thinkMatch[1].trim();
+      content = content.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '').trim();
     }
+  }
 
-    if (!text || text.length === 0) {
-      setDisplayText('');
-      onComplete?.();
-      return;
-    }
+  return { thinking, content };
+};
 
-    setCurrentIndex(0);
-    setDisplayText('');
+// ── Collapsible Thinking / Reasoning Component (Antigravity Style) ──
+const ThinkingAccordion = ({ thinking }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-    const typeNextChar = () => {
-      if (currentIndex < text.length) {
-        setDisplayText(text.slice(0, currentIndex + 1));
-        setCurrentIndex(prev => prev + 1);
-        timeoutRef.current = setTimeout(typeNextChar, effectiveSpeed);
-      } else {
-        onComplete?.();
-      }
-    };
+  if (!thinking || thinking.trim().length === 0) return null;
 
-    timeoutRef.current = setTimeout(typeNextChar, effectiveSpeed);
+  return (
+    <div style={{
+      marginBottom: '8px',
+      borderRadius: '8px',
+      backgroundColor: 'rgba(15, 23, 42, 0.65)',
+      border: '1px solid rgba(99, 102, 241, 0.25)',
+      overflow: 'hidden',
+      transition: 'all 0.2s ease',
+      fontSize: '11.5px'
+    }}>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 10px',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: '#a5b4fc',
+          fontSize: '11px',
+          fontWeight: '600',
+          textAlign: 'left',
+          userSelect: 'none'
+        }}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '12px' }}>🧠</span>
+          <span style={{ color: '#c7d2fe' }}>Thought Process</span>
+          <span style={{
+            fontSize: '9.5px',
+            color: '#818cf8',
+            backgroundColor: 'rgba(99, 102, 241, 0.15)',
+            padding: '1px 6px',
+            borderRadius: '4px',
+            fontWeight: '500'
+          }}>
+            {isExpanded ? 'Hide' : 'Show reasoning'}
+          </span>
+        </span>
+        <span style={{
+          fontSize: '10px',
+          color: '#818cf8',
+          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.2s ease'
+        }}>
+          ▼
+        </span>
+      </button>
 
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [text, isActive, effectiveSpeed, currentIndex, onComplete]);
-
-  return <span>{displayText}</span>;
+      {isExpanded && (
+        <div style={{
+          padding: '8px 10px 10px 10px',
+          borderTop: '1px solid rgba(99, 102, 241, 0.15)',
+          color: 'rgba(226, 232, 240, 0.85)',
+          fontSize: '11px',
+          lineHeight: '1.5',
+          whiteSpace: 'pre-wrap',
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          maxHeight: '260px',
+          overflowY: 'auto',
+          backgroundColor: 'rgba(0, 0, 0, 0.25)',
+          borderLeft: '2px solid #818cf8'
+        }}>
+          {thinking}
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ── Collapsible progress box for system messages ──
@@ -649,14 +696,24 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         ) : (
           /* Normal content rendering */
           <div style={{ textAlign: 'left', width: '100%' }}>
-            {type === 'assistant' ? (
-              // Typewriter animation for assistant messages
-              <TypewriterText
-                text={message.content}
-                speed={15}
-                isActive={true}
-              />
-            ) : (message.isMarkdown || type === 'error') ? (
+            {type === 'assistant' ? (() => {
+              const { thinking, content } = parseThinkingAndContent(message.content, message.reasoning || message.thinking);
+              return (
+                <>
+                  {thinking && <ThinkingAccordion thinking={thinking} />}
+                  {content ? (
+                    <ReactMarkdown
+                      components={markdownComponents}
+                      remarkPlugins={[remarkGfm]}
+                    >
+                      {content}
+                    </ReactMarkdown>
+                  ) : (
+                    !thinking && <span style={{ opacity: 0.6, fontStyle: 'italic' }}>Task completed</span>
+                  )}
+                </>
+              );
+            })() : (message.isMarkdown || type === 'error') ? (
               <ReactMarkdown
                 components={markdownComponents}
                 remarkPlugins={[remarkGfm]}

@@ -278,12 +278,14 @@ const ChatInterface = () => {
               setTaskStatus({ status: 'completed', message: 'Task completed!' });
 
               const responseContent = message.result.response || message.result.message;
+              const reasoningContent = message.result.reasoning || message.result.thinking || '';
 
               addMessage({
                 type: 'assistant',
                 content: responseContent,
+                reasoning: reasoningContent,
                 timestamp: Date.now(),
-                isMarkdown: message.result.isMarkdown || hasMarkdownContent(responseContent), // Use flag from backend first
+                isMarkdown: message.result.isMarkdown || hasMarkdownContent(responseContent),
                 actions: message.result.actions
               });
               break;

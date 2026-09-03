@@ -2370,6 +2370,7 @@ class BackgroundScriptAgent {
           success: true,
           response: intelligentResult.response.message,
           message: intelligentResult.response.message,
+          reasoning: intelligentResult.reasoning,
           confidence: intelligentResult.confidence,
           isMarkdown: intelligentResult.response.isMarkdown || true
         };
