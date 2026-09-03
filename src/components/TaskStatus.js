@@ -1,243 +1,201 @@
 import React from "react";
+import {
+  FaBolt,
+  FaBrain,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaPause,
+  FaTimesCircle
+} from "react-icons/fa";
 
 const TaskStatus = ({ status }) => {
   if (!status) return null;
 
-  const getStatusColor = (statusType) => {
+  const getStatusConfig = (statusType) => {
     switch (statusType) {
       case "planning":
-        return "#ffad1f";
+        return {
+          color: "#f59e0b",
+          bg: "rgba(245, 158, 11, 0.15)",
+          border: "rgba(245, 158, 11, 0.35)",
+          icon: <FaBrain style={{ fontSize: "11px" }} />,
+          title: "Planning Strategy",
+          isLive: true
+        };
       case "executing":
-        return "#1da1f2";
+        return {
+          color: "#818cf8",
+          bg: "rgba(99, 102, 241, 0.15)",
+          border: "rgba(99, 102, 241, 0.35)",
+          icon: <FaBolt style={{ fontSize: "11px" }} />,
+          title: "AI Agent Executing",
+          isLive: true
+        };
       case "validating":
-        return "#17bf63";
+        return {
+          color: "#10b981",
+          bg: "rgba(16, 185, 129, 0.15)",
+          border: "rgba(16, 185, 129, 0.35)",
+          icon: <FaCheckCircle style={{ fontSize: "11px" }} />,
+          title: "Verifying Goal",
+          isLive: true
+        };
       case "completed":
-        return "#17bf63";
+        return {
+          color: "#10b981",
+          bg: "rgba(16, 185, 129, 0.15)",
+          border: "rgba(16, 185, 129, 0.35)",
+          icon: <FaCheckCircle style={{ fontSize: "11px" }} />,
+          title: "Task Completed",
+          isLive: false
+        };
+      case "paused":
+        return {
+          color: "#fbbf24",
+          bg: "rgba(251, 191, 36, 0.15)",
+          border: "rgba(251, 191, 36, 0.35)",
+          icon: <FaPause style={{ fontSize: "10px" }} />,
+          title: "Action Required",
+          isLive: false
+        };
       case "error":
-        return "#e0245e";
       case "failed":
-        return "#e0245e";
+        return {
+          color: "#ef4444",
+          bg: "rgba(239, 68, 68, 0.15)",
+          border: "rgba(239, 68, 68, 0.35)",
+          icon: <FaExclamationTriangle style={{ fontSize: "11px" }} />,
+          title: "Execution Error",
+          isLive: false
+        };
       case "cancelled":
-        return "#657786";
+        return {
+          color: "#94a3b8",
+          bg: "rgba(148, 163, 184, 0.15)",
+          border: "rgba(148, 163, 184, 0.35)",
+          icon: <FaTimesCircle style={{ fontSize: "11px" }} />,
+          title: "Task Cancelled",
+          isLive: false
+        };
       default:
-        return "#657786";
+        return {
+          color: "#818cf8",
+          bg: "rgba(99, 102, 241, 0.15)",
+          border: "rgba(99, 102, 241, 0.35)",
+          icon: <FaBolt style={{ fontSize: "11px" }} />,
+          title: "Processing",
+          isLive: true
+        };
     }
   };
 
-  const getStatusIcon = (statusType) => {
-    switch (statusType) {
-      case "planning":
-        return "🤔";
-      case "executing":
-        return "⚡";
-      case "validating":
-        return "✅";
-      case "completed":
-        return "🎉";
-      case "error":
-        return "❌";
-      case "failed":
-        return "⚠️";
-      case "cancelled":
-        return "🛑";
-      default:
-        return "⏳";
-    }
-  };
-
-  const getStatusMessage = (statusType) => {
-    switch (statusType) {
-      case "planning":
-        return "Analyzing your request...";
-      case "executing":
-        return "Your task is being executed by AI agent";
-      case "validating":
-        return "Verifying task completion...";
-      case "completed":
-        return "Task completed successfully!";
-      case "error":
-        return "An error occurred during execution";
-      case "failed":
-        return "Task execution failed";
-      case "cancelled":
-        return "Task was cancelled";
-      default:
-        return "Processing your request...";
-    }
-  };
-
-  const statusColor = getStatusColor(status.status);
+  const config = getStatusConfig(status.status);
 
   return (
     <div
-      className="task-status-container toast-enter"
+      className="task-status-container"
       style={{
-        padding: "8px 16px",
-        backgroundColor: "rgba(255, 255, 255, 0.05)",
-        backdropFilter: "blur(10px)",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        padding: "8px 14px",
+        backgroundColor: "rgba(10, 15, 30, 0.9)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+        borderBottom: `1px solid ${config.border}`,
         display: "flex",
         alignItems: "center",
         gap: "10px",
         flexShrink: 0,
-        boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
-        animation: "slideFadeIn 0.4s ease-out forwards",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.25)",
+        position: "relative",
+        zIndex: 5,
+        animation: "slideInDown 0.3s ease-out forwards"
       }}
     >
+      {/* Icon Badge */}
       <div
-        className={`status-indicator ${status.status === "executing" ? "status-pulse" : ""}`}
         style={{
-          width: "24px",
-          height: "24px",
-          borderRadius: "50%",
-          backgroundColor: statusColor,
+          width: "26px",
+          height: "26px",
+          borderRadius: "8px",
+          backgroundColor: config.bg,
+          border: `1px solid ${config.border}`,
+          color: config.color,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "11px",
           flexShrink: 0,
-          boxShadow: `0 0 8px ${statusColor}66, 0 2px 4px rgba(0,0,0,0.1)`,
-          transition: "all 0.3s ease",
-          position: "relative"
+          boxShadow: `0 0 10px ${config.color}33`,
+          transition: "all 0.3s ease"
         }}
       >
-        {status.status === "executing" ? (
-          <>
-            <div
-              className="loader"
-              style={{
-                width: "16px",
-                height: "16px",
-                aspectRatio: "1",
-                display: "grid",
-                color: "#ffffff",
-                background:
-                  "radial-gradient(farthest-side, currentColor calc(100% - 2px), #0000 calc(100% - 1px) 0)",
-                WebkitMask:
-                  "radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 calc(100% - 3px))",
-                mask: "radial-gradient(farthest-side, #0000 calc(100% - 4px), #000 calc(100% - 3px))",
-                borderRadius: "50%",
-                animation: "l19 1.5s infinite linear",
-              }}
-            >
-              <div
-                style={{
-                  content: '""',
-                  gridArea: "1/1",
-                  background: `
-                   linear-gradient(currentColor 0 0) center,
-                   linear-gradient(currentColor 0 0) center
-                 `,
-                  backgroundSize: "100% 2px, 2px 100%",
-                  backgroundRepeat: "no-repeat",
-                }}
-              />
-              <div
-                style={{
-                  content: '""',
-                  gridArea: "1/1",
-                  background: `
-                   linear-gradient(currentColor 0 0) center,
-                   linear-gradient(currentColor 0 0) center
-                 `,
-                  backgroundSize: "100% 2px, 2px 100%",
-                  backgroundRepeat: "no-repeat",
-                  transform: "rotate(45deg)",
-                }}
-              />
-            </div>
-            {/* Typing indicator dots */}
-            <div className="typing-indicator" style={{
-              position: "absolute",
-              bottom: "-8px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: "3px",
-              whiteSpace: "nowrap"
-            }}>
-              <span style={{ animationDelay: "0s" }}></span>
-              <span style={{ animationDelay: "0.2s" }}></span>
-              <span style={{ animationDelay: "0.4s" }}></span>
-            </div>
-          </>
-        ) : (
-          <span style={{ fontSize: "11px", transform: "scale(1.2)" }}>
-            {getStatusIcon(status.status)}
-          </span>
-        )}
+        {config.icon}
       </div>
 
+      {/* Main Status Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
-          className="float-label"
           style={{
-            fontSize: "13px",
-            fontWeight: "600",
-            color: "var(--text-primary, #f1f5f9)",
-            lineHeight: "16px",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            fontSize: "12px",
+            fontWeight: "700",
+            color: "#f1f5f9",
+            lineHeight: "15px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px"
           }}
         >
-          {getStatusMessage(status.status)}
+          {config.title}
+          {config.isLive && (
+            <span
+              style={{
+                display: "inline-block",
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: config.color,
+                boxShadow: `0 0 6px ${config.color}`,
+                animation: "pulse 1.5s infinite"
+              }}
+            />
+          )}
         </div>
 
-        {status.status === "executing" && status.message && (
+        {status.message && (
           <div
-            className="shimmer-loading"
             style={{
               fontSize: "11px",
-              color: "var(--text-secondary, rgba(241,245,249,0.7))",
-              marginTop: "3px",
-              lineHeight: "13px",
-              fontStyle: "italic",
-              borderRadius: "4px",
-              padding: "2px 8px",
-              backgroundSize: "200% 100%"
+              color: "var(--text-secondary, rgba(241, 245, 249, 0.7))",
+              marginTop: "2px",
+              lineHeight: "14px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap"
             }}
           >
             {status.message}
           </div>
         )}
-
-        {status.status === "planning" && (
-          <div className="typing-indicator" style={{ marginTop: "4px" }}>
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-        )}
       </div>
 
-      {/* Progress ring for executing */}
-      {status.status === "executing" && (
-        <div style={{
-          width: "32px",
-          height: "32px",
-          borderRadius: "50%",
-          border: "2px solid rgba(255,255,255,0.1)",
-          borderTopColor: statusColor,
-          animation: "spin 1s linear infinite",
-          flexShrink: 0
-        }} />
-      )}
-
-      {status.status === "completed" && (
-        <div className="scale-in" style={{
-          width: "24px",
-          height: "24px",
-          borderRadius: "50%",
-          backgroundColor: "#17bf63",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "12px",
-          color: "white",
-          flexShrink: 0
-        }}>
-          ✓
+      {/* Right Progress Spinner / Badge */}
+      {config.isLive && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            flexShrink: 0
+          }}
+        >
+          <div
+            style={{
+              width: "16px",
+              height: "16px",
+              borderRadius: "50%",
+              border: `2px solid rgba(255, 255, 255, 0.1)`,
+              borderTopColor: config.color,
+              animation: "spin 0.8s linear infinite"
+            }}
+          />
         </div>
       )}
     </div>

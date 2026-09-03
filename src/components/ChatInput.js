@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { FaMicrophone, FaMicrophoneSlash } from 'react-icons/fa';
+import { FaMicrophone, FaMicrophoneSlash, FaStop, FaArrowUp } from 'react-icons/fa';
 
 const ChatInput = ({
   onSendMessage,
@@ -325,26 +325,24 @@ const ChatInput = ({
                 onClick={handleStop}
                 className="chat-stop-button"
                 style={{
-                  width: '36px',
-                  height: '36px',
-                  backgroundColor: '#e0245e',
+                  width: '34px',
+                  height: '34px',
+                  backgroundColor: '#ef4444',
                   color: 'white',
-                  border: '1px solid #F00000FF',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '24px',
-                  fontWeight: '800',
+                  fontSize: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(224, 36, 94, 0.3)',
-                  paddingBottom: '6px',
-                  transition: 'all 0.2s ease',
+                  boxShadow: '0 0 12px rgba(239, 68, 68, 0.6)',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   flexShrink: 0
                 }}
                 title="Stop Execution"
               >
-                ■
+                <FaStop style={{ fontSize: '11px' }} />
               </button>
             ) : (
               <button
@@ -352,27 +350,23 @@ const ChatInput = ({
                 disabled={!currentValue.trim() || disabled}
                 className="chat-send-button"
                 style={{
-                  width: '36px',
-                  height: '36px',
+                  width: '34px',
+                  height: '34px',
                   backgroundColor: (!currentValue.trim() || disabled) ? 'rgba(255,255,255,0.08)' : 'var(--accent-primary, #6366f1)',
-                  color: 'white',
-                  border: (!currentValue.trim() || disabled) ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(99,102,241,0.5)',
+                  color: (!currentValue.trim() || disabled) ? 'rgba(255,255,255,0.3)' : 'white',
+                  border: (!currentValue.trim() || disabled) ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(99,102,241,0.5)',
                   borderRadius: '50%',
                   cursor: (!currentValue.trim() || disabled) ? 'default' : 'pointer',
-                  fontSize: '22px',
-                  fontWeight: '800',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   boxShadow: (!currentValue.trim() || disabled) ? 'none' : '0 2px 12px rgba(99, 102, 241, 0.4)',
                   transition: 'all 0.2s ease',
-                  paddingBottom: '2px',
-                  paddingRight: '4px',
                   flexShrink: 0
                 }}
                 title="Send Message"
               >
-                ➤
+                <FaArrowUp style={{ fontSize: '13px' }} />
               </button>
             )}
           </div>

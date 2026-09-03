@@ -475,15 +475,15 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
       case 'approval':
         style = {
           ...baseStyle,
-          backgroundColor: '#1a2035',
+          backgroundColor: 'rgba(15, 23, 42, 0.85)',
           color: '#93c5fd',
           alignSelf: 'flex-start',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
+          border: '1px solid rgba(99, 102, 241, 0.35)',
           textAlign: 'left',
           fontSize: '12px',
-          borderRadius: '12px',
-          borderBottomLeftRadius: '4px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+          borderRadius: '14px',
+          padding: '12px 16px',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), 0 0 15px rgba(99, 102, 241, 0.15)'
         };
         break;
       default:
@@ -497,15 +497,25 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         {/* Pause / Approval messages with buttons */}
         {(type === 'pause' || type === 'approval') ? (
           <div style={{ textAlign: 'center', width: '100%' }}>
-            <div style={{ marginBottom: '12px' }}>
-              {message.pauseReason === 'signin' ? '🔐' : message.pauseReason === 'approval' ? '⏳' : '❓'} {message.content}
+            <div style={{
+              fontWeight: '700',
+              fontSize: '13px',
+              color: '#f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              marginBottom: '6px'
+            }}>
+              {message.pauseReason === 'signin' ? '🔐 Sign In Required' : message.pauseReason === 'approval' ? '⏳ Approval Required' : '❓ Action Required'}
             </div>
             {message.pauseDescription && (
               <div style={{
                 marginBottom: '12px',
-                fontSize: '11px',
+                fontSize: '11.5px',
                 color: type === 'approval' ? '#93c5fd' : '#fbbf24',
-                fontStyle: 'italic'
+                fontStyle: 'italic',
+                lineHeight: '1.4'
               }}>
                 {message.pauseDescription}
               </div>
@@ -517,23 +527,39 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                 if (message.approved) {
                   return (
                     <div style={{
-                      backgroundColor: '#4CAF50', color: 'white', border: 'none',
-                      padding: '8px 16px', borderRadius: '6px', fontSize: '12px',
-                      fontWeight: '600', display: 'flex', alignItems: 'center',
-                      gap: '6px', margin: '0 auto', width: 'fit-content'
+                      backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                      color: '#34d399',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      margin: '0 auto',
+                      width: 'fit-content'
                     }}>
-                      ✅ Approved
+                      ✓ Approved
                     </div>
                   );
                 } else if (message.declined) {
                   return (
                     <div style={{
-                      backgroundColor: '#f44336', color: 'white', border: 'none',
-                      padding: '8px 16px', borderRadius: '6px', fontSize: '12px',
-                      fontWeight: '600', display: 'flex', alignItems: 'center',
-                      gap: '6px', margin: '0 auto', width: 'fit-content'
+                      backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      color: '#f87171',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      margin: '0 auto',
+                      width: 'fit-content'
                     }}>
-                      ❌ Declined
+                      ✕ Declined
                     </div>
                   );
                 } else {
@@ -542,9 +568,15 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                       <button
                         onClick={() => handleDecline(messageId)}
                         style={{
-                          backgroundColor: '#f44336', color: 'white', border: 'none',
-                          padding: '8px 12px', borderRadius: '6px', fontSize: '12px',
-                          fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease'
+                          backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                          color: '#f87171',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
                         }}
                       >
                         ✗ Decline
@@ -552,9 +584,16 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                       <button
                         onClick={() => handleApprove(messageId)}
                         style={{
-                          backgroundColor: '#4CAF50', color: 'white', border: 'none',
-                          padding: '8px 12px', borderRadius: '6px', fontSize: '12px',
-                          fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease'
+                          backgroundColor: '#10b981',
+                          color: 'white',
+                          border: 'none',
+                          padding: '7px 16px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+                          transition: 'all 0.2s ease'
                         }}
                       >
                         ✓ Approve
@@ -569,22 +608,40 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
                 <button
                   onClick={() => handleResume(message.id || `msg-${index}`)}
                   style={{
-                    backgroundColor: '#4ecdc4', color: 'white', border: 'none',
-                    padding: '8px 16px', borderRadius: '6px', fontSize: '12px',
-                    fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease',
-                    display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto'
+                    backgroundColor: '#6366f1',
+                    color: 'white',
+                    border: 'none',
+                    padding: '7px 16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 10px rgba(99, 102, 241, 0.4)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    margin: '0 auto'
                   }}
                 >
-                  ✓ Resume
+                  ▶ Resume
                 </button>
               ) : (
                 <div style={{
-                  backgroundColor: '#4CAF50', color: 'white', border: 'none',
-                  padding: '8px 16px', borderRadius: '6px', fontSize: '12px',
-                  fontWeight: '600', display: 'flex', alignItems: 'center',
-                  gap: '6px', margin: '0 auto', width: 'fit-content'
+                  backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                  color: '#34d399',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  padding: '7px 14px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  margin: '0 auto',
+                  width: 'fit-content'
                 }}>
-                  ✅ Resumed
+                  ✓ Resumed
                 </div>
               )
             )}
@@ -898,18 +955,24 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
       {/* Typing Indicator */}
       {isTyping && (
         <div className="typing-indicator" style={{
-          margin: '4px 8px', padding: '8px 12px', borderRadius: '14px',
-          maxWidth: '82%', fontSize: '13px', fontWeight: '600', lineHeight: '1.3',
-          backgroundColor: 'transparent', color: '#14171a', alignSelf: 'flex-start',
-          border: 'none', textAlign: 'left', boxShadow: 'none',
-          position: 'relative', zIndex: 1
+          margin: '4px 12px',
+          padding: '6px 12px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(99, 102, 241, 0.08)',
+          border: '1px solid rgba(99, 102, 241, 0.2)',
+          alignSelf: 'flex-start',
+          width: 'fit-content',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.15)',
+          position: 'relative',
+          zIndex: 1
         }}>
-          <div style={{ textAlign: 'left', width: '100%' }}>
-            <div className="typing-dots">
-              <div className="typing-dot"></div>
-              <div className="typing-dot"></div>
-              <div className="typing-dot"></div>
-            </div>
+          <div className="typing-dots">
+            <div className="typing-dot"></div>
+            <div className="typing-dot"></div>
+            <div className="typing-dot"></div>
           </div>
         </div>
       )}
