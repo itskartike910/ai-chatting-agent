@@ -2,6 +2,55 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// ── Typewriter Animation Component ──
+const TypewriterText = ({ text, speed = 20, onComplete, isActive = true }) => {
+  const [displayText, setDisplayText] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const timeoutRef = useRef(null);
+
+  // Calculate dynamic speed based on text length for 1-3 second animation
+  const effectiveSpeed = useMemo(() => {
+    const textLength = text?.length || 0;
+    if (textLength <= 100) return Math.max(10, speed); // ~1-2 seconds for short
+    if (textLength <= 500) return Math.max(5, Math.floor(speed * 0.7)); // ~1.5-2 seconds for medium
+    return Math.max(2, Math.floor(speed * 0.4)); // ~2-3 seconds for long
+  }, [text, speed]);
+
+  useEffect(() => {
+    if (!isActive) {
+      setDisplayText(text || '');
+      return;
+    }
+
+    if (!text || text.length === 0) {
+      setDisplayText('');
+      onComplete?.();
+      return;
+    }
+
+    setCurrentIndex(0);
+    setDisplayText('');
+
+    const typeNextChar = () => {
+      if (currentIndex < text.length) {
+        setDisplayText(text.slice(0, currentIndex + 1));
+        setCurrentIndex(prev => prev + 1);
+        timeoutRef.current = setTimeout(typeNextChar, effectiveSpeed);
+      } else {
+        onComplete?.();
+      }
+    };
+
+    timeoutRef.current = setTimeout(typeNextChar, effectiveSpeed);
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [text, isActive, effectiveSpeed, currentIndex, onComplete]);
+
+  return <span>{displayText}</span>;
+};
+
 // ── Collapsible progress box for system messages ──
 const ProgressBox = ({ messages, isLatestGroup, isTaskRunning, markdownComponents }) => {
   const [isExpanded, setIsExpanded] = useState(isLatestGroup && isTaskRunning);
@@ -87,16 +136,14 @@ const ProgressBox = ({ messages, isLatestGroup, isTaskRunning, markdownComponent
           overflowY: 'auto'
         }}>
           {messages.map((msg, i) => (
-            <div key={msg.id || `prog-${i}`} style={{
+            <div key={msg.id || `prog-${i}`} className={`stagger-${(i % 5) + 1} message-enter`} style={{
               padding: '8px 0',
               borderBottom: i < messages.length - 1 ? '1px dashed rgba(165, 180, 252, 0.15)' : 'none',
               fontSize: '11px',
               lineHeight: '1.6',
               color: '#cbd5e1',
               wordWrap: 'break-word',
-              textAlign: 'left',
-              animation: 'fadeInScale 0.2s ease-out forwards',
-              opacity: 0
+              textAlign: 'left'
             }}>
               {msg.isMarkdown ? (
                 <ReactMarkdown
@@ -443,8 +490,10 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         style = baseStyle;
     }
 
+    const animationClass = type === 'user' ? 'message-enter-right' : 'message-enter-left';
+
     return (
-      <div key={message.id || `msg-${index}`} className={`message-item message-${type}`} style={style}>
+      <div key={message.id || `msg-${index}`} className={`message-item message-${type} ${animationClass}`} style={style}>
         {/* Pause / Approval messages with buttons */}
         {(type === 'pause' || type === 'approval') ? (
           <div style={{ textAlign: 'center', width: '100%' }}>
@@ -543,7 +592,14 @@ const MessageList = ({ messages, onTemplateClick, onResumeExecution, onApproveTa
         ) : (
           /* Normal content rendering */
           <div style={{ textAlign: 'left', width: '100%' }}>
-            {(message.isMarkdown || type === 'error') ? (
+            {type === 'assistant' ? (
+              // Typewriter animation for assistant messages
+              <TypewriterText
+                text={message.content}
+                speed={15}
+                isActive={true}
+              />
+            ) : (message.isMarkdown || type === 'error') ? (
               <ReactMarkdown
                 components={markdownComponents}
                 remarkPlugins={[remarkGfm]}

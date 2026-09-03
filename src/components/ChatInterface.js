@@ -8,8 +8,6 @@ import { useChat } from '../hooks/useChat';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FaCog,
-  FaWifi,
-  FaExclamationTriangle,
   FaHistory,
   FaCoins
 } from 'react-icons/fa';
@@ -582,33 +580,7 @@ const ChatInterface = () => {
     setTaskStatus(null);
   };
 
-  const getConnectionStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected': return '#17bf63';
-      case 'connecting': return '#ffad1f';
-      case 'error': return '#e0245e';
-      default: return '#657786';
-    }
-  };
-
-  const getConnectionStatusText = () => {
-    switch (connectionStatus) {
-      case 'connected': return 'Connected';
-      case 'connecting': return 'Connecting...';
-      case 'error': return 'Connection Error';
-      default: return 'Disconnected';
-    }
-  };
-
-  const getConnectionIcon = () => {
-    switch (connectionStatus) {
-      case 'connected': return <FaWifi />;
-      case 'connecting': return <FaWifi style={{ opacity: 0.6 }} />;
-      case 'error': return <FaExclamationTriangle />;
-      default: return <FaWifi style={{ opacity: 0.3 }} />;
-    }
-  };
-
+  
   // Add subscription choice modal as an overlay in the return statement
   return (
     <div className={`chat-interface${isExecuting ? ' neon-active' : ''}`} style={{

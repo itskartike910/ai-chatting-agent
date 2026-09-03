@@ -278,27 +278,29 @@ const ChatHistoryPage = () => {
           </p>
         </div>
 
-        {/* <button 
+        <button
           onClick={handleClearAll}
           disabled={chatHistories.length === 0}
           className="chat-header-button"
-          style={{ 
-            padding: '6px 8px', 
-            backgroundColor: chatHistories.length === 0 ? 'rgba(255, 220, 220, 0.1)' : 'rgba(224, 36, 94, 0.2)',
-            border: '1px solid rgba(255, 220, 220, 0.3)',
-            borderRadius: '8px',
+          style={{
+            padding: '7px 9px',
+            backgroundColor: chatHistories.length === 0 ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.15)',
+            border: chatHistories.length === 0 ? '1px solid rgba(239, 68, 68, 0.1)' : '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '10px',
             cursor: chatHistories.length === 0 ? 'not-allowed' : 'pointer',
-            fontSize: '16px',
-            color: chatHistories.length === 0 ? 'rgba(255, 220, 220, 0.5)' : '#e0245e',
+            fontSize: '15px',
+            color: chatHistories.length === 0 ? 'rgba(239, 68, 68, 0.4)' : '#ef4444',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backdropFilter: 'blur(5px)'
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.2s ease',
+            opacity: chatHistories.length === 0 ? 0.5 : 1
           }}
-          title="Clear All"
+          title="Clear All History"
         >
           <FaTrashAlt />
-        </button> */}
+        </button>
       </div>
 
       {/* Content */}

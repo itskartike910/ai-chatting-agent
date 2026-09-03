@@ -13,6 +13,7 @@ const ChatInput = ({
   const [message, setMessage] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [interimText, setInterimText] = useState('');
+  const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef(null);
   const recognitionRef = useRef(null);
 
@@ -169,9 +170,35 @@ const ChatInput = ({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && isExecuting) {
+    // If executing, Enter (without shift) stops execution
+    if (isExecuting && e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleStop(e);
+      return;
+    }
+
+    // If not executing, Enter (without shift) sends message, Shift+Enter adds newline
+    if (!isExecuting && e.key === 'Enter') {
+      if (!e.shiftKey) {
+        e.preventDefault();
+        if (currentValue.trim() && !disabled) {
+          onSendMessage(currentValue.trim());
+          setValue('');
+        }
+      }
+      // Shift+Enter will naturally add newline (default behavior)
+    }
+  };
+
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = (e) => {
+    setIsComposing(false);
+    // Handle the composed text
+    if (e.nativeEvent.data) {
+      setValue(e.target.value);
     }
   };
 
@@ -204,8 +231,10 @@ const ChatInput = ({
           <textarea
             ref={textareaRef}
             value={currentValue}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => !isComposing && setValue(e.target.value)}
             onKeyDown={handleKeyDown}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
             placeholder={isListening ? '🎤 Listening...' : (interimText || placeholder)}
             disabled={disabled}
             className="chat-input"
