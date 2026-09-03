@@ -691,8 +691,29 @@ export class DOMService {
   async captureScreenshot(tabId, options = {}) {
     try {
       const { format = 'png', quality = 90 } = options;
+      let windowId = null;
 
-      const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+      if (tabId) {
+        try {
+          const tab = await chrome.tabs.get(tabId);
+          if (tab && tab.url && (
+            tab.url.startsWith('chrome://') ||
+            tab.url.startsWith('devtools://') ||
+            tab.url.startsWith('chrome-extension://') ||
+            tab.url.startsWith('about:')
+          )) {
+            return {
+              success: false,
+              error: 'Cannot capture screenshot of internal browser pages',
+            };
+          }
+          windowId = tab?.windowId || null;
+        } catch (e) {
+          // ignore tab lookup failure
+        }
+      }
+
+      const dataUrl = await chrome.tabs.captureVisibleTab(windowId, {
         format: format === 'jpg' ? 'jpeg' : 'png',
         quality: format === 'jpg' ? quality : undefined,
       });
@@ -702,7 +723,7 @@ export class DOMService {
         dataUrl: dataUrl,
       };
     } catch (error) {
-      console.error('captureScreenshot failed:', error);
+      // Return error quietly without crashing
       return {
         success: false,
         error: error.message,
