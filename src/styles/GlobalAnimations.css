@@ -818,3 +818,31 @@
 
 .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
 .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+/* ── Neon Color-Changing Text Shimmer ────────────────────────── */
+@keyframes textShimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg,
+    #f1f5f9 0%,
+    #a5b4fc 20%,
+    #06b6d4 40%,
+    #ec4899 60%,
+    #818cf8 80%,
+    #f1f5f9 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  display: inline-block;
+  animation: textShimmer 4s linear infinite;
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+}

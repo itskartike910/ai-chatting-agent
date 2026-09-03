@@ -642,14 +642,13 @@ const ChatInterface = () => {
         <div style={{ minWidth: 0, flex: 1 }}>
           <h3 className="chat-title" style={{
             margin: 0,
-            color: 'var(--text-primary, #f1f5f9)',
-            fontSize: '16px',
-            fontWeight: '700',
+            fontSize: '17px',
+            fontWeight: '800',
             lineHeight: '20px',
             textAlign: 'left',
-            letterSpacing: '-0.02em'
+            letterSpacing: '-0.01em'
           }}>
-            OmniBrowse
+            <span className="shimmer-text">OmniBrowse</span>
           </h3>
           <div className="chat-status-bar" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: '2px', alignItems: 'center' }}>
             <div className="chat-status" style={{

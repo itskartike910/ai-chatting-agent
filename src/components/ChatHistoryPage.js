@@ -254,18 +254,17 @@ const ChatHistoryPage = () => {
         <div style={{ minWidth: 0, flex: 1, textAlign: 'center' }}>
           <h3 className="chat-title" style={{
             margin: 0,
-            color: 'var(--text-primary, #f1f5f9)',
             fontSize: '17px',
-            fontWeight: '700',
+            fontWeight: '800',
             lineHeight: '22px',
-            letterSpacing: '-0.02em',
-            display: 'flex',
+            letterSpacing: '-0.01em',
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px'
           }}>
-            <FaHistory />
-            RECENT CHATS
+            <FaHistory style={{ color: '#818cf8', fontSize: '15px' }} />
+            <span className="shimmer-text">RECENT CHATS</span>
           </h3>
           <p className="chat-subtitle" style={{
             margin: 0,
