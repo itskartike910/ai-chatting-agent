@@ -315,3 +315,209 @@
   outline-offset: 2px;
   animation: pulseGlow 0.5s ease-out;
 }
+
+/* ── Select & Dropdown Styling ──────────────────────────────────── */
+select.settings-select,
+.settings-container select {
+  color-scheme: dark !important;
+  background-color: #111827 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 10px !important;
+  padding: 10px 36px 10px 12px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+  width: 100% !important;
+}
+
+select.settings-select:hover,
+.settings-container select:hover {
+  border-color: rgba(99, 102, 241, 0.4) !important;
+  background-color: #151d30 !important;
+}
+
+select.settings-select:focus,
+.settings-container select:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Force dark styling on options & optgroups across all Chromium/WebKit browsers */
+.settings-container select option,
+select.settings-select option,
+option {
+  background-color: #111827 !important;
+  color: #f1f5f9 !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+}
+
+.settings-container select option:checked,
+select.settings-select option:checked {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.settings-container select option:hover,
+select.settings-select option:hover {
+  background-color: #312e81 !important;
+  color: #ffffff !important;
+}
+
+.settings-container select optgroup,
+select.settings-select optgroup,
+optgroup {
+  background-color: #0b0f19 !important;
+  color: #818cf8 !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  padding: 8px 10px !important;
+}
+
+/* ── Modern API Key Input Field ─────────────────────────────────── */
+.settings-key-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 3px 4px 3px 10px;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+  gap: 6px;
+}
+
+.settings-key-wrapper:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.settings-key-wrapper.valid {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.settings-key-wrapper.invalid {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.settings-key-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #f1f5f9 !important;
+  font-size: 13px !important;
+  font-family: inherit !important;
+  padding: 8px 4px !important;
+  box-shadow: none !important;
+}
+
+.settings-key-input::placeholder {
+  color: rgba(165, 180, 252, 0.4) !important;
+  font-size: 12px !important;
+}
+
+.settings-icon-btn {
+  background: transparent;
+  border: none;
+  color: rgba(241, 245, 249, 0.5);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.settings-icon-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.settings-validate-pill {
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.settings-validate-pill.default {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+}
+
+.settings-validate-pill.default:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.settings-validate-pill.valid {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34d399;
+}
+
+.settings-validate-pill.invalid {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+}
+
+.settings-validate-pill.checking {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+}
+
+.settings-validate-pill:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Quick presets chips */
+.preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #ffffff;
+  transform: translateY(-1px);
+}

@@ -15,12 +15,118 @@ import {
   FaKey,
   FaExclamationTriangle,
   FaCheck,
-  FaDatabase
+  FaDatabase,
+  FaEye,
+  FaEyeSlash,
+  FaExternalLinkAlt,
+  FaServer
 } from 'react-icons/fa';
+
+const PROVIDER_METADATA = {
+  gemini: {
+    name: 'Google Gemini',
+    icon: '💎',
+    badge: 'Recommended',
+    tagline: "Google's ultra-fast multimodal models with generous rate limits",
+    placeholder: 'AIzaSy...',
+    docsUrl: 'https://aistudio.google.com/app/apikey',
+    docsLabel: 'Get API Key at Google AI Studio',
+    defaultModels: {
+      planner: 'gemini-2.5-flash',
+      navigator: 'gemini-2.5-flash',
+      validator: 'gemini-2.5-flash'
+    }
+  },
+  anthropic: {
+    name: 'Anthropic Claude',
+    icon: '🔮',
+    badge: 'High Reasoning',
+    tagline: 'Top-tier precision & coding reasoning with Claude 3.5 / 3.7',
+    placeholder: 'sk-ant-api03-...',
+    docsUrl: 'https://console.anthropic.com/settings/keys',
+    docsLabel: 'Anthropic Console',
+    defaultModels: {
+      planner: 'claude-3-7-sonnet-20250219',
+      navigator: 'claude-3-5-sonnet-20241022',
+      validator: 'claude-3-5-haiku-20241022'
+    }
+  },
+  openai: {
+    name: 'OpenAI GPT',
+    icon: '🚀',
+    badge: 'Industry Standard',
+    tagline: 'GPT-4o, GPT-4o Mini, and o1 reasoning models',
+    placeholder: 'sk-proj-...',
+    docsUrl: 'https://platform.openai.com/api-keys',
+    docsLabel: 'OpenAI Platform',
+    defaultModels: {
+      planner: 'gpt-4o',
+      navigator: 'gpt-4o',
+      validator: 'gpt-4o-mini'
+    }
+  },
+  groq: {
+    name: 'Groq (Fast & Free)',
+    icon: '⚡',
+    badge: 'Free Tier',
+    tagline: 'Ultra-low latency LPU inference with Llama 3.3 70B & Mixtral',
+    placeholder: 'gsk_...',
+    docsUrl: 'https://console.groq.com/keys',
+    docsLabel: 'Groq Console',
+    defaultModels: {
+      planner: 'llama-3.3-70b-versatile',
+      navigator: 'llama-3.3-70b-versatile',
+      validator: 'llama-3.1-8b-instant'
+    }
+  },
+  openrouter: {
+    name: 'OpenRouter',
+    icon: '🌐',
+    badge: '100+ Models',
+    tagline: 'Universal gateway for Claude, OpenAI, Gemini, Llama, and Mistral',
+    placeholder: 'sk-or-v1-...',
+    docsUrl: 'https://openrouter.ai/keys',
+    docsLabel: 'OpenRouter Keys',
+    defaultModels: {
+      planner: 'anthropic/claude-3.5-sonnet',
+      navigator: 'openai/gpt-4o',
+      validator: 'openai/gpt-4o-mini'
+    }
+  },
+  'openai-compatible': {
+    name: 'Custom OpenAI-Compatible',
+    icon: '🔧',
+    badge: 'Custom API',
+    tagline: 'Connect any custom endpoint (vLLM, Together AI, Mistral, Anyscale, etc.)',
+    placeholder: 'sk-... (optional)',
+    docsUrl: null,
+    docsLabel: null,
+    defaultModels: {
+      planner: '',
+      navigator: '',
+      validator: ''
+    }
+  },
+  local: {
+    name: 'Local LLM (Private)',
+    icon: '🏠',
+    badge: '100% Private',
+    tagline: 'Run offline using Ollama, llama-server, LM Studio, or vLLM',
+    placeholder: 'Usually not needed for local servers',
+    docsUrl: null,
+    docsLabel: null,
+    defaultModels: {
+      planner: '',
+      navigator: '',
+      validator: ''
+    }
+  }
+};
 
 const SettingsModal = () => {
   const { config, updateConfig } = useConfig();
   const [localConfig, setLocalConfig] = useState(config);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationState, setValidationState] = useState(null); // null, 'valid', 'invalid', 'checking'
   const [validationMessage, setValidationMessage] = useState('');
@@ -35,13 +141,13 @@ const SettingsModal = () => {
   // Get API key for current provider
   const getCurrentApiKey = () => {
     switch (localConfig.aiProvider) {
-      case 'anthropic': return localConfig.anthropicApiKey;
-      case 'openai': return localConfig.openaiApiKey;
-      case 'gemini': return localConfig.geminiApiKey;
-      case 'groq': return localConfig.groqApiKey;
-      case 'openrouter': return localConfig.openrouterApiKey;
-      case 'openai-compatible': return localConfig.customOpenAIApiKey;
-      case 'local': return localConfig.localLLMApiKey;
+      case 'anthropic': return localConfig.anthropicApiKey || '';
+      case 'openai': return localConfig.openaiApiKey || '';
+      case 'gemini': return localConfig.geminiApiKey || '';
+      case 'groq': return localConfig.groqApiKey || '';
+      case 'openrouter': return localConfig.openrouterApiKey || '';
+      case 'openai-compatible': return localConfig.customOpenAIApiKey || '';
+      case 'local': return localConfig.localLLMApiKey || '';
       default: return '';
     }
   };
@@ -49,8 +155,8 @@ const SettingsModal = () => {
   // Get base URL for current provider
   const getCurrentBaseUrl = () => {
     switch (localConfig.aiProvider) {
-      case 'openai-compatible': return localConfig.customOpenAIBaseUrl;
-      case 'local': return localConfig.localLLMBaseUrl;
+      case 'openai-compatible': return localConfig.customOpenAIBaseUrl || '';
+      case 'local': return localConfig.localLLMBaseUrl || '';
       default: return null;
     }
   };
@@ -95,7 +201,7 @@ const SettingsModal = () => {
 
         if (result && result.valid) {
           setValidationState('valid');
-          setValidationMessage(result.message || 'API key is valid');
+          setValidationMessage(result.message || 'API key is valid & working');
           if (result.models && result.models.length > 0) {
             setFetchedModels(result.models);
           }
@@ -154,39 +260,54 @@ const SettingsModal = () => {
     }
   };
 
-  // Handle API key change with auto-validation
+  // Handle API key change with auto-validation reset
   const handleApiKeyChange = (e) => {
     const newApiKey = e.target.value;
     setValidationState(null);
     setValidationMessage('');
     setFetchedModels([]);
 
-    // Update the config based on provider
     switch (localConfig.aiProvider) {
       case 'anthropic':
-        setLocalConfig({ ...localConfig, anthropicApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, anthropicApiKey: newApiKey }));
         break;
       case 'openai':
-        setLocalConfig({ ...localConfig, openaiApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, openaiApiKey: newApiKey }));
         break;
       case 'gemini':
-        setLocalConfig({ ...localConfig, geminiApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, geminiApiKey: newApiKey }));
         break;
       case 'groq':
-        setLocalConfig({ ...localConfig, groqApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, groqApiKey: newApiKey }));
         break;
       case 'openrouter':
-        setLocalConfig({ ...localConfig, openrouterApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, openrouterApiKey: newApiKey }));
         break;
       case 'openai-compatible':
-        setLocalConfig({ ...localConfig, customOpenAIApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, customOpenAIApiKey: newApiKey }));
         break;
       case 'local':
-        setLocalConfig({ ...localConfig, localLLMApiKey: newApiKey });
+        setLocalConfig(prev => ({ ...prev, localLLMApiKey: newApiKey }));
         break;
       default:
         break;
     }
+  };
+
+  const handleProviderChange = (newProvider) => {
+    const meta = PROVIDER_METADATA[newProvider];
+    const availableModels = getAvailableModels(newProvider);
+    setValidationState(null);
+    setValidationMessage('');
+    setFetchedModels([]);
+
+    setLocalConfig(prev => ({
+      ...prev,
+      aiProvider: newProvider,
+      navigatorModel: meta?.defaultModels?.navigator || availableModels[0]?.value || '',
+      plannerModel: meta?.defaultModels?.planner || availableModels[0]?.value || '',
+      validatorModel: meta?.defaultModels?.validator || availableModels[1]?.value || availableModels[0]?.value || ''
+    }));
   };
 
   const handleClose = () => {
@@ -196,46 +317,33 @@ const SettingsModal = () => {
   const handleSave = async () => {
     try {
       console.log('💾 Saving configuration...');
-
-      // Show saving state
       const saveButton = document.querySelector('[data-save-button]');
       if (saveButton) {
-        saveButton.textContent = '💾 Saving...';
+        saveButton.innerHTML = '<span>⏳ Saving...</span>';
         saveButton.disabled = true;
       }
 
-      // Update config
       await updateConfig(localConfig);
 
-      // Since we only use personal API now, no need to set userPreferPersonalAPI
-
-      // Return authentication success back to useAuth through chrome storage changes,
-      // handled automatically if useAuth re-renders on route or storage changes.
-
-      // Show success briefly
       if (saveButton) {
-        saveButton.textContent = '✅ Saved!';
+        saveButton.innerHTML = '<span>✓ Saved!</span>';
+        saveButton.style.backgroundColor = '#10b981';
         setTimeout(() => {
-          // Hard reload if coming from settings to reload useAuth properly 
-          // (or a react router nav is enough if useAuth listens appropriately)
           navigate('/chat');
           window.location.reload();
-        }, 500);
+        }, 400);
       } else {
         navigate('/chat');
         window.location.reload();
       }
-
     } catch (error) {
       console.error('Failed to save config:', error);
-
-      // Show error
       const saveButton = document.querySelector('[data-save-button]');
       if (saveButton) {
-        saveButton.textContent = '❌ Error';
+        saveButton.innerHTML = '<span>✕ Save Error</span>';
         saveButton.disabled = false;
         setTimeout(() => {
-          saveButton.textContent = '💾 Save';
+          saveButton.innerHTML = '<span>💾 Save & Proceed</span>';
         }, 2000);
       }
     }
@@ -243,57 +351,62 @@ const SettingsModal = () => {
 
   // Categorize models with recommendations
   const categorizeModels = (models, provider) => {
-    if (!models || models.length === 0) return { categories: [], all: [] };
+    if (!models || !Array.isArray(models) || models.length === 0) {
+      return { categories: [], all: [], categorized: {} };
+    }
 
-    // Define categorization rules per provider
+    const safeHas = (id, sub) => typeof id === 'string' && id.toLowerCase().includes(String(sub).toLowerCase());
+    const safeStarts = (id, sub) => typeof id === 'string' && id.toLowerCase().startsWith(String(sub).toLowerCase());
+    const safeEq = (id, target) => typeof id === 'string' && id.toLowerCase() === String(target).toLowerCase();
+
     const categoryRules = {
       anthropic: {
-        '🏆 Latest & Best': (id) => id.includes('3-7-sonnet') || id.includes('3-5-sonnet-20241022'),
-        '⚡ Fast & Affordable': (id) => id.includes('haiku'),
-        '🧠 Reasoning': (id) => id.includes('opus') || id.includes('3-7-sonnet'),
-        '📦 Previous Gen': (id) => id.includes('3-sonnet-20240229') || id.includes('3-opus-20240229')
+        '🏆 Latest & Best': (id) => safeHas(id, '3-7-sonnet') || safeHas(id, '3-5-sonnet-20241022') || safeHas(id, '3.7-sonnet') || safeHas(id, '3.5-sonnet'),
+        '⚡ Fast & Affordable': (id) => safeHas(id, 'haiku'),
+        '🧠 Reasoning': (id) => safeHas(id, 'opus') || safeHas(id, '3-7-sonnet') || safeHas(id, '3.7-sonnet'),
+        '📦 Previous Gen': (id) => safeHas(id, '3-sonnet-20240229') || safeHas(id, '3-opus-20240229')
       },
       openai: {
-        '🏆 Latest & Best': (id) => id === 'gpt-4o' || id === 'o1-preview',
-        '⚡ Fast & Affordable': (id) => id.includes('mini') || id === 'gpt-3.5-turbo',
-        '🧠 Reasoning': (id) => id.startsWith('o1-'),
-        '📦 Previous Gen': (id) => id.includes('gpt-4-turbo') || id === 'gpt-4'
+        '🏆 Latest & Best': (id) => safeEq(id, 'gpt-4o') || safeEq(id, 'o1') || safeEq(id, 'o1-preview') || safeEq(id, 'o3-mini'),
+        '⚡ Fast & Affordable': (id) => safeHas(id, 'mini') || safeHas(id, 'gpt-3.5-turbo'),
+        '🧠 Reasoning': (id) => safeStarts(id, 'o1') || safeStarts(id, 'o3'),
+        '📦 Previous Gen': (id) => safeHas(id, 'gpt-4-turbo') || safeEq(id, 'gpt-4')
       },
       gemini: {
-        '🏆 Latest & Best': (id) => id.includes('2.5-flash') || id.includes('2.5-pro'),
-        '⚡ Fast & Affordable': (id) => id.includes('flash') && !id.includes('2.5'),
-        '🧠 Reasoning': (id) => id.includes('2.5-pro'),
-        '📦 Previous Gen': (id) => id.includes('1.5-pro') || id.includes('1.5-flash')
+        '🏆 Latest & Best': (id) => safeHas(id, '2.5-flash') || safeHas(id, '2.5-pro') || safeHas(id, '2.0-flash'),
+        '⚡ Fast & Affordable': (id) => safeHas(id, 'flash') && !safeHas(id, '2.5'),
+        '🧠 Reasoning': (id) => safeHas(id, '2.5-pro') || safeHas(id, '1.5-pro'),
+        '📦 Previous Gen': (id) => safeHas(id, '1.5-pro') || safeHas(id, '1.5-flash')
       },
       groq: {
-        '🏆 Latest & Best': (id) => id.includes('3.3-70b') || id.includes('3.1-70b'),
-        '⚡ Fast & Affordable': (id) => id.includes('8b-instant') || id.includes('gemma2-9b'),
-        '🧠 Reasoning': (id) => id.includes('70b'),
-        '📦 Previous Gen': (id) => id.includes('mixtral')
+        '🏆 Latest & Best': (id) => safeHas(id, '3.3-70b') || safeHas(id, '3.1-70b'),
+        '⚡ Fast & Affordable': (id) => safeHas(id, '8b') || safeHas(id, 'gemma'),
+        '🧠 Reasoning': (id) => safeHas(id, '70b') || safeHas(id, 'deepseek') || safeHas(id, 'r1'),
+        '📦 Previous Gen': (id) => safeHas(id, 'mixtral') || safeHas(id, 'llama-3-')
       },
       openrouter: {
-        '🏆 Latest & Best': (id) => id.includes('claude-3.5-sonnet') || id.includes('gpt-4o') || id.includes('gemini-pro-1.5'),
-        '⚡ Fast & Affordable': (id) => id.includes('haiku') || id.includes('flash') || id.includes('8b-instruct'),
-        '🧠 Reasoning': (id) => id.includes('opus') || id.includes('mistral-large') || id.includes('70b-instruct'),
-        '📦 Other Models': (id) => true // fallback
+        '🏆 Latest & Best': (id) => safeHas(id, 'claude-3.5-sonnet') || safeHas(id, 'gpt-4o') || safeHas(id, 'gemini-2.0') || safeHas(id, 'gemini-pro-1.5'),
+        '⚡ Fast & Affordable': (id) => safeHas(id, 'haiku') || safeHas(id, 'flash') || safeHas(id, '8b-instruct') || safeHas(id, 'mini'),
+        '🧠 Reasoning': (id) => safeHas(id, 'opus') || safeHas(id, 'mistral-large') || safeHas(id, '70b-instruct') || safeHas(id, 'r1'),
+        '📦 Other Models': () => true
       }
     };
 
     const rules = categoryRules[provider] || {
-      '🏆 Recommended': (id) => true,
-      '⚡ Fast': (id) => false,
-      '🧠 Capable': (id) => false
+      '🏆 Recommended': () => true,
+      '⚡ Fast': () => false,
+      '🧠 Capable': () => false
     };
 
     const categorized = {};
     const used = new Set();
 
-    // Assign models to categories
     Object.entries(rules).forEach(([category, matchFn]) => {
       const categoryModels = models.filter(m => {
-        if (used.has(m.value)) return false;
-        if (matchFn(m.value)) {
-          used.add(m.value);
+        const val = m?.value || '';
+        if (!val || used.has(val)) return false;
+        if (matchFn(val)) {
+          used.add(val);
           return true;
         }
         return false;
@@ -303,13 +416,11 @@ const SettingsModal = () => {
       }
     });
 
-    // Add remaining models to "Other" category
-    const remaining = models.filter(m => !used.has(m.value));
+    const remaining = models.filter(m => m?.value && !used.has(m.value));
     if (remaining.length > 0) {
       categorized['📦 Other Models'] = remaining;
     }
 
-    // Flatten for dropdown with category headers
     const all = [];
     Object.entries(categorized).forEach(([category, catModels]) => {
       all.push({ isCategory: true, category, label: category });
@@ -321,74 +432,75 @@ const SettingsModal = () => {
 
   // Get available models based on provider - uses fetched models if available
   const getAvailableModels = (provider) => {
-    // If we have fetched models, use those
-    if (fetchedModels.length > 0) {
-      return fetchedModels.map(model => ({
-        value: model.id,
-        label: model.name || model.id,
-        description: model.description
-      }));
+    if (fetchedModels && Array.isArray(fetchedModels) && fetchedModels.length > 0) {
+      return fetchedModels.map(model => {
+        if (typeof model === 'string') {
+          return { value: model, label: model, description: '' };
+        }
+        const val = model?.id || model?.value || model?.name || '';
+        const lbl = model?.name || model?.label || model?.id || val;
+        return {
+          value: String(val || ''),
+          label: String(lbl || val || 'Model'),
+          description: model?.description || ''
+        };
+      }).filter(m => m.value && m.value.trim() !== '');
     }
 
-    // Fallback to static models
     switch (provider) {
       case 'anthropic':
         return [
-          { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet (Latest, Reasoning)' },
+          { value: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet (Latest Reasoning) ⭐', recommended: true },
           { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Latest)' },
-          { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Latest Fast)' },
+          { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Fast & Cheap)' },
           { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
           { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (Fast)' },
           { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus (Most Capable)' }
         ];
       case 'openai':
         return [
-          { value: 'o1-preview', label: 'o1-preview (Latest Reasoning)' },
+          { value: 'gpt-4o', label: 'GPT-4o (Latest Flagship) ⭐', recommended: true },
+          { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast & Cheap)' },
+          { value: 'o1-preview', label: 'o1-preview (Deep Reasoning)' },
           { value: 'o1-mini', label: 'o1-mini (Fast Reasoning)' },
-          { value: 'gpt-4o', label: 'GPT-4o (Latest)' },
-          { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast)' },
           { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
           { value: 'gpt-4', label: 'GPT-4' },
-          { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Affordable)' }
+          { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
         ];
       case 'gemini':
         return [
-          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Latest)' },
-          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Latest, Reasoning)' },
+          { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Fast & Smart) ⭐', recommended: true },
+          { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Deep Reasoning)' },
           { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
           { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
-          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' }
+          { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' }
         ];
       case 'groq':
         return [
-          { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Latest)' },
+          { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Latest) ⭐', recommended: true },
           { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B Versatile' },
-          { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Fast)' },
+          { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra-Fast)' },
           { value: 'gemma2-9b-it', label: 'Gemma 2 9B IT' },
           { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' }
         ];
       case 'openrouter':
         return [
-          { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (via OpenRouter)' },
-          { value: 'anthropic/claude-3-opus', label: 'Claude 3 Opus (via OpenRouter)' },
-          { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (via OpenRouter)' },
-          { value: 'openai/gpt-4o', label: 'GPT-4o (via OpenRouter)' },
-          { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini (via OpenRouter)' },
-          { value: 'google/gemini-pro-1.5', label: 'Gemini Pro 1.5 (via OpenRouter)' },
-          { value: 'google/gemini-flash-1.5', label: 'Gemini Flash 1.5 (via OpenRouter)' },
-          { value: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B Instruct (via OpenRouter)' },
-          { value: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct (via OpenRouter)' },
-          { value: 'mistralai/mistral-large', label: 'Mistral Large (via OpenRouter)' }
+          { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (OpenRouter) ⭐', recommended: true },
+          { value: 'openai/gpt-4o', label: 'GPT-4o (OpenRouter)' },
+          { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini (OpenRouter)' },
+          { value: 'google/gemini-pro-1.5', label: 'Gemini Pro 1.5 (OpenRouter)' },
+          { value: 'google/gemini-flash-1.5', label: 'Gemini Flash 1.5 (OpenRouter)' },
+          { value: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B (OpenRouter)' },
+          { value: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B (OpenRouter)' },
+          { value: 'mistralai/mistral-large', label: 'Mistral Large (OpenRouter)' }
         ];
       case 'openai-compatible':
-        // For custom OpenAI-compatible, we show a text input for model name
         return [
-          { value: localConfig.customModel || '', label: 'Custom Model (enter name below)' }
+          { value: localConfig.customModel || 'custom-model', label: localConfig.customModel || 'Custom Model' }
         ];
       case 'local':
-        // For local LLMs, we show a text input for model name
         return [
-          { value: localConfig.localLLMModel || '', label: 'Local Model (enter name below)' }
+          { value: localConfig.localLLMModel || 'local-model', label: localConfig.localLLMModel || 'Local Model' }
         ];
       default:
         return [];
@@ -401,37 +513,78 @@ const SettingsModal = () => {
     if (!rawModels || rawModels.length === 0) return null;
     const { categorized } = categorizeModels(rawModels, provider);
     const categoryEntries = Object.entries(categorized || {});
+
     if (!categoryEntries || categoryEntries.length === 0) {
       return rawModels.map(model => (
-        <option key={model.value} value={model.value}>
-          {model.label} {model.recommended ? ' ⭐' : ''}
+        <option key={model.value} value={model.value} style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>
+          {model.label}
         </option>
       ));
     }
+
     return categoryEntries.map(([category, catModels]) => (
-      <optgroup key={category} label={category}>
+      <optgroup key={category} label={category} style={{ backgroundColor: '#0b0f19', color: '#818cf8', fontWeight: 'bold' }}>
         {catModels.map(model => (
-          <option key={model.value} value={model.value}>
-            {model.label} {model.recommended ? ' ⭐' : ''}
+          <option key={model.value} value={model.value} style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>
+            {model.label}
           </option>
         ))}
       </optgroup>
     ));
   };
 
-  // Consistent styling with other pages
+  const applyPreset = (presetType) => {
+    const provider = localConfig.aiProvider || 'gemini';
+    const models = getAvailableModels(provider);
+    if (!models || models.length === 0) return;
+
+    const safeMatch = (m, terms) => {
+      const text = `${m?.label || ''} ${m?.value || ''}`.toLowerCase();
+      return terms.some(term => text.includes(term.toLowerCase()));
+    };
+
+    if (presetType === 'balanced') {
+      setLocalConfig(prev => ({
+        ...prev,
+        plannerModel: models[0]?.value,
+        navigatorModel: models[0]?.value,
+        validatorModel: models[1]?.value || models[0]?.value
+      }));
+    } else if (presetType === 'speed') {
+      const fastModel = models.find(m => safeMatch(m, ['haiku', 'flash', 'mini', '8b', 'instant', 'fast'])) || models[models.length - 1];
+      setLocalConfig(prev => ({
+        ...prev,
+        plannerModel: models[0]?.value,
+        navigatorModel: fastModel?.value || models[0]?.value,
+        validatorModel: fastModel?.value || models[0]?.value
+      }));
+    } else if (presetType === 'reasoning') {
+      const smartModel = models.find(m => safeMatch(m, ['3-7', '3.7', 'pro', 'opus', 'o1', 'o3', '70b', 'deepseek', 'r1'])) || models[0];
+      setLocalConfig(prev => ({
+        ...prev,
+        plannerModel: smartModel?.value || models[0]?.value,
+        navigatorModel: models[0]?.value,
+        validatorModel: models[1]?.value || models[0]?.value
+      }));
+    }
+  };
+
+  const currentProviderMeta = PROVIDER_METADATA[localConfig.aiProvider] || PROVIDER_METADATA.gemini;
+
+  // Modern Styles
   const containerStyle = {
     width: '100%',
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    fontFamily: "var(--font-sans, 'Inter', -apple-system, sans-serif)",
     backgroundColor: '#0a0f1e',
     overflow: 'hidden',
     position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     userSelect: 'none',
     WebkitUserSelect: 'none',
     touchAction: 'manipulation'
@@ -447,23 +600,28 @@ const SettingsModal = () => {
     flexShrink: 0,
     minHeight: '56px',
     boxSizing: 'border-box',
-    backdropFilter: 'blur(12px)'
+    backdropFilter: 'blur(12px)',
+    position: 'relative',
+    zIndex: 10
   };
 
   const contentStyle = {
     flex: 1,
     overflowY: 'auto',
-    padding: '0',
-    WebkitOverflowScrolling: 'touch'
+    padding: '12px 14px 20px 14px',
+    WebkitOverflowScrolling: 'touch',
+    position: 'relative',
+    zIndex: 1
   };
 
   const sectionStyle = {
-    padding: '16px',
-    borderBottom: '1px solid var(--border-subtle, rgba(255,255,255,0.06))',
-    backgroundColor: 'var(--bg-glass, rgba(255, 255, 255, 0.04))',
-    backdropFilter: 'blur(8px)',
-    margin: '8px',
-    borderRadius: '14px'
+    padding: '14px 16px',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backdropFilter: 'blur(10px)',
+    marginBottom: '14px',
+    borderRadius: '14px',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)'
   };
 
   const labelStyle = {
@@ -471,66 +629,71 @@ const SettingsModal = () => {
     marginBottom: '6px',
     fontWeight: '600',
     color: 'var(--text-primary, #f1f5f9)',
-    fontSize: '13px'
+    fontSize: '12px',
+    letterSpacing: '0.01em'
   };
 
   const inputStyle = {
     width: '100%',
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--border-medium, rgba(255,255,255,0.12))',
-    fontSize: '14px',
+    padding: '9px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    fontSize: '13px',
     boxSizing: 'border-box',
     fontFamily: 'inherit',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    backdropFilter: 'blur(8px)',
-    color: 'var(--text-primary, #f1f5f9)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    color: '#f1f5f9',
     userSelect: 'text',
     WebkitUserSelect: 'text',
-    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)',
-    transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.25)',
+    outline: 'none',
+    transition: 'all 0.2s ease'
   };
 
   const selectStyle = {
-    ...inputStyle,
+    width: '100%',
+    padding: '10px 36px 10px 12px',
+    borderRadius: '10px',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    fontSize: '13px',
+    fontWeight: '500',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+    backgroundColor: '#111827',
+    color: '#f1f5f9',
+    colorScheme: 'dark',
     cursor: 'pointer',
     appearance: 'none',
-    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a5b4fc' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
-    backgroundPosition: 'right 8px center',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23818cf8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+    backgroundPosition: 'right 12px center',
     backgroundRepeat: 'no-repeat',
     backgroundSize: '16px',
-    paddingRight: '32px',
-    backdropFilter: 'blur(10px)'
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+    outline: 'none',
+    transition: 'all 0.2s ease'
   };
 
   const footerStyle = {
     padding: '12px 16px',
     display: 'flex',
-    gap: '8px',
-    borderTop: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-    background: 'linear-gradient(to top, var(--bg-primary, #0a0f1e), var(--bg-secondary, #111827))',
-    flexShrink: 0
-  };
-
-  const buttonStyle = {
-    flex: 1,
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '600',
-    border: 'none',
-    textAlign: 'center',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '6px'
+    gap: '10px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'linear-gradient(to top, #0a0f1e 0%, #111827 100%)',
+    flexShrink: 0,
+    position: 'relative',
+    zIndex: 10
   };
 
   return (
     <div className="settings-container" style={containerStyle}>
       {/* Neon App Border */}
       <div className="neon-app-border"></div>
+
+      {/* Background Glows */}
+      <div className="bg-glow glow-top"></div>
+      <div className="bg-glow glow-bottom"></div>
 
       {/* Background Animation */}
       <div
@@ -545,51 +708,9 @@ const SettingsModal = () => {
           zIndex: 0,
         }}
       >
-        <div
-          className="settings-orb-1"
-          style={{
-            position: "absolute",
-            width: "200px",
-            height: "200px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99,102,241,0.3), rgba(139,92,246,0.1))",
-            filter: "blur(40px)",
-            opacity: 0.2,
-            top: "10%",
-            left: "10%",
-            animation: "float 6s ease-in-out infinite",
-          }}
-        />
-        <div
-          className="settings-orb-2"
-          style={{
-            position: "absolute",
-            width: "150px",
-            height: "150px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.2), rgba(99,102,241,0.1))",
-            filter: "blur(40px)",
-            opacity: 0.2,
-            top: "60%",
-            right: "15%",
-            animation: "float 6s ease-in-out infinite 2s",
-          }}
-        />
-        <div
-          className="settings-orb-3"
-          style={{
-            position: "absolute",
-            width: "180px",
-            height: "180px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(139,92,246,0.2), rgba(99,102,241,0.08))",
-            filter: "blur(40px)",
-            opacity: 0.2,
-            bottom: "20%",
-            left: "20%",
-            animation: "float 6s ease-in-out infinite 4s",
-          }}
-        />
+        <div className="settings-orb-1" />
+        <div className="settings-orb-2" />
+        <div className="settings-orb-3" />
       </div>
 
       {/* Floating Particles */}
@@ -599,74 +720,63 @@ const SettingsModal = () => {
       <div className="particle particle-4"></div>
       <div className="particle particle-5"></div>
       <div className="particle particle-6"></div>
-      <div className="particle particle-7"></div>
-      <div className="particle particle-8"></div>
-      <div className="particle particle-9"></div>
-      <div className="particle particle-10"></div>
-      <div className="particle particle-11"></div>
-      <div className="particle particle-12"></div>
-
-      {/* Custom CSS for placeholder styling */}
-      <style>
-        {`
-          .settings-input::placeholder {
-            color: rgba(165, 180, 252, 0.5) !important;
-            opacity: 1 !important;
-          }
-          .settings-input::-webkit-input-placeholder {
-            color: rgba(165, 180, 252, 0.5) !important;
-          }
-          .settings-input::-moz-placeholder {
-            color: rgba(255, 220, 220, 0.6) !important;
-          }
-          .settings-input:-ms-input-placeholder {
-            color: rgba(255, 220, 220, 0.6) !important;
-          }
-        `}
-      </style>
 
       {/* Header */}
-      <div className="settings-header" style={headerStyle}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+      <div className="settings-header" style={{
+        ...headerStyle,
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px 50px'
+      }}>
+        <div style={{ minWidth: 0, width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <h3 className="settings-title" style={{
             margin: 0,
-            color: '#FFDCDCFF',
-            fontSize: '18px',
+            color: '#f1f5f9',
+            fontSize: '17px',
             fontWeight: '700',
             lineHeight: '22px',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px'
+            gap: '8px',
+            letterSpacing: '-0.02em'
           }}>
-            <FaCog />
-            SETTINGS
+            <FaCog style={{ color: '#818cf8', fontSize: '16px' }} />
+            <span className="shimmer-text" style={{ fontWeight: '800', letterSpacing: '0.04em' }}>SETTINGS</span>
           </h3>
           <p className="settings-subtitle" style={{
-            margin: 0,
-            color: 'var(--text-secondary, rgba(241,245,249,0.7))',
-            fontSize: '12px',
+            margin: '2px 0 0 0',
+            color: 'var(--text-secondary, rgba(241,245,249,0.65))',
+            fontSize: '11px',
             lineHeight: '14px',
-            marginTop: '2px'
+            textAlign: 'center'
           }}>
-            Configure AI models and preferences
+            Configure AI provider, API keys & agent models
           </p>
         </div>
         <button
           onClick={handleClose}
           className="settings-button"
           style={{
-            padding: '6px 8px',
+            position: 'absolute',
+            right: '14px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            padding: '7px 9px',
             backgroundColor: 'rgba(99, 102, 241, 0.15)',
             border: '1px solid rgba(99, 102, 241, 0.25)',
-            borderRadius: '8px',
+            borderRadius: '10px',
             cursor: 'pointer',
-            fontSize: '16px',
+            fontSize: '15px',
             color: 'var(--text-accent, #a5b4fc)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            transition: 'all 0.2s ease'
           }}
+          title="Close Settings"
         >
           <FaTimes />
         </button>
@@ -674,485 +784,269 @@ const SettingsModal = () => {
 
       {/* Scrollable Content */}
       <div className="settings-content" style={contentStyle}>
-        {/* AI Provider Section */}
+
+        {/* ── Section 1: AI Provider ────────────────────────── */}
         <div className="settings-provider-section" style={sectionStyle}>
-          <h4 style={{
-            color: '#FFDCDCFF',
-            fontSize: '16px',
-            fontWeight: '600',
-            margin: '0 0 12px 0',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <FaRobot />
-            AI Provider
-          </h4>
-
-          <div style={{ marginBottom: '12px' }}>
-            <label style={labelStyle}>
-              Choose Provider:
-            </label>
-            <select
-              value={localConfig.aiProvider || 'gemini'}
-              onChange={(e) => {
-                const newProvider = e.target.value;
-                const availableModels = getAvailableModels(newProvider);
-                const newConfig = {
-                  ...localConfig,
-                  aiProvider: newProvider,
-                  navigatorModel: availableModels[0]?.value,
-                  plannerModel: availableModels[0]?.value,
-                  validatorModel: availableModels[2]?.value || availableModels[1]?.value || availableModels[0]?.value
-                };
-                setLocalConfig(newConfig);
-              }}
-              style={selectStyle}
-            >
-              <option value="gemini">💎 Google Gemini</option>
-              <option value="anthropic">🔮 Anthropic Claude</option>
-              <option value="openai">🚀 OpenAI GPT</option>
-              <option value="groq">⚡ Groq (Fast & Free)</option>
-              <option value="openrouter">🌐 OpenRouter (Multi-Provider)</option>
-              <option value="openai-compatible">🔧 Custom OpenAI-Compatible</option>
-              <option value="local">🏠 Local LLM (Ollama/llama-server)</option>
-            </select>
-          </div>
-
-          {/* API Key Inputs */}
-          {localConfig.aiProvider === 'anthropic' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                Anthropic API Key:
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.anthropicApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="sk-ant-api03-..."
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || !localConfig.anthropicApiKey}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || !localConfig.anthropicApiKey ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || !localConfig.anthropicApiKey ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-            </div>
-          )}
-
-          {localConfig.aiProvider === 'openai' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                OpenAI API Key:
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.openaiApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="sk-proj-..."
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || !localConfig.openaiApiKey}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || !localConfig.openaiApiKey ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || !localConfig.openaiApiKey ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-            </div>
-          )}
-
-          {localConfig.aiProvider === 'gemini' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                Gemini API Key:
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.geminiApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="AIza..."
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || !localConfig.geminiApiKey}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || !localConfig.geminiApiKey ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || !localConfig.geminiApiKey ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-              <p style={{ fontSize: '11px', color: 'rgba(255, 220, 220, 0.7)', margin: '4px 0 0 0' }}>
-                Get from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>Google AI Studio</a>
-              </p>
-            </div>
-          )}
-
-          {localConfig.aiProvider === 'groq' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                Groq API Key:
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.groqApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="gsk_..."
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || !localConfig.groqApiKey}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || !localConfig.groqApiKey ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || !localConfig.groqApiKey ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-              <p style={{ fontSize: '11px', color: 'rgba(255, 220, 220, 0.7)', margin: '4px 0 0 0' }}>
-                Get from <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>Groq Console</a> (Free tier available)
-              </p>
-            </div>
-          )}
-
-          {localConfig.aiProvider === 'openrouter' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                OpenRouter API Key:
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.openrouterApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="sk-or-v1-..."
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || !localConfig.openrouterApiKey}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || !localConfig.openrouterApiKey ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || !localConfig.openrouterApiKey ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-              <p style={{ fontSize: '11px', color: 'rgba(255, 220, 220, 0.7)', margin: '4px 0 0 0' }}>
-                Get from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>OpenRouter</a> (Access 100+ models)
-              </p>
-            </div>
-          )}
-
-          {localConfig.aiProvider === 'openai-compatible' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                Base URL:
-              </label>
-              <input
-                type="text"
-                value={localConfig.customOpenAIBaseUrl || ''}
-                onChange={(e) => {
-                  setLocalConfig({ ...localConfig, customOpenAIBaseUrl: e.target.value });
-                  setValidationState(null);
-                  setValidationMessage('');
-                  setFetchedModels([]);
-                }}
-                placeholder="https://api.example.com/v1"
-                style={inputStyle}
-                className="settings-input"
-              />
-              <label style={{ ...labelStyle, marginTop: '8px' }}>
-                API Key:
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.customOpenAIApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="sk-... (optional for some endpoints)"
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || (!localConfig.customOpenAIApiKey && !localConfig.customOpenAIBaseUrl)}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || (!localConfig.customOpenAIApiKey && !localConfig.customOpenAIBaseUrl) ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || (!localConfig.customOpenAIApiKey && !localConfig.customOpenAIBaseUrl) ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-              <label style={{ ...labelStyle, marginTop: '8px' }}>
-                Model Name:
-              </label>
-              <input
-                type="text"
-                value={localConfig.customModel || ''}
-                onChange={(e) => setLocalConfig({ ...localConfig, customModel: e.target.value })}
-                placeholder="e.g., llama-3.1-70b, gpt-4o, etc."
-                style={inputStyle}
-                className="settings-input"
-              />
-              <p style={{ fontSize: '11px', color: 'rgba(255, 220, 220, 0.7)', margin: '4px 0 0 0' }}>
-                Any OpenAI-compatible API (vLLM, LM Studio, Together AI, etc.)
-              </p>
-            </div>
-          )}
-
-          {localConfig.aiProvider === 'local' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={labelStyle}>
-                Base URL:
-              </label>
-              <input
-                type="text"
-                value={localConfig.localLLMBaseUrl || ''}
-                onChange={(e) => {
-                  setLocalConfig({ ...localConfig, localLLMBaseUrl: e.target.value });
-                  setValidationState(null);
-                  setValidationMessage('');
-                  setFetchedModels([]);
-                }}
-                placeholder="http://localhost:11434/v1 (Ollama) or http://localhost:8080/v1 (llama-server)"
-                style={inputStyle}
-                className="settings-input"
-              />
-              <label style={{ ...labelStyle, marginTop: '8px' }}>
-                API Key (optional):
-              </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-                <input
-                  type="password"
-                  value={localConfig.localLLMApiKey || ''}
-                  onChange={handleApiKeyChange}
-                  placeholder="Usually not needed for local servers"
-                  style={{ ...inputStyle, flex: 1 }}
-                  className="settings-input"
-                />
-                <button
-                  type="button"
-                  onClick={validateApiKey}
-                  disabled={isValidating || !localConfig.localLLMBaseUrl}
-                  style={{
-                    ...inputStyle,
-                    padding: '10px 16px',
-                    backgroundColor: validationState === 'valid' ? 'rgba(23, 191, 99, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                    borderColor: validationState === 'valid' ? '#17bf63' : 'rgba(99, 102, 241, 0.5)',
-                    color: validationState === 'valid' ? '#17bf63' : 'var(--text-accent, #a5b4fc)',
-                    cursor: isValidating || !localConfig.localLLMBaseUrl ? 'not-allowed' : 'pointer',
-                    opacity: isValidating || !localConfig.localLLMBaseUrl ? 0.6 : 1,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isValidating ? <FaSpinner className="fa-spin" /> : validationState === 'valid' ? <FaCheck /> : <FaKey />}
-                </button>
-              </div>
-              {validationMessage && (
-                <p style={{
-                  fontSize: '11px',
-                  color: validationState === 'valid' ? '#17bf63' : validationState === 'invalid' ? '#e0245e' : '#ffad1f',
-                  margin: '4px 0 0 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}>
-                  {validationState === 'valid' && <FaCheckCircle />}
-                  {validationState === 'invalid' && <FaExclamationTriangle />}
-                  {validationMessage}
-                </p>
-              )}
-              {isFetchingModels && <p style={{ fontSize: '11px', color: '#ffad1f', margin: '4px 0 0 0' }}><FaSpinner className="fa-spin" /> Fetching models...</p>}
-              <label style={{ ...labelStyle, marginTop: '8px' }}>
-                Model Name:
-              </label>
-              <input
-                type="text"
-                value={localConfig.localLLMModel || ''}
-                onChange={(e) => setLocalConfig({ ...localConfig, localLLMModel: e.target.value })}
-                placeholder="e.g., llama3.1, qwen2.5, mistral, etc."
-                style={inputStyle}
-                className="settings-input"
-              />
-              <p style={{ fontSize: '11px', color: 'rgba(255, 220, 220, 0.7)', margin: '4px 0 0 0' }}>
-                Supports Ollama, llama-server, LM Studio, vLLM, etc. No API key usually required.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Agent Models Section */}
-        <div className="settings-provider-section" style={sectionStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <h4 style={{
-              color: '#FFDCDCFF',
-              fontSize: '16px',
-              fontWeight: '600',
+              color: '#f1f5f9',
+              fontSize: '14px',
+              fontWeight: '700',
               margin: 0,
               display: 'flex',
               alignItems: 'center',
               gap: '8px'
             }}>
-              <FaBrain />
+              <FaRobot style={{ color: '#818cf8' }} />
+              AI Provider
+            </h4>
+            <span style={{
+              fontSize: '10px',
+              fontWeight: '600',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              background: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#a5b4fc'
+            }}>
+              {currentProviderMeta.badge}
+            </span>
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <label style={labelStyle}>Choose Provider:</label>
+            <select
+              value={localConfig.aiProvider || 'gemini'}
+              onChange={(e) => handleProviderChange(e.target.value)}
+              className="settings-select"
+              style={selectStyle}
+            >
+              <option value="gemini" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>💎 Google Gemini (Recommended)</option>
+              <option value="anthropic" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>🔮 Anthropic Claude (Claude 3.5 / 3.7)</option>
+              <option value="openai" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>🚀 OpenAI GPT (GPT-4o, o1)</option>
+              <option value="groq" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>⚡ Groq (Ultra-Fast & Free Tier)</option>
+              <option value="openrouter" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>🌐 OpenRouter (100+ Models)</option>
+              <option value="openai-compatible" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>🔧 Custom OpenAI-Compatible Endpoint</option>
+              <option value="local" style={{ backgroundColor: '#111827', color: '#f1f5f9' }}>🏠 Local LLM (Ollama / llama-server)</option>
+            </select>
+          </div>
+
+          {/* Provider Description Tagline */}
+          <div style={{
+            padding: '8px 10px',
+            borderRadius: '8px',
+            background: 'rgba(99, 102, 241, 0.08)',
+            border: '1px solid rgba(99, 102, 241, 0.18)',
+            marginBottom: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '15px' }}>{currentProviderMeta.icon}</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary, rgba(241,245,249,0.75))', lineHeight: '1.4' }}>
+              {currentProviderMeta.tagline}
+            </span>
+          </div>
+
+          {/* Base URL for Custom & Local providers */}
+          {(localConfig.aiProvider === 'openai-compatible' || localConfig.aiProvider === 'local') && (
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>
+                  <FaServer style={{ marginRight: '5px', fontSize: '11px', color: '#818cf8' }} />
+                  Base URL:
+                </label>
+              </div>
+
+              <input
+                type="text"
+                value={localConfig.aiProvider === 'local' ? (localConfig.localLLMBaseUrl || '') : (localConfig.customOpenAIBaseUrl || '')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (localConfig.aiProvider === 'local') {
+                    setLocalConfig(prev => ({ ...prev, localLLMBaseUrl: val }));
+                  } else {
+                    setLocalConfig(prev => ({ ...prev, customOpenAIBaseUrl: val }));
+                  }
+                  setValidationState(null);
+                  setValidationMessage('');
+                }}
+                placeholder={localConfig.aiProvider === 'local' ? 'http://localhost:11434/v1' : 'https://api.together.xyz/v1'}
+                style={inputStyle}
+                className="settings-input"
+              />
+
+              {/* Quick-fill preset chips for Local LLMs */}
+              {localConfig.aiProvider === 'local' && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                  <button
+                    type="button"
+                    className="preset-chip"
+                    onClick={() => setLocalConfig(prev => ({ ...prev, localLLMBaseUrl: 'http://localhost:11434/v1' }))}
+                  >
+                    Ollama (11434)
+                  </button>
+                  <button
+                    type="button"
+                    className="preset-chip"
+                    onClick={() => setLocalConfig(prev => ({ ...prev, localLLMBaseUrl: 'http://localhost:8080/v1' }))}
+                  >
+                    llama-server (8080)
+                  </button>
+                  <button
+                    type="button"
+                    className="preset-chip"
+                    onClick={() => setLocalConfig(prev => ({ ...prev, localLLMBaseUrl: 'http://localhost:1234/v1' }))}
+                  >
+                    LM Studio (1234)
+                  </button>
+                  <button
+                    type="button"
+                    className="preset-chip"
+                    onClick={() => setLocalConfig(prev => ({ ...prev, localLLMBaseUrl: 'http://localhost:8000/v1' }))}
+                  >
+                    vLLM (8000)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── API Key Input (Unified, Beautiful & Fully Accessible) ── */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>
+                {localConfig.aiProvider === 'local' ? 'API Key (Optional):' : `${currentProviderMeta.name} API Key:`}
+              </label>
+              {currentProviderMeta.docsUrl && (
+                <a
+                  href={currentProviderMeta.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: '11px',
+                    color: '#818cf8',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: '500'
+                  }}
+                >
+                  {currentProviderMeta.docsLabel} <FaExternalLinkAlt style={{ fontSize: '9px' }} />
+                </a>
+              )}
+            </div>
+
+            <div className={`settings-key-wrapper ${validationState || ''}`}>
+              <FaKey style={{ color: '#818cf8', fontSize: '13px', marginLeft: '4px', flexShrink: 0 }} />
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                value={getCurrentApiKey()}
+                onChange={handleApiKeyChange}
+                placeholder={currentProviderMeta.placeholder}
+                className="settings-key-input"
+                autoComplete="off"
+                spellCheck="false"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="settings-icon-btn"
+                title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+              >
+                {showApiKey ? <FaEyeSlash /> : <FaEye />}
+              </button>
+              <button
+                type="button"
+                onClick={validateApiKey}
+                disabled={isValidating || (!getCurrentApiKey() && localConfig.aiProvider !== 'local')}
+                className={`settings-validate-pill ${validationState || (isValidating ? 'checking' : 'default')}`}
+              >
+                {isValidating ? (
+                  <>
+                    <FaSpinner className="fa-spin" /> Testing...
+                  </>
+                ) : validationState === 'valid' ? (
+                  <>
+                    <FaCheck /> Valid
+                  </>
+                ) : validationState === 'invalid' ? (
+                  <>
+                    <FaExclamationTriangle /> Retry
+                  </>
+                ) : (
+                  <>
+                    <FaKey /> Test Key
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Validation Feedback Message */}
+            {validationMessage && (
+              <div style={{
+                marginTop: '6px',
+                padding: '6px 10px',
+                borderRadius: '8px',
+                fontSize: '11.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: validationState === 'valid' ? 'rgba(16, 185, 129, 0.12)' : validationState === 'invalid' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                border: `1px solid ${validationState === 'valid' ? 'rgba(16, 185, 129, 0.3)' : validationState === 'invalid' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                color: validationState === 'valid' ? '#34d399' : validationState === 'invalid' ? '#f87171' : '#fbbf24'
+              }}>
+                {validationState === 'valid' && <FaCheckCircle style={{ flexShrink: 0 }} />}
+                {validationState === 'invalid' && <FaExclamationTriangle style={{ flexShrink: 0 }} />}
+                {validationState === 'checking' && <FaSpinner className="fa-spin" style={{ flexShrink: 0 }} />}
+                <span style={{ lineHeight: '1.3' }}>{validationMessage}</span>
+              </div>
+            )}
+
+            {isFetchingModels && (
+              <p style={{ fontSize: '11px', color: '#a5b4fc', margin: '6px 0 0 2px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <FaSpinner className="fa-spin" /> Fetching available model registry...
+              </p>
+            )}
+          </div>
+
+          {/* Model Name Input for Custom/Local */}
+          {(localConfig.aiProvider === 'openai-compatible' || localConfig.aiProvider === 'local') && (
+            <div style={{ marginBottom: '8px' }}>
+              <label style={labelStyle}>Model Identifier / Name:</label>
+              <input
+                type="text"
+                value={localConfig.aiProvider === 'local' ? (localConfig.localLLMModel || '') : (localConfig.customModel || '')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (localConfig.aiProvider === 'local') {
+                    setLocalConfig(prev => ({ ...prev, localLLMModel: val, navigatorModel: val, plannerModel: val, validatorModel: val }));
+                  } else {
+                    setLocalConfig(prev => ({ ...prev, customModel: val, navigatorModel: val, plannerModel: val, validatorModel: val }));
+                  }
+                }}
+                placeholder={localConfig.aiProvider === 'local' ? 'e.g., llama3.1, qwen2.5, mistral' : 'e.g., meta-llama/Llama-3-70b-chat-hf'}
+                style={inputStyle}
+                className="settings-input"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ── Section 2: Agent Models & Presets ──────────────── */}
+        <div className="settings-provider-section" style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h4 style={{
+              color: '#f1f5f9',
+              fontSize: '14px',
+              fontWeight: '700',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <FaBrain style={{ color: '#818cf8' }} />
               Agent Models
             </h4>
             <button
@@ -1160,68 +1054,135 @@ const SettingsModal = () => {
               onClick={fetchModels}
               disabled={isFetchingModels || !['anthropic', 'openai', 'gemini', 'groq', 'openrouter'].includes(localConfig.aiProvider)}
               style={{
-                padding: '6px 12px',
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                border: '1px solid rgba(99, 102, 241, 0.5)',
-                borderRadius: '6px',
-                color: 'var(--text-accent, #a5b4fc)',
+                padding: '5px 10px',
+                backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                border: '1px solid rgba(99, 102, 241, 0.35)',
+                borderRadius: '8px',
+                color: '#a5b4fc',
                 cursor: isFetchingModels ? 'not-allowed' : 'pointer',
-                fontSize: '12px',
+                fontSize: '11px',
+                fontWeight: '600',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
-                opacity: isFetchingModels ? 0.6 : 1
+                gap: '5px',
+                opacity: isFetchingModels ? 0.6 : 1,
+                transition: 'all 0.2s ease'
               }}
-              title="Fetch latest models from provider"
+              title="Fetch live models from provider API"
             >
               {isFetchingModels ? <FaSpinner className="fa-spin" /> : <FaDatabase />} Refresh Models
             </button>
           </div>
 
-          {/* Model Recommendation Cards */}
+          {/* Quick Preset Buttons */}
+          <div style={{ marginBottom: '14px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-tertiary, rgba(241,245,249,0.5))', marginBottom: '6px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Quick Presets:
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => applyPreset('balanced')}
+                className="preset-card-btn"
+                style={{
+                  padding: '8px 6px',
+                  backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  borderRadius: '8px',
+                  color: '#f1f5f9',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                🚀 Balanced
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('speed')}
+                className="preset-card-btn"
+                style={{
+                  padding: '8px 6px',
+                  backgroundColor: 'rgba(6, 182, 212, 0.12)',
+                  border: '1px solid rgba(6, 182, 212, 0.25)',
+                  borderRadius: '8px',
+                  color: '#f1f5f9',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                ⚡ High Speed
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('reasoning')}
+                className="preset-card-btn"
+                style={{
+                  padding: '8px 6px',
+                  backgroundColor: 'rgba(139, 92, 246, 0.12)',
+                  border: '1px solid rgba(139, 92, 246, 0.25)',
+                  borderRadius: '8px',
+                  color: '#f1f5f9',
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                🧠 Deep Think
+              </button>
+            </div>
+          </div>
+
+          {/* Model Recommendation Cards (When models are fetched) */}
           {fetchedModels.length > 0 && (
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '8px',
-              marginBottom: '16px'
+              gap: '6px',
+              marginBottom: '14px'
             }}>
-              {[
-                { label: '🏆 Best Overall', model: getAvailableModels(localConfig.aiProvider)[0] },
-                { label: '⚡ Fastest', model: getAvailableModels(localConfig.aiProvider).find(m => m.label?.toLowerCase().includes('fast') || m.label?.toLowerCase().includes('flash') || m.label?.toLowerCase().includes('mini')) },
-                { label: '🧠 Smartest', model: getAvailableModels(localConfig.aiProvider).find(m => m.label?.toLowerCase().includes('pro') || m.label?.toLowerCase().includes('opus') || m.label?.toLowerCase().includes('reasoning')) },
-                { label: '💰 Cheapest', model: getAvailableModels(localConfig.aiProvider).find(m => m.label?.toLowerCase().includes('affordable') || m.label?.toLowerCase().includes('8b') || m.label?.toLowerCase().includes('3.5-turbo')) }
-              ].filter(item => item.model).map((item, i) => (
+              {(() => {
+                const available = getAvailableModels(localConfig.aiProvider);
+                const safeFind = (terms) => available.find(m => {
+                  const text = `${m?.label || ''} ${m?.value || ''}`.toLowerCase();
+                  return terms.some(term => text.includes(term.toLowerCase()));
+                });
+
+                return [
+                  { label: '🏆 Best Overall', model: available[0] },
+                  { label: '⚡ Fastest', model: safeFind(['fast', 'flash', 'mini', '8b', 'instant', 'haiku']) },
+                  { label: '🧠 Smartest', model: safeFind(['pro', 'opus', 'reasoning', '3-7', '3.7', 'o1', '70b', 'deepseek']) },
+                  { label: '💰 Cheapest', model: safeFind(['affordable', '8b', '3.5-turbo', 'mini', 'flash', 'haiku']) }
+                ].filter(item => item.model && item.model.value);
+              })().map((item, i) => (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => {
-                    const newConfig = { ...localConfig, navigatorModel: item.model.value };
-                    if (!localConfig.plannerModel) {
-                      newConfig.plannerModel = item.model.value;
-                    }
-                    setLocalConfig(newConfig);
+                    setLocalConfig(prev => ({
+                      ...prev,
+                      navigatorModel: item.model.value,
+                      plannerModel: prev.plannerModel || item.model.value
+                    }));
                   }}
                   style={{
-                    padding: '10px 12px',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    borderRadius: '10px',
+                    padding: '8px 10px',
+                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                    borderRadius: '8px',
                     cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'all 0.2s ease'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.2)';
-                    e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.5)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
-                    e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
                 >
-                  <div style={{ fontSize: '10px', color: '#a5b4fc', fontWeight: '600', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '10px', color: '#a5b4fc', fontWeight: '600', marginBottom: '2px' }}>
                     {item.label}
                   </div>
                   <div style={{ fontSize: '11px', color: '#e2e8f0', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1232,94 +1193,96 @@ const SettingsModal = () => {
             </div>
           )}
 
-          {/* Detailed Model Dropdowns */}
+          {/* Granular Model Dropdowns with Categorized Optgroups */}
           <div style={{ marginBottom: '12px' }}>
             <label style={labelStyle}>
-              <FaClipboardList style={{ marginRight: '6px' }} />
-              Planner (strategy):
+              <FaClipboardList style={{ marginRight: '6px', color: '#818cf8' }} />
+              Planner Model (Strategy & Reasoning):
             </label>
             <select
-              value={localConfig.plannerModel || getAvailableModels(localConfig.aiProvider || 'anthropic')[0]?.value}
-              onChange={(e) => setLocalConfig({ ...localConfig, plannerModel: e.target.value })}
+              value={localConfig.plannerModel || getAvailableModels(localConfig.aiProvider || 'gemini')[0]?.value}
+              onChange={(e) => setLocalConfig(prev => ({ ...prev, plannerModel: e.target.value }))}
+              className="settings-select"
               style={selectStyle}
             >
-              {renderModelOptions(localConfig.aiProvider || 'anthropic')}
+              {renderModelOptions(localConfig.aiProvider || 'gemini')}
             </select>
           </div>
 
           <div style={{ marginBottom: '12px' }}>
             <label style={labelStyle}>
-              <FaCompass style={{ marginRight: '6px' }} />
-              Navigator (actions):
+              <FaCompass style={{ marginRight: '6px', color: '#818cf8' }} />
+              Navigator Model (Browser Actions & Vision):
             </label>
             <select
-              value={localConfig.navigatorModel || getAvailableModels(localConfig.aiProvider || 'anthropic')[0]?.value}
+              value={localConfig.navigatorModel || getAvailableModels(localConfig.aiProvider || 'gemini')[0]?.value}
               onChange={(e) => {
-                const newConfig = { ...localConfig, navigatorModel: e.target.value };
-                if (!localConfig.plannerModel || localConfig.plannerModel === getAvailableModels(localConfig.aiProvider || 'anthropic')[0]?.value) {
-                  newConfig.plannerModel = e.target.value;
-                }
-                setLocalConfig(newConfig);
+                const val = e.target.value;
+                setLocalConfig(prev => ({
+                  ...prev,
+                  navigatorModel: val,
+                  plannerModel: (!prev.plannerModel || prev.plannerModel === getAvailableModels(prev.aiProvider)[0]?.value) ? val : prev.plannerModel
+                }));
               }}
+              className="settings-select"
               style={selectStyle}
             >
-              {renderModelOptions(localConfig.aiProvider || 'anthropic')}
+              {renderModelOptions(localConfig.aiProvider || 'gemini')}
             </select>
           </div>
 
           <div style={{ marginBottom: '12px' }}>
             <label style={labelStyle}>
-              <FaCheckCircle style={{ marginRight: '6px' }} />
-              Validator (check):
+              <FaCheckCircle style={{ marginRight: '6px', color: '#818cf8' }} />
+              Validator Model (Goal Verification):
             </label>
             <select
-              value={localConfig.validatorModel || getAvailableModels(localConfig.aiProvider || 'anthropic')[2]?.value}
-              onChange={(e) => setLocalConfig({ ...localConfig, validatorModel: e.target.value })}
+              value={localConfig.validatorModel || getAvailableModels(localConfig.aiProvider || 'gemini')[1]?.value || getAvailableModels(localConfig.aiProvider || 'gemini')[0]?.value}
+              onChange={(e) => setLocalConfig(prev => ({ ...prev, validatorModel: e.target.value }))}
+              className="settings-select"
               style={selectStyle}
             >
-              {renderModelOptions(localConfig.aiProvider || 'anthropic')}
+              {renderModelOptions(localConfig.aiProvider || 'gemini')}
             </select>
           </div>
 
           <div style={{
-            backgroundColor: '#1e1b4b',
+            backgroundColor: 'rgba(99, 102, 241, 0.08)',
             border: '1px solid rgba(99, 102, 241, 0.2)',
-            borderRadius: '6px',
-            padding: '8px',
+            borderRadius: '8px',
+            padding: '8px 10px',
             marginTop: '10px'
           }}>
-            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary, rgba(241,245,249,0.7))' }}>
-              💡 Click a recommendation card above to auto-fill the Navigator model. Use faster models (Haiku, Mini, Flash) for validation to save costs.
+            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary, rgba(241,245,249,0.7))', lineHeight: '1.4' }}>
+              💡 <strong>Tip:</strong> You can use fast models (Flash, Haiku, Mini) for Navigator/Validator to speed up automation and save API tokens.
             </p>
           </div>
         </div>
+
       </div>
 
-      {/* Fixed Footer */}
+      {/* ── Fixed Footer ──────────────────────────────────── */}
       <div style={footerStyle}>
-        {/* <button 
-          onClick={handleClose}
-          style={{ 
-            ...buttonStyle,
-            backgroundColor: 'rgba(255, 220, 220, 0.2)',
-            color: '#FFDCDCFF',
-            border: '1px solid rgba(255, 220, 220, 0.3)'
-          }}
-        >
-          <FaTimes />
-          Cancel
-        </button> */}
         <button
           data-save-button
           className="neon-btn"
           onClick={handleSave}
           style={{
-            ...buttonStyle,
+            flex: 1,
+            padding: '11px 16px',
             backgroundColor: 'var(--accent-primary, #6366f1)',
             color: 'white',
             borderRadius: '10px',
-            position: 'relative',
-            zIndex: 1
+            border: 'none',
+            fontSize: '14px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.4)',
+            transition: 'all 0.2s ease'
           }}
         >
           <FaSave />
