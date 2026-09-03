@@ -24,7 +24,7 @@ export const useChatHistory = () => {
 
   useEffect(() => {
     loadChatHistories();
-  }, []); // Only run once on mount
+  }, [loadChatHistories]);
 
   const saveChatHistory = useCallback(async (messages, tokens = 0, title = null) => {
     if (!messages || messages.length === 0) return null;
