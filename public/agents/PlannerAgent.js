@@ -589,36 +589,13 @@ ${progressAnalysis}
   formatCompleteElements(elements) {
     if (!elements || elements.length === 0) return "No interactive elements found on this page.";
 
-    return elements.map((el, index) => {
-      const textContent = (el.textContent || '').trim();
-      const limitedTextContent = textContent.length > 200 ? textContent.substring(0, 200) + '...' : textContent;
+    // Minimal format: only index, tagName (type), text (name), category, purpose
+    return elements.map((el) => {
+      const name = (el.text || el.ariaLabel || '').trim();
+      const limitedName = name.length > 100 ? name.substring(0, 100) + '...' : name;
 
-      // Limit selector length
-      const selector = (el.selector || 'none').trim();
-      const limitedSelector = selector.length > 80 ? selector.substring(0, 80) + '...' : selector;
-
-      // Limit XPath length
-      const xpath = (el.xpath || 'none').trim();
-      const limitedXPath = xpath.length > 120 ? xpath.substring(0, 120) + '...' : xpath;
-
-      // Process bounds to ensure they're concise
-      const bounds = el.bounds || {};
-      const simplifiedBounds = {
-        x: Math.round(bounds.x || 0),
-        y: Math.round(bounds.y || 0),
-        width: Math.round(bounds.width || 0),
-        height: Math.round(bounds.height || 0)
-      };
-
-      return `[Index: ${el.index}] TagName: ${el.tagName || 'UNKNOWN'} {
-  Category: ${el.category || 'unknown'}
-  Purpose: ${el.purpose || 'general'}
-  Selector: ${limitedSelector}
-  XPath: ${limitedXPath} 
-  TextContent: "${limitedTextContent}" 
-  Bounds: ${JSON.stringify(simplifiedBounds)}
-}`;
-    }).join('\n\n');
+      return `[Index: ${el.index}] Type: ${el.tagName || 'UNKNOWN'} | Name: "${limitedName}" | Category: ${el.category || 'unknown'} | Purpose: ${el.purpose || 'general'}`;
+    }).join('\n');
   }
 
   cleanJSONResponse(response) {
