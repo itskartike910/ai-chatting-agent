@@ -90,17 +90,20 @@ const PROVIDER_REGISTRY = {
     authType: 'bearer',
     authHeader: 'Authorization',
     modelMapping: {
-      navigator: 'llama-3.3-70b-versatile',
+      navigator: 'llama-3.1-8b-instant',
       planner: 'llama-3.3-70b-versatile',
       validator: 'llama-3.1-8b-instant',
       chat: 'llama-3.3-70b-versatile'
     },
     supportedModels: [
       'llama-3.3-70b-versatile',
-      'llama-3.1-70b-versatile',
       'llama-3.1-8b-instant',
-      'gemma2-9b-it',
-      'mixtral-8x7b-32768'
+      'llama-3.1-70b-versatile',
+      'llama-3.2-11b-vision-preview',
+      'llama-3.2-90b-vision-preview',
+      'deepseek-r1-distill-llama-70b',
+      'mixtral-8x7b-32768',
+      'gemma2-9b-it'
     ],
     modelsEndpoint: 'https://api.groq.com/openai/v1/models',
     healthCheckEndpoint: 'https://api.groq.com/openai/v1/models',
@@ -190,8 +193,10 @@ const MODEL_PROVIDER_MAP = {
   'claude-3-haiku-20240307': 'anthropic',
   'claude-3-opus-20240229': 'anthropic',
   // OpenAI
+  'o1': 'openai',
   'o1-preview': 'openai',
   'o1-mini': 'openai',
+  'o3-mini': 'openai',
   'gpt-4o': 'openai',
   'gpt-4o-mini': 'openai',
   'gpt-4-turbo': 'openai',
@@ -205,8 +210,11 @@ const MODEL_PROVIDER_MAP = {
   'gemini-1.5-flash': 'gemini',
   // Groq
   'llama-3.3-70b-versatile': 'groq',
-  'llama-3.1-70b-versatile': 'groq',
   'llama-3.1-8b-instant': 'groq',
+  'llama-3.1-70b-versatile': 'groq',
+  'llama-3.2-11b-vision-preview': 'groq',
+  'llama-3.2-90b-vision-preview': 'groq',
+  'deepseek-r1-distill-llama-70b': 'groq',
   'gemma2-9b-it': 'groq',
   'mixtral-8x7b-32768': 'groq',
   // OpenRouter (prefix-based)
@@ -257,15 +265,15 @@ export class MultiLLMService {
 
     const providerConfig = this.getProviderConfig(provider);
     if (providerConfig && providerConfig.modelMapping) {
-      return providerConfig.modelMapping[agentType] || providerConfig.modelMapping.navigator;
+      return providerConfig.modelMapping[agentType] || providerConfig.modelMapping.navigator || providerConfig.modelMapping.planner;
     }
 
     // Fallback defaults
     const defaultModels = {
       'anthropic': {
         'navigator': 'claude-3-5-sonnet-20241022',
-        'planner': 'claude-3-5-sonnet-20241022',
-        'validator': 'claude-3-haiku-20240307',
+        'planner': 'claude-3-7-sonnet-20250219',
+        'validator': 'claude-3-5-haiku-20241022',
         'chat': 'claude-3-5-sonnet-20241022'
       },
       'openai': {
@@ -281,15 +289,15 @@ export class MultiLLMService {
         'chat': 'gemini-2.5-flash'
       },
       'groq': {
-        'navigator': 'llama-3.3-70b-versatile',
+        'navigator': 'llama-3.1-8b-instant',
         'planner': 'llama-3.3-70b-versatile',
         'validator': 'llama-3.1-8b-instant',
         'chat': 'llama-3.3-70b-versatile'
       },
       'openrouter': {
-        'navigator': 'anthropic/claude-3.5-sonnet',
+        'navigator': 'openai/gpt-4o',
         'planner': 'anthropic/claude-3.5-sonnet',
-        'validator': 'google/gemini-flash-1.5',
+        'validator': 'openai/gpt-4o-mini',
         'chat': 'anthropic/claude-3.5-sonnet'
       }
     };
@@ -298,21 +306,51 @@ export class MultiLLMService {
   }
 
   isModelValidForProvider(model, provider) {
-    // For custom providers, any model is valid
+    if (!model || typeof model !== 'string') return false;
+
+    // For custom or local providers, any non-empty model is valid
     const providerConfig = this.getProviderConfig(provider);
-    if (providerConfig?.isCustom) {
+    if (providerConfig?.isCustom || providerConfig?.isLocal) {
       return true;
     }
 
-    // Check prefix-based mapping (for OpenRouter)
+    // Direct match in MODEL_PROVIDER_MAP
+    if (MODEL_PROVIDER_MAP[model] === provider) {
+      return true;
+    }
+
+    // Direct match in provider's supportedModels list
+    if (providerConfig?.supportedModels?.includes(model)) {
+      return true;
+    }
+
+    // Prefix mapping (e.g. openrouter namespaces: "anthropic/...", "openai/...", "meta-llama/...")
     for (const [prefix, mappedProvider] of Object.entries(MODEL_PROVIDER_MAP)) {
-      if (model.startsWith(prefix)) {
-        return mappedProvider === provider;
+      if (model.startsWith(prefix) && mappedProvider === provider) {
+        return true;
       }
     }
 
-    // Check exact mapping
-    return MODEL_PROVIDER_MAP[model] === provider;
+    // Provider heuristics: prevent cross-provider misconfigurations while allowing dynamic models
+    const m = model.toLowerCase();
+    if (provider === 'anthropic') {
+      return m.includes('claude');
+    }
+    if (provider === 'openai') {
+      return m.includes('gpt') || m.includes('o1') || m.includes('o3') || m.includes('davinci');
+    }
+    if (provider === 'gemini') {
+      return m.includes('gemini') || m.includes('gemma') || m.includes('learnlm');
+    }
+    if (provider === 'groq') {
+      // Allow any Groq-compatible models (llama, mixtral, gemma, deepseek, qwen, etc.)
+      return !m.includes('claude') && !m.startsWith('gpt-');
+    }
+    if (provider === 'openrouter') {
+      return true;
+    }
+
+    return true;
   }
 
   async call(messages, options = {}, agentType = 'planner') {
@@ -776,27 +814,30 @@ export class MultiLLMService {
     let processedMessages = [...messages];
 
     if (options.screenshot) {
-      const screenshotMessage = {
-        role: 'user',
-        content: [
-          {
-            type: 'image_url',
-            image_url: {
-              url: options.screenshot
+      const isVisionModel = model.toLowerCase().includes('vision') || model.toLowerCase().includes('llava') || model.toLowerCase().includes('vl');
+      if (isVisionModel) {
+        const screenshotMessage = {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: {
+                url: options.screenshot
+              }
+            },
+            {
+              type: 'text',
+              text: 'This is a screenshot of the current web page with highlighted interactive elements. Use this visual context along with the text prompt to provide accurate responses.'
             }
-          },
-          {
-            type: 'text',
-            text: 'This is a screenshot of the current web page with highlighted interactive elements. Use this visual context along with the text prompt to provide accurate responses.'
-          }
-        ]
-      };
+          ]
+        };
 
-      const lastUserIndex = processedMessages.findLastIndex(msg => msg.role === 'user');
-      if (lastUserIndex !== -1) {
-        processedMessages.splice(lastUserIndex, 0, screenshotMessage);
-      } else {
-        processedMessages.unshift(screenshotMessage);
+        const lastUserIndex = processedMessages.findLastIndex(msg => msg.role === 'user');
+        if (lastUserIndex !== -1) {
+          processedMessages.splice(lastUserIndex, 0, screenshotMessage);
+        } else {
+          processedMessages.unshift(screenshotMessage);
+        }
       }
     }
 

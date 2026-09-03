@@ -296,10 +296,10 @@ const SettingsModal = () => {
 
   const handleProviderChange = (newProvider) => {
     const meta = PROVIDER_METADATA[newProvider];
-    const availableModels = getAvailableModels(newProvider);
     setValidationState(null);
     setValidationMessage('');
     setFetchedModels([]);
+    const availableModels = getAvailableModels(newProvider, []);
 
     setLocalConfig(prev => ({
       ...prev,
@@ -316,7 +316,7 @@ const SettingsModal = () => {
 
   const handleSave = async () => {
     try {
-      console.log('💾 Saving configuration...');
+      console.log('💾 Saving configuration...', localConfig);
       const saveButton = document.querySelector('[data-save-button]');
       if (saveButton) {
         saveButton.innerHTML = '<span>⏳ Saving...</span>';
@@ -325,16 +325,23 @@ const SettingsModal = () => {
 
       await updateConfig(localConfig);
 
+      // Direct background update to immediately sync MultiLLMService
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        try {
+          chrome.runtime.sendMessage({ action: 'UPDATE_CONFIG', config: localConfig });
+        } catch (e) {
+          console.log('Direct background notification error:', e);
+        }
+      }
+
       if (saveButton) {
         saveButton.innerHTML = '<span>✓ Saved!</span>';
         saveButton.style.backgroundColor = '#10b981';
         setTimeout(() => {
           navigate('/chat');
-          window.location.reload();
-        }, 400);
+        }, 300);
       } else {
         navigate('/chat');
-        window.location.reload();
       }
     } catch (error) {
       console.error('Failed to save config:', error);
@@ -431,9 +438,9 @@ const SettingsModal = () => {
   };
 
   // Get available models based on provider - uses fetched models if available
-  const getAvailableModels = (provider) => {
-    if (fetchedModels && Array.isArray(fetchedModels) && fetchedModels.length > 0) {
-      return fetchedModels.map(model => {
+  const getAvailableModels = (provider, customFetched = fetchedModels) => {
+    if (customFetched && Array.isArray(customFetched) && customFetched.length > 0) {
+      return customFetched.map(model => {
         if (typeof model === 'string') {
           return { value: model, label: model, description: '' };
         }
@@ -461,8 +468,10 @@ const SettingsModal = () => {
         return [
           { value: 'gpt-4o', label: 'GPT-4o (Latest Flagship) ⭐', recommended: true },
           { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast & Cheap)' },
+          { value: 'o1', label: 'o1 (Flagship Reasoning)' },
           { value: 'o1-preview', label: 'o1-preview (Deep Reasoning)' },
           { value: 'o1-mini', label: 'o1-mini (Fast Reasoning)' },
+          { value: 'o3-mini', label: 'o3-mini (Next-Gen Reasoning)' },
           { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
           { value: 'gpt-4', label: 'GPT-4' },
           { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' }
@@ -478,10 +487,13 @@ const SettingsModal = () => {
       case 'groq':
         return [
           { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Latest) ⭐', recommended: true },
+          { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra-Fast & Reliable) ⚡', recommended: true },
           { value: 'llama-3.1-70b-versatile', label: 'Llama 3.1 70B Versatile' },
-          { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Ultra-Fast)' },
-          { value: 'gemma2-9b-it', label: 'Gemma 2 9B IT' },
-          { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' }
+          { value: 'llama-3.2-11b-vision-preview', label: 'Llama 3.2 11B Vision Preview' },
+          { value: 'llama-3.2-90b-vision-preview', label: 'Llama 3.2 90B Vision Preview' },
+          { value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill Llama 70B' },
+          { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
+          { value: 'gemma2-9b-it', label: 'Gemma 2 9B IT' }
         ];
       case 'openrouter':
         return [
@@ -1216,14 +1228,7 @@ const SettingsModal = () => {
             </label>
             <select
               value={localConfig.navigatorModel || getAvailableModels(localConfig.aiProvider || 'gemini')[0]?.value}
-              onChange={(e) => {
-                const val = e.target.value;
-                setLocalConfig(prev => ({
-                  ...prev,
-                  navigatorModel: val,
-                  plannerModel: (!prev.plannerModel || prev.plannerModel === getAvailableModels(prev.aiProvider)[0]?.value) ? val : prev.plannerModel
-                }));
-              }}
+              onChange={(e) => setLocalConfig(prev => ({ ...prev, navigatorModel: e.target.value }))}
               className="settings-select"
               style={selectStyle}
             >
