@@ -1893,6 +1893,7 @@ class BackgroundScriptAgent {
 
   // Check if current provider has valid API key
   async hasValidApiKey(config) {
+    if (!config) return false;
     switch (config.aiProvider) {
       case 'anthropic':
         return !!config.anthropicApiKey;
@@ -1900,9 +1901,26 @@ class BackgroundScriptAgent {
         return !!config.openaiApiKey;
       case 'gemini':
         return !!config.geminiApiKey;
+      case 'groq':
+        return !!config.groqApiKey;
+      case 'openrouter':
+        return !!config.openrouterApiKey;
+      case 'openai-compatible':
+        return !!(config.customOpenAIApiKey || config.customOpenAIBaseUrl);
+      case 'local':
+        return !!(config.localLLMApiKey || config.localLLMBaseUrl);
       default:
-        // By default, fallback to gemini key if provider is unknown or unset
-        return !!config.geminiApiKey;
+        // By default, check if any key/endpoint is configured
+        return !!(
+          config.geminiApiKey ||
+          config.anthropicApiKey ||
+          config.openaiApiKey ||
+          config.groqApiKey ||
+          config.openrouterApiKey ||
+          config.customOpenAIApiKey ||
+          config.localLLMApiKey ||
+          config.localLLMBaseUrl
+        );
     }
   }
 
@@ -2793,7 +2811,11 @@ Something went wrong while processing your request.
         hasAnthropicKey: !!config.anthropicApiKey,
         hasOpenAIKey: !!config.openaiApiKey,
         hasGeminiKey: !!config.geminiApiKey,
-        aiProvider: config.aiProvider || 'anthropic',
+        hasGroqKey: !!config.groqApiKey,
+        hasOpenRouterKey: !!config.openrouterApiKey,
+        hasCustomKey: !!config.customOpenAIApiKey,
+        hasLocalKey: !!config.localLLMApiKey,
+        aiProvider: config.aiProvider || 'gemini',
         hasValidKey: hasValidKey
       }
     };

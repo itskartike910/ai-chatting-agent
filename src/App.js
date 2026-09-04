@@ -43,7 +43,6 @@ function AppContent() {
   }
   return (
     <div className="App-content">
-      <SettingsModal />
       <Routes>
         <Route path="/startup" element={<StartupPage />} />
 
@@ -59,7 +58,7 @@ function AppContent() {
           path="/how-to-use"
           element={<HowToUsePage />}
         />
-        <Route path="/settings" element={<SettingsModal isOpen={true} />} />
+        <Route path="/settings" element={<SettingsModal />} />
 
         {/* Catch-all redirect */}
         <Route path="*" element={<Navigate to={isLoggedIn ? "/chat" : "/startup"} replace />} />

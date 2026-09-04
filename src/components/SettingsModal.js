@@ -311,7 +311,11 @@ const SettingsModal = () => {
   };
 
   const handleClose = () => {
-    navigate('/chat');
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/chat');
+    }
   };
 
   const handleSave = async () => {

@@ -1,5 +1,19 @@
 /* global chrome */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+
+const checkHasValidKeys = (config = {}) => {
+  return !!(
+    config.geminiApiKey ||
+    config.anthropicApiKey ||
+    config.openaiApiKey ||
+    config.groqApiKey ||
+    config.openrouterApiKey ||
+    config.customOpenAIApiKey ||
+    config.localLLMApiKey ||
+    (config.aiProvider === 'local' && (config.localLLMBaseUrl || config.localLLMApiKey)) ||
+    (config.aiProvider === 'openai-compatible' && (config.customOpenAIBaseUrl || config.customOpenAIApiKey))
+  );
+};
 
 export const useAuth = () => {
   const [authState, setAuthState] = useState({
@@ -8,17 +22,13 @@ export const useAuth = () => {
     error: null
   });
 
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
         // Checking agentConfig for API keys
         chrome.storage.sync.get(['agentConfig'], (result) => {
           const config = result.agentConfig || {};
-          const hasKeys = !!(config.anthropicApiKey || config.openaiApiKey || config.geminiApiKey);
+          const hasKeys = checkHasValidKeys(config);
 
           setAuthState({
             isLoggedIn: hasKeys,
@@ -27,11 +37,22 @@ export const useAuth = () => {
           });
         });
       } else {
-        // Fallback for non-extension environments
+        // Fallback for non-extension environments (e.g. dev server)
+        let hasKeys = false;
+        try {
+          const local = localStorage.getItem('agentConfig');
+          if (local) {
+            const config = JSON.parse(local);
+            hasKeys = checkHasValidKeys(config);
+          }
+        } catch (e) {
+          // ignore parsing error
+        }
+
         setAuthState({
-          isLoggedIn: false,
+          isLoggedIn: hasKeys,
           loading: false,
-          error: 'Chrome storage not available'
+          error: null
         });
       }
     } catch (error) {
@@ -42,12 +63,36 @@ export const useAuth = () => {
         error: error.message
       });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    checkAuthStatus();
+
+    // Listen to storage changes so auth status updates immediately when settings are saved
+    const handleStorageChange = (changes, areaName) => {
+      if (areaName === 'sync' && changes.agentConfig) {
+        const newConfig = changes.agentConfig.newValue || {};
+        const hasKeys = checkHasValidKeys(newConfig);
+        setAuthState({
+          isLoggedIn: hasKeys,
+          loading: false,
+          error: null
+        });
+      }
+    };
+
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      };
+    }
+  }, [checkAuthStatus]);
 
   // We keep a 'logout' equivalent to clear keys if requested
   const logout = async () => {
     try {
-      if (typeof chrome !== 'undefined' && chrome.storage) {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
         // Find existing config, wipe just the keys to preserve other preferences
         const result = await new Promise(resolve => chrome.storage.sync.get(['agentConfig'], resolve));
         const config = result.agentConfig || {};
@@ -56,10 +101,18 @@ export const useAuth = () => {
           ...config,
           anthropicApiKey: '',
           openaiApiKey: '',
-          geminiApiKey: ''
+          geminiApiKey: '',
+          groqApiKey: '',
+          openrouterApiKey: '',
+          customOpenAIApiKey: '',
+          localLLMApiKey: ''
         };
 
         await new Promise(resolve => chrome.storage.sync.set({ agentConfig: newConfig }, resolve));
+      } else {
+        try {
+          localStorage.removeItem('agentConfig');
+        } catch (e) {}
       }
 
       setAuthState({

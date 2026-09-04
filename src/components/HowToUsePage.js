@@ -7,7 +7,11 @@ const HowToUsePage = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate('/chat');
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/chat');
+    }
   };
 
   return (
